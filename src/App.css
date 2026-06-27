@@ -1,0 +1,917 @@
+/* ============================================================
+   金庸群侠传 - 全局样式
+   设计取向：现代清爽 + 武侠意象（墨色、留白、克制）
+   ============================================================ */
+
+:root {
+  --ink: #1a1a1a;
+  --ink-soft: #3d3d3d;
+  --paper: #f5f1e8;
+  --paper-dark: #e8e0cc;
+  --accent: #8b2c1f;
+  --accent-soft: #b8553f;
+  --gold: #b8965a;
+  --gold-soft: #d4b685;
+  --line: #c9bea8;
+  --shadow: 0 2px 12px rgba(60, 40, 20, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+}
+
+.app {
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+/* ---------- 标题界面 ---------- */
+
+.title-screen {
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+  padding-top: 12vh;
+}
+
+.game-title {
+  font-size: 64px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 12px;
+  margin: 0 0 8px;
+  text-indent: 12px;
+}
+
+.game-subtitle {
+  font-size: 16px;
+  color: var(--ink-soft);
+  letter-spacing: 4px;
+  margin: 0 0 48px;
+}
+
+.title-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.name-input {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  margin-top: 32px;
+}
+
+.name-input label {
+  font-size: 18px;
+  color: var(--ink-soft);
+  letter-spacing: 2px;
+}
+
+.name-input input {
+  width: 240px;
+  padding: 12px 16px;
+  font-size: 18px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  font-family: inherit;
+}
+
+.name-input input:focus {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
+  border-color: var(--accent-soft);
+}
+
+/* ---------- 按钮 ---------- */
+
+.menu-btn {
+  width: 200px;
+  padding: 12px 24px;
+  font-size: 16px;
+  letter-spacing: 4px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.menu-btn:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.menu-btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.menu-btn.primary:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+
+/* ---------- 主界面 ---------- */
+
+.main-screen {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.player-name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.day-info {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* ---------- 属性面板 ---------- */
+
+.stat-panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.stat-panel h2 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  margin: 0 0 16px;
+  letter-spacing: 3px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--paper-dark);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  margin-bottom: 20px;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.stat-grid b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.stat-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 70px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.bar-label {
+  color: var(--ink-soft);
+}
+
+.bar-track {
+  height: 10px;
+  background: var(--paper-dark);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s;
+}
+
+.bar-value {
+  text-align: right;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 武功列表 ---------- */
+
+.skill-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.skill-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--paper-dark);
+  font-size: 15px;
+}
+
+.skill-list li:last-child { border-bottom: none; }
+
+.skill-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.skill-type {
+  font-size: 12px;
+  color: #fff;
+  background: var(--gold);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.skill-power {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.hint {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* ---------- 行动按钮 ---------- */
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.action-buttons .menu-btn {
+  width: auto;
+  flex: 1;
+}
+
+/* ---------- 响应式 ---------- */
+
+@media (max-width: 600px) {
+  .game-title { font-size: 44px; letter-spacing: 8px; }
+  .game-subtitle { font-size: 14px; }
+  .menu-btn { width: 100%; }
+}
+
+
+/* ---------- 战斗界面 ---------- */
+
+.battle-screen {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.battle-header {
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-soft);
+  letter-spacing: 3px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* 敌人 / 玩家信息块 */
+.battle-enemy, .battle-player {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow);
+}
+
+.battle-enemy {
+  border-left: 4px solid var(--accent);
+}
+
+.battle-player {
+  border-left: 4px solid var(--gold);
+}
+
+.combatant-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.combat-bar-track {
+  height: 14px;
+  background: var(--paper-dark);
+  border-radius: 7px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.combat-bar-fill {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.4s ease;
+}
+
+.combatant-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 战斗日志 */
+.battle-log {
+  background: #faf6ec;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  min-height: 140px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.log-entry {
+  margin-bottom: 4px;
+}
+
+.log-player { color: var(--ink); }
+.log-enemy { color: var(--accent); }
+.log-crit { color: var(--accent); font-weight: 600; }
+.log-dodge { color: var(--gold); }
+.log-system { color: var(--ink-soft); font-style: italic; }
+
+/* 招式选择 */
+.battle-actions {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.action-hint {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 12px;
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+.action-hint.waiting {
+  text-align: center;
+  padding: 8px;
+  color: var(--gold);
+}
+
+.skill-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skill-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.skill-btn:hover:not(.disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.skill-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--line);
+}
+
+.skill-btn-name {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.skill-btn-info {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.end-btn {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* ---------- 拜师界面 ---------- */
+
+.sect-screen {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 15px;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  letter-spacing: 1px;
+}
+
+.back-btn:hover { color: var(--accent); }
+
+.sect-intro {
+  font-size: 14px;
+  color: var(--ink-soft);
+  text-align: center;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.sect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sect-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: var(--shadow);
+}
+
+.sect-card:hover {
+  border-left-color: var(--gold);
+  transform: translateX(2px);
+}
+
+.sect-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.sect-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 1px;
+}
+
+.sect-master {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.sect-desc {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.sect-card-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--paper-dark);
+}
+
+.partial-learned { color: var(--gold); }
+.fully-learned { color: var(--accent); font-weight: 600; }
+
+/* 师父面板 */
+.master-panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--gold);
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow);
+}
+
+.master-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+/* 门派武功列表 */
+.sect-skill-list li {
+  grid-template-columns: 1fr;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.sect-skill-info {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.sect-skill-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sect-skill-list .learned .skill-name {
+  color: var(--ink-soft);
+}
+
+.skill-req {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.tag {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 10px;
+}
+
+.tag-learned {
+  background: var(--paper-dark);
+  color: var(--ink-soft);
+}
+
+.menu-btn.small {
+  width: auto;
+  padding: 6px 16px;
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+
+.menu-btn.small.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--paper-dark);
+  color: var(--ink-soft);
+  border-color: var(--line);
+}
+
+/* 武功数量标记 */
+.panel-count {
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* 行动按钮适配三列 */
+.action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.action-buttons .menu-btn {
+  width: auto;
+  font-size: 14px;
+  letter-spacing: 2px;
+  padding: 10px 8px;
+}
+
+@media (max-width: 600px) {
+  .action-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- 战斗动画 ---------- */
+
+/* 招式名飞屏：大字从中间弹出再淡出 */
+.skill-flash {
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 52px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 0 12px var(--accent), 0 0 24px var(--accent), 2px 2px 4px rgba(0,0,0,0.5);
+  letter-spacing: 8px;
+  z-index: 100;
+  pointer-events: none;
+  animation: skillFlashIn 0.7s ease-out forwards;
+  white-space: nowrap;
+}
+
+/* 玩家出招：从左侧飞入 */
+.skill-flash.player {
+  color: #fff;
+  text-shadow: 0 0 12px #c0392b, 0 0 24px #c0392b, 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+/* 敌人出招：从右侧飞入，字色偏冷 */
+.skill-flash.enemy {
+  color: #fff;
+  text-shadow: 0 0 12px #2980b9, 0 0 24px #2980b9, 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+/* 暴击时更夸张：放大、金光 */
+.skill-flash.crit {
+  color: #ffd700;
+  text-shadow: 0 0 16px #ffd700, 0 0 32px #ff8c00, 0 0 48px #ff4500, 2px 2px 6px rgba(0,0,0,0.6);
+  font-size: 64px;
+  animation: critFlashIn 0.7s ease-out forwards;
+}
+
+@keyframes skillFlashIn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+  60% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+@keyframes critFlashIn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(-8deg); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.4) rotate(4deg); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) rotate(-2deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3) rotate(0deg); }
+}
+
+/* 受击抖动：被打的人左右快速晃 */
+.shake {
+  animation: shake 0.45s cubic-bezier(.36,.07,.19,.97);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-8px) rotate(-1deg); }
+  20% { transform: translateX(8px) rotate(1deg); }
+  30% { transform: translateX(-6px) rotate(-1deg); }
+  40% { transform: translateX(6px) rotate(1deg); }
+  50% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+  70% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+
+/* 暴击震屏：整个战斗界面抖一下 */
+.screen-shake {
+  animation: screenShake 0.5s ease-out;
+}
+
+@keyframes screenShake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-4px, 3px); }
+  20% { transform: translate(5px, -2px); }
+  30% { transform: translate(-3px, 4px); }
+  40% { transform: translate(4px, -3px); }
+  50% { transform: translate(-5px, 2px); }
+  60% { transform: translate(3px, -4px); }
+  70% { transform: translate(-2px, 3px); }
+  80% { transform: translate(2px, -2px); }
+  90% { transform: translate(-1px, 1px); }
+}
+
+/* 飘字层：绝对定位在战斗单位上方 */
+.float-layer {
+  position: relative;
+  min-height: 0;
+  height: 0;
+}
+
+/* 飘字：伤害数字从下往上飘 */
+.float-text {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  font-size: 28px;
+  font-weight: 800;
+  pointer-events: none;
+  animation: floatUp 1.1s ease-out forwards;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+  white-space: nowrap;
+}
+
+.float-damage { color: #fff; }
+.float-crit {
+  color: #ffd700;
+  font-size: 36px;
+  text-shadow: 0 0 8px #ff8c00, 1px 1px 3px rgba(0,0,0,0.4);
+}
+.float-dodge { color: #27ae60; font-size: 22px; }
+.float-heal { color: #2ecc71; }
+
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateX(-50%) translateY(0) scale(0.6); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1.2); }
+  30% { opacity: 1; transform: translateX(-50%) translateY(-20px) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-60px) scale(0.9); }
+}
+
+/* 血条变化时加一个柔和的脉冲 */
+.combat-bar-fill {
+  transition: width 0.4s cubic-bezier(.4,0,.2,1), background 0.2s;
+}
+
+/* 多个飘字错开一点 */
+.float-text:nth-child(2) { animation-delay: 0.1s; }
+.float-text:nth-child(3) { animation-delay: 0.2s; }
+
+/* ---------- 四类武功配色 ---------- */
+/* 外功：红(攻击) / 内功：金(增益) / 轻功：青(身法) / 奇门：紫(毒控) */
+
+.cat-chip {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-right: 6px;
+  color: #fff;
+}
+
+.cat-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.cat-外功 { background: #c0392b; }
+.cat-内功 { background: #d4a017; color: #3d2c00; }
+.cat-轻功 { background: #16a085; }
+.cat-奇门 { background: #8e44ad; }
+
+/* 武功列表里的分类小标签 */
+.skill-cat-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: #fff;
+  margin-right: 8px;
+  min-width: 32px;
+  text-align: center;
+}
+
+/* 武功按钮按分类着色左边框 */
+.skill-btn.cat-外功 { border-left: 4px solid #c0392b; }
+.skill-btn.cat-内功 { border-left: 4px solid #d4a017; }
+.skill-btn.cat-轻功 { border-left: 4px solid #16a085; }
+.skill-btn.cat-奇门 { border-left: 4px solid #8e44ad; }
+
+.skill-btn-cat {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  color: #fff;
+  background: var(--ink-soft);
+  margin-right: 8px;
+}
+.skill-btn.cat-外功 .skill-btn-cat { background: #c0392b; }
+.skill-btn.cat-内功 .skill-btn-cat { background: #d4a017; color: #3d2c00; }
+.skill-btn.cat-轻功 .skill-btn-cat { background: #16a085; }
+.skill-btn.cat-奇门 .skill-btn-cat { background: #8e44ad; }
+
+.skill-btn {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ---------- 状态徽章 ---------- */
+.status-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+  min-height: 4px;
+}
+
+.status-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.status-poison { background: #6c5ce7; }
+.status-buff-atk { background: #e17055; }
+.status-buff-def { background: #0984e3; }
+.status-buff-spd { background: #00b894; }
+.status-heal { background: #2ecc71; }
+.status-stun { background: #636e72; }
+.status-shield { background: #6c5ce7; }
+
+/* 武功列表项适配新布局 */
+.skill-list li {
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+}
+
+/* 拜师界面武功描述 */
+.sect-skill-desc {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 4px 0 0;
+  grid-column: 1 / -1;
+}
+
+/* 新飘字颜色 */
+.float-poison { color: #6c5ce7; }
+.float-status { color: #d4a017; }
+
+/* 战斗日志新增类型颜色 */
+.log-poison { color: #6c5ce7; }
+.log-status { color: #d4a017; }
+
+/* ---------- 角色属性页 ---------- */
+.char-screen { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 16px; }
+.char-basic { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.char-avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; flex-shrink: 0; }
+.char-name-row { display: flex; align-items: baseline; gap: 8px; }
+.char-name { font-size: 22px; font-weight: 700; }
+.char-rename { background: none; border: none; color: var(--ink-soft); font-size: 12px; cursor: pointer; font-family: inherit; padding: 0; }
+.char-rename:hover { color: var(--accent); }
+.char-tags { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; margin-top: 4px; }
+.char-tag { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--paper-dark); color: var(--ink-soft); }
+.char-attr-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 16px; }
+.char-attr-item { display: flex; align-items: baseline; gap: 10px; }
+.attr-label { font-size: 14px; color: var(--ink-soft); min-width: 36px; }
+.attr-value { font-size: 20px; font-weight: 700; color: var(--ink); }
+.attr-note { font-size: 12px; color: var(--ink-soft); }
+.char-stat-bars { display: flex; flex-direction: column; gap: 10px; }
+.char-bar-row { display: grid; grid-template-columns: 36px 1fr 70px; align-items: center; gap: 10px; font-size: 13px; }
+.char-bar-label { color: var(--ink-soft); }
+.char-bar-track { height: 10px; background: var(--paper-dark); border-radius: 5px; overflow: hidden; }
+.char-bar-fill { height: 100%; border-radius: 5px; transition: width 0.3s; }
+.char-bar-value { text-align: right; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.char-skill-group { margin-bottom: 12px; }
+.char-cat-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.char-cat-count { font-size: 12px; color: var(--ink-soft); }
+.char-skill-item { padding: 6px 0; border-bottom: 1px solid var(--paper-dark); }
+.char-skill-item:last-child { border-bottom: none; }
+.char-skill-name { font-weight: 600; margin-right: 8px; }
+.char-skill-desc { font-size: 12px; color: var(--ink-soft); display: block; margin-top: 2px; }
