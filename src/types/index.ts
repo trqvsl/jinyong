@@ -95,6 +95,7 @@ export interface Player extends Stats {
   roots: RootAttributes   // 八大根基属性（战斗属性由此推导）
   attributePoints: number // 待分配的属性点
   mastery: Record<string, number>  // 招式熟练度 { skillId: 0~100 }
+  relations: Record<string, number>  // NPC 关系值 { npcId: -100~100 }，0为中立
   alignment: Alignment
   reputation: number
   day: number

@@ -2691,3 +2691,27 @@ body {
   border-radius: 8px;
   padding: 0 6px;
 }
+
+/* ===== NPC 关系徽章 ===== */
+.relation-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  margin-top: 2px;
+}
+.relation-badge.rel-friend {
+  background: rgba(46,204,113,0.18);
+  color: #a9dcb8;
+  border: 1px solid rgba(46,204,113,0.4);
+}
+.relation-badge.rel-neutral {
+  background: rgba(150,140,110,0.15);
+  color: #998a6a;
+  border: 1px solid rgba(150,140,110,0.3);
+}
+.relation-badge.rel-enemy {
+  background: rgba(231,76,60,0.18);
+  color: #f0a59a;
+  border: 1px solid rgba(231,76,60,0.4);
+}

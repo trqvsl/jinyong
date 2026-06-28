@@ -33,6 +33,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         resolve: (player) => ({
           text: "你上前点拨那少年运气发力的门道。他虽憨厚，却如获至宝，连连道谢。那七位怪师见你出手不凡，亦拱手相谢。少年名叫郭靖——这名字，你似乎在哪儿听过。",
           player: { ...player, reputation: player.reputation + 3, aptitude: Math.min(99, player.aptitude + 1) },
+          relationChanges: [{ npcId: "guojing", delta: 8 }],
           consumeDay: true,
         }),
       },
@@ -53,6 +54,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         resolve: (player) => ({
           text: "你与郭靖对饮马奶酒，他说起大漠的辽阔与江南的故乡，眼中满是向往。临别时他紧紧握住你的手：\"后会有期！\" 这份豪爽之交，让你心中暖意涌动。",
           player: grantItem({ ...player, reputation: player.reputation + 4, hp: Math.min(player.hpMax, player.hp + 20) }, "field-ration", 2),
+          relationChanges: [{ npcId: "guojing", delta: 20 }],
           consumeDay: true,
         }),
       },
@@ -78,6 +80,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         resolve: (player) => ({
           text: "你上前攀谈。那小乞丐眼珠一转，三言两语便试探出你的深浅，随即咯咯笑了起来：\"你这人倒有趣。\" 那憨厚青年正是郭靖，见你友善，忙请你同坐。这一席话，让你对江湖又多了几分见识。",
           player: { ...player, reputation: player.reputation + 3, aptitude: Math.min(99, player.aptitude + 2) },
+          relationChanges: [{ npcId: "huangrong", delta: 10 }, { npcId: "guojing", delta: 8 }],
           consumeDay: true,
         }),
       },
@@ -88,6 +91,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         resolve: (player) => ({
           text: "你悄悄替他们结了账。小乞丐察觉后挑眉看你，似在重新估量你。临别时她凑近低声道：\"你这人心眼不错，往后若有难处，可去桃花岛寻我。\" 桃花岛？你心头一动。",
           player: { ...player, gold: Math.max(0, player.gold - 50), reputation: player.reputation + 5 },
+          relationChanges: [{ npcId: "huangrong", delta: 18 }, { npcId: "guojing", delta: 6 }],
           consumeDay: true,
         }),
       },

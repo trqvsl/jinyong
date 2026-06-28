@@ -19,6 +19,7 @@ export interface EventChoiceResult {
   startBattle?: boolean
   consumeDay?: boolean
   enemyId?: string
+  relationChanges?: { npcId: string; delta: number }[]  // 影响的 NPC 关系
 }
 
 export interface EventChoice {

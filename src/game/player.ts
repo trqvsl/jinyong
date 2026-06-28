@@ -37,6 +37,7 @@ export function createPlayer(name: string): Player {
     roots,
     attributePoints: 5, // 初始 5 点属性点供分配
     mastery: {},
+    relations: {},
     gold: 100,
     aptitude: roots.comprehension, // 向后兼容：aptitude 指向悟性
     alignment: "中",
@@ -89,6 +90,7 @@ function migratePlayer(p: any): Player {
   }
   if (p.attributePoints === undefined) p.attributePoints = 0
   if (!p.mastery) p.mastery = {}
+  if (!p.relations) p.relations = {}
   // 迁移武功：确保每个武功都有 category
   if (Array.isArray(p.skills)) {
     p.skills = p.skills.map(migrateSkill)

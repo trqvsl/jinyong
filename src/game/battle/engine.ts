@@ -519,7 +519,8 @@ export function enemyDecideAction(state: BattleState, enemy: Combatant): ActionC
   const targeting = skill.targeting ?? "single"
   // 单体招式：敌人需自己挑目标（挑我方血最少的，便于收割）
   if (targeting === "single") {
-    const candidates = (enemy.side === "player" ? state.playerSide : state.enemySide).filter((c) => c.hp > 0)
+    // 敌人打对立阵营：enemy 打 playerSide，player(队友AI) 打 enemySide
+    const candidates = (enemy.side === "player" ? state.enemySide : state.playerSide).filter((c) => c.hp > 0)
     if (candidates.length === 0) return null
     const pick = [...candidates].sort((a, b) => a.hp - b.hp)[0]
     return { actorUid: enemy.uid, skill, targetUids: [pick.uid] }

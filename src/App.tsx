@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { Player, Enemy } from "./types"
 import { savePlayer } from "./game/player"
 import { getLocationById } from "./data/map"
+import { applyRelationChanges } from "./game/relations"
 import { TitleScreen } from "./screens/TitleScreen"
 import { MainScreen } from "./screens/MainScreen"
 import { BattleScreen } from "./screens/BattleScreen"
@@ -10,12 +11,13 @@ import { CharacterScreen } from "./screens/CharacterScreen"
 import { ShopScreen } from "./screens/ShopScreen"
 import { EventScreen } from "./screens/EventScreen"
 import { MapScreen } from "./screens/MapScreen"
+import { NpcScreen } from "./screens/NpcScreen"
 import { DebugScreen } from "./screens/DebugScreen"
 import { getAdventureEnemy, getStoryEventByLocation } from "./data/events"
 import { getEnemyById } from "./data/enemies"
 import "./App.css"
 
-type Screen = "title" | "main" | "battle" | "sect" | "character" | "shop" | "event" | "map" | "debug"
+type Screen = "title" | "main" | "battle" | "sect" | "character" | "shop" | "event" | "map" | "debug" | "npc"
 
 function App() {
   const [player, setPlayer] = useState<Player | null>(null)
@@ -41,8 +43,9 @@ function App() {
     setScreen("event")
   }
 
-  function handleEventResolve(result: { player: Player; startBattle?: boolean; consumeDay?: boolean; enemyId?: string }) {
-    const nextPlayer = result.consumeDay ? { ...result.player, day: result.player.day + 1 } : result.player
+  function handleEventResolve(result: { player: Player; startBattle?: boolean; consumeDay?: boolean; enemyId?: string; relationChanges?: { npcId: string; delta: number }[] }) {
+    let nextPlayer = result.consumeDay ? { ...result.player, day: result.player.day + 1 } : result.player
+    nextPlayer = applyRelationChanges(nextPlayer, result.relationChanges)
     savePlayer(nextPlayer)
     setPlayer(nextPlayer)
 
@@ -58,17 +61,21 @@ function App() {
   }
 
   function handleBattleEnd(result: { player: Player; outcome: "won" | "lost" }) {
-    if (result.outcome === "lost") {
-      const recovered: Player = { ...result.player, hp: Math.max(1, Math.round(result.player.hpMax * 0.3)) }
-      savePlayer(recovered); setPlayer(recovered)
-    } else {
-      const advanced: Player = { ...result.player, day: result.player.day + 1 }
-      savePlayer(advanced); setPlayer(advanced)
-    }
+    // result.player 已由 BattleScreen 用 applyVictoryGrowth 算好（含经验/银两/升级）
+    const finalPlayer: Player = result.outcome === "won"
+      ? { ...result.player, day: result.player.day + 1 }
+      : result.player
+    savePlayer(finalPlayer); setPlayer(finalPlayer)
     setScreen("main"); setEnemies([])
   }
 
   // 调试屏：指定敌人直接进入战斗（用于验证战斗手感）
+  // NPC 切磋：把 NPC 转 Enemy 进战斗
+  function handleChallengeNpc(enemy: Enemy) {
+    if (!player) return
+    setEnemies([enemy])
+    setScreen("battle")
+  }
   function handleTestBattle(enemyIds: string[]) {
     if (!player) return
     setEnemies(enemyIds.map((id) => getEnemyById(id)))
@@ -86,12 +93,14 @@ function App() {
       {screen === "main" && player && (
         <MainScreen player={player} onUpdate={handleUpdate} onAdventure={handleAdventure}
           onSect={() => setScreen("sect")} onCharacter={() => setScreen("character")} onShop={() => setScreen("shop")}
+          onNpc={() => setScreen("npc")}
           onDebug={() => setScreen("debug")}
         />
       )}
       {screen === "event" && player && storyEvent && <EventScreen player={player} event={storyEvent} onResolve={handleEventResolve} />}
      {screen === "map" && player && <MapScreen player={player} onSelect={handleSelectLocation} onBack={() => setScreen("main")} />}
       {screen === "debug" && player && <DebugScreen player={player} onUpdate={handleUpdate} onBack={() => setScreen("main")} onTestBattle={handleTestBattle} />}
+      {screen === "npc" && player && <NpcScreen player={player} onUpdate={handleUpdate} onChallenge={handleChallengeNpc} onBack={() => setScreen("main")} />}
       {screen === "battle" && player && enemies.length > 0 && <BattleScreen player={player} enemies={enemies} onEnd={handleBattleEnd} />}
       {screen === "sect" && player && <SectScreen player={player} onLearn={handleLearn} onBack={() => setScreen("main")} />}
       {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={() => setScreen("main")} />}
