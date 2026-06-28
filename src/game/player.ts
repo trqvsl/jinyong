@@ -1,5 +1,6 @@
 import type { Player, Skill } from "../types"
 import { getSkillById } from "../data/skills"
+import { deriveStats } from "./attributes"
 
 // ============================================================
 // 玩家角色相关逻辑
@@ -8,20 +9,36 @@ import { getSkillById } from "../data/skills"
 const SAVE_KEY = "jinyong-save"
 
 export function createPlayer(name: string): Player {
+  // 八大根基属性：力量/外功/内功/悟性/身体/吐纳/身法/福缘
+  // 初始值偏低，留给玩家升级分配属性点成长；悟性随机（原 aptitude）
+  const roots = {
+    strength: 5,
+    external: 5,
+    internal: 3,
+    comprehension: Math.floor(Math.random() * 60) + 40, // 悟性随机 40~100（原 aptitude）
+    constitution: 5,
+    breath: 5,
+    agility: 5,
+    luck: Math.floor(Math.random() * 30) + 20, // 福缘随机 20~50
+  }
+  const derived = deriveStats(roots, 1)
   return {
     name,
     level: 1,
     exp: 0,
     expMax: 100,
-    hp: 100,
-    hpMax: 100,
-    mp: 50,
-    mpMax: 50,
-    attack: 15,
-    defense: 8,
-    speed: 12,
+    hp: derived.hpMax,
+    hpMax: derived.hpMax,
+    mp: derived.mpMax,
+    mpMax: derived.mpMax,
+    attack: derived.attack,
+    defense: derived.defense,
+    speed: derived.speed,
+    roots,
+    attributePoints: 5, // 初始 5 点属性点供分配
+    mastery: {},
     gold: 100,
-    aptitude: Math.floor(Math.random() * 60) + 40,
+    aptitude: roots.comprehension, // 向后兼容：aptitude 指向悟性
     alignment: "中",
     reputation: 0,
     day: 1,
@@ -55,6 +72,23 @@ function migratePlayer(p: any): Player {
   // 补 statuses
   if (!p.statuses) p.statuses = []
   if (!p.inventory) p.inventory = {}
+  // 迁移到根基属性体系：旧存档没有 roots，按旧战斗属性反推一个合理的根基值
+  if (!p.roots) {
+    p.roots = {
+      strength: 5,
+      external: 5,
+      internal: 3,
+      comprehension: p.aptitude ?? Math.floor(Math.random() * 60) + 40,
+      constitution: 5,
+      breath: 5,
+      agility: 5,
+      luck: Math.floor(Math.random() * 30) + 20,
+    }
+    p.attributePoints = 0
+    p.mastery = {}
+  }
+  if (p.attributePoints === undefined) p.attributePoints = 0
+  if (!p.mastery) p.mastery = {}
   // 迁移武功：确保每个武功都有 category
   if (Array.isArray(p.skills)) {
     p.skills = p.skills.map(migrateSkill)

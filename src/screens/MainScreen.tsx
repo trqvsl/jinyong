@@ -2,10 +2,11 @@ import type { Player } from "../types"
 import { savePlayer } from "../game/player"
 
 interface Props {
-  player: Player; onUpdate: (player: Player) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void; onShop: () => void
+  player: Player; onUpdate: (player: Player) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void; onShop: () => void; onDebug?: () => void
 }
 
-export function MainScreen({ player, onUpdate, onAdventure, onSect, onCharacter, onShop }: Props) {
+export function MainScreen({ player, onUpdate, onAdventure, onSect, onCharacter, onShop, onDebug }: Props) {
+  // onDebug 可选；调试入口，正式游玩可隐藏
   function train() {
     const gain = 1 + Math.floor(player.aptitude / 30)
     const updated: Player = { ...player, day: player.day + 1, attack: player.attack + gain,
@@ -52,6 +53,7 @@ export function MainScreen({ player, onUpdate, onAdventure, onSect, onCharacter,
           <button className="menu-btn" onClick={onShop}>江湖商铺</button>
           <button className="menu-btn" onClick={onSect}>游历门派</button>
           <button className="menu-btn" onClick={onCharacter}>个人属性</button>
+          {onDebug && <button className="menu-btn" onClick={onDebug}>调试炼丹房</button>}
         </div>
       </section>
     </div>

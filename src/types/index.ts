@@ -46,6 +46,27 @@ export interface Skill {
   mpCost: number
   description: string
   effect?: SkillEffect         // 内功/奇门/轻功附带的状态效果
+ innerScale?: number          // 内功催动系数 0~1：内功根基对该外功的加持比例（默认 0.3）
+  targeting?: SkillTargeting  // 目标模式：单体(single)/横扫(all-enemy)/双击(spread2)/乱打(random3)/我方全体(self-side)
+}
+
+// 招式目标模式（与引擎 types 对齐）
+export type SkillTargeting = "single" | "all-enemy" | "spread2" | "random3" | "self-side"
+
+// ============================================================
+// 根基属性体系（武侠 RPG 灵魂）
+// 战斗属性由八大根基属性经公式推导而来。玩家修炼根基，战斗力是根基长出的枝叶。
+// 推导公式见 src/game/attributes.ts。
+// ============================================================
+export interface RootAttributes {
+  strength: number     // 力量：外力根基，参与共构攻击力
+  external: number     // 外功：外家修为，与力量共构物理攻击力
+  internal: number     // 内功：内家真气，经"内功催动"叠加到攻击力
+  comprehension: number // 悟性：修炼速度（熟练度成长）+ 武学门槛
+  constitution: number // 身体：气血上限、防御
+  breath: number       // 吐纳：内力上限
+  agility: number      // 身法：速度、命中、暴击、闪避（四用）
+  luck: number         // 福缘：奇遇、剧情检定、闪避/命中修正、逃跑
 }
 
 // 战斗单位共有的战斗属性
@@ -71,6 +92,9 @@ export interface Player extends Stats {
   expMax: number
   gold: number
   aptitude: number
+  roots: RootAttributes   // 八大根基属性（战斗属性由此推导）
+  attributePoints: number // 待分配的属性点
+  mastery: Record<string, number>  // 招式熟练度 { skillId: 0~100 }
   alignment: Alignment
   reputation: number
   day: number

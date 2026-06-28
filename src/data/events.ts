@@ -1,5 +1,5 @@
 import type { Player } from "../types"
-import { getRandomEnemy } from "./enemies"
+import { getRandomEnemy, getEnemyById, getRandomEnemyFromPool } from "./enemies"
 import { getSkillById } from "./skills"
 
 function grantItem(player: Player, itemId: string, amount = 1): Player {
@@ -17,6 +17,7 @@ export interface EventChoiceResult {
   player: Player
   startBattle?: boolean
   consumeDay?: boolean
+  enemyId?: string
 }
 
 export interface EventChoice {
@@ -34,9 +35,63 @@ export interface StoryEvent {
   choices: EventChoice[]
   weight?: number
   condition?: (player: Player) => boolean
+  locationId?: string             // 归属地点（去该地点时优先/必定触发）
 }
 
 export const STORY_EVENTS: StoryEvent[] = [
+  // ===== 金庸原著剧情事件（射雕篇开头） =====
+  // 主角作为"外来者"在牛家村风雪之夜介入原著开场。
+  // 绑定到"牛家村"地点，由玩家主动前往触发。
+  {
+    id: "shendiao-niujia",
+    title: "牛家村·风雪惊变",
+    summary: "牛家村雪夜，一户农舍灯火通明，村外却已火把连绵。",
+    intro:
+      "你踏雪夜宿牛家村。一户农舍灯火通明，两名壮汉正与一位道人对饮，那道人目光如电、杀气内敛，绝非寻常之辈。你尚未来得及细看，村外火把连绵——一队官军已围住村子，冷喝\"奉命缉拿钦犯\"。风雪里，一场血战似已无可避免。",
+    weight: 6,
+    locationId: "niujia",
+    choices: [
+      {
+        id: "defend",
+        text: "挺身力战",
+        description: "护那道人，与官军周旋，不论出身，先救人再说。",
+        resolve: (player) => ({
+          text:
+            "你纵身跃入农舍院中，拔兵刃迎向官军。那道人见有人援手，眼中闪过一丝讶异，随即与两名壮汉并肩而上。一番厮杀，官军暂退，那道人抱拳道：\"阁下胆识过人，今日之情，贫道丘处机记下了。\"",
+          player: { ...player, reputation: player.reputation + 3 },
+          startBattle: true,
+          enemyId: "guanjun",
+          consumeDay: true,
+        }),
+      },
+      {
+        id: "escort-pregnant",
+        text: "护送妇孺",
+        description: "趁乱护送农舍中一位孕妇从后山出村，保全无辜。",
+        resolve: (player) => ({
+          text:
+            "你借着风雪掩护，带着农舍中惊惶的孕妇从后山小路悄然出村。她紧紧护着腹中孩儿，低声谢你。走出数里，回望牛家村火光冲天，你心中隐隐觉得，这孩子日后恐怕不凡。",
+          player: grantItem(
+            { ...player, reputation: player.reputation + 4, hp: Math.max(1, player.hp - 5) },
+            "field-ration",
+            1
+          ),
+          consumeDay: true,
+        }),
+      },
+      {
+        id: "watch",
+        text: "冷眼旁观",
+        description: "藏身暗处，把那道人的全真剑法看个仔细，伺机而动。",
+        resolve: (player) => ({
+          text:
+            "你伏于梁上，看那道人长剑如虹，官军竟一时近不得身。全真剑法的招式变化被你尽收眼底，似有所悟。待双方两败俱伤各自散去，你才悄然离开——只是这一夜袖手，心中难免留下几分愧疚。",
+          player: { ...player, aptitude: Math.min(99, player.aptitude + 2), reputation: player.reputation - 2 },
+          consumeDay: true,
+        }),
+      },
+    ],
+  },
   {
     id: "roadside-trouble",
     title: "路见纷争",
@@ -294,6 +349,25 @@ export function getRandomStoryEvent(player: Player): StoryEvent {
   return chosen
 }
 
-export function getAdventureEnemy(player: Player) {
+// 按 id 取事件（调试/强制触发用）
+export function getStoryEventById(id: string): StoryEvent | undefined {
+  return STORY_EVENTS.find((event) => event.id === id)
+}
+
+// 按地点取事件：优先返回该地点的专属剧情事件（满足 condition 才触发），
+// 否则回退到全局随机事件。这样"去牛家村"稳定触发风雪惊变，去其他地点仍可遇奇遇。
+export function getStoryEventByLocation(player: Player, locationEvents: string[]): StoryEvent {
+  for (const eventId of locationEvents) {
+    const event = getStoryEventById(eventId)
+    if (event && (!event.condition || event.condition(player))) {
+      return event
+    }
+  }
+  return getRandomStoryEvent(player)
+}
+
+export function getAdventureEnemy(player: Player, enemyId?: string, locationPool?: string[]) {
+  if (enemyId) return getEnemyById(enemyId)
+  if (locationPool && locationPool.length > 0) return getRandomEnemyFromPool(player, locationPool)
   return getRandomEnemy(player)
 }

@@ -2333,3 +2333,289 @@ body {
     flex-direction: column;
   }
 }
+
+/* ===== 地图系统 ===== */
+.map-screen {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.location-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.location-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border, rgba(200,170,110,0.25));
+  border-radius: 8px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.location-card:hover:not(.locked) {
+  background: rgba(200,170,110,0.12);
+  border-color: rgba(200,170,110,0.55);
+  transform: translateY(-1px);
+}
+.location-card.locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.location-card.locked:hover {
+  background: rgba(255,255,255,0.04);
+  transform: none;
+}
+.location-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e8d9b5;
+}
+.location-desc {
+  font-size: 13px;
+  color: #b8a98a;
+  line-height: 1.4;
+}
+.location-lock {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #b07a4a;
+  letter-spacing: 2px;
+}
+/* ===== 根基属性展示 ===== */
+.root-attr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+.root-attr-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(200,170,110,0.2);
+  border-radius: 7px;
+}
+.root-attr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.root-attr-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8d9b5;
+}
+.root-attr-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f4e4bc;
+  margin-left: auto;
+}
+.root-invest-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #b8932a;
+  background: rgba(184,147,42,0.18);
+  color: #f0d878;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s;
+}
+.root-invest-btn:hover {
+  background: rgba(184,147,42,0.4);
+}
+.root-attr-note {
+  font-size: 11px;
+  color: #998a6a;
+  line-height: 1.35;
+}
+.panel-count.highlight {
+  color: #f0d878;
+  font-weight: 700;
+  margin-left: 6px;
+}
+/* ===== 调试炼丹房 ===== */
+.debug-screen {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.debug-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.debug-label {
+  font-size: 14px;
+  color: #c8b890;
+  min-width: 110px;
+}
+.debug-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f4e4bc;
+  min-width: 36px;
+  text-align: center;
+}
+.debug-step {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #5a4a2a;
+  background: rgba(200,170,110,0.1);
+  color: #e8d9b5;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s;
+}
+.debug-step:hover { background: rgba(200,170,110,0.25); }
+.debug-step-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.debug-skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.debug-skill-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+}
+.debug-skill-item .char-skill-name {
+  flex: 1;
+  font-size: 14px;
+}
+.debug-remove {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid #8e44ad;
+  background: rgba(142,68,173,0.15);
+  color: #c39bd3;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.debug-skill-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.debug-skill-pool .menu-btn.small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+.debug-enemy-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* ===== 多单位战斗 ===== */
+.turn-order-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 8px;
+  margin: 6px 0;
+  align-items: center;
+}
+.turn-order-bar::before { content: "行动序"; font-size: 11px; color: #998a6a; margin-right: 4px; flex-shrink: 0; }
+.turn-order-chip {
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid rgba(200,170,110,0.3);
+  background: rgba(255,255,255,0.05);
+  color: #c8b890;
+}
+.turn-order-chip.player { border-color: rgba(46,204,113,0.4); color: #a9dcb8; }
+.turn-order-chip.enemy { border-color: rgba(231,76,60,0.4); color: #f0a59a; }
+.turn-order-chip.current { background: rgba(240,216,120,0.25); border-color: #f0d878; color: #f4e4bc; font-weight: 700; }
+
+.battle-stage-multi {
+  flex-direction: column;
+  gap: 8px;
+}
+.battle-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  min-height: 120px;
+}
+.combatant-card-mini {
+  width: 110px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(200,170,110,0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: border-color .15s, transform .1s;
+  position: relative;
+}
+.combatant-card-mini.player { border-color: rgba(46,204,113,0.3); }
+.combatant-card-mini.enemy { border-color: rgba(231,76,60,0.3); }
+.combatant-card-mini.active { border-color: #f0d878; box-shadow: 0 0 10px rgba(240,216,120,0.3); }
+.combatant-card-mini.selectable { cursor: pointer; border-color: #e74c3c; animation: targetPulse 1s infinite; }
+.combatant-card-mini.selectable:hover { transform: translateY(-2px); }
+.combatant-card-mini.down { opacity: 0.35; filter: grayscale(0.6); }
+.combatant-card-mini.shake { animation: shakeX .4s; }
+@keyframes targetPulse { 0%,100% { box-shadow: 0 0 6px rgba(231,76,60,0.4); } 50% { box-shadow: 0 0 14px rgba(231,76,60,0.7); } }
+.combatant-tag-mini { font-size: 10px; color: #998a6a; }
+.combatant-figure-wrap-mini { position: relative; }
+.combatant-figure-mini {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--figure-primary, #2f3444);
+  border: 2px solid var(--figure-secondary, #b8965a);
+  display: flex; align-items: center; justify-content: center;
+}
+.figure-emblem { font-size: 22px; color: #f4e4bc; font-weight: 700; }
+.combatant-panel-mini { width: 100%; display: flex; flex-direction: column; gap: 3px; }
+.combatant-panel-mini .combatant-name { font-size: 12px; text-align: center; color: #e8d9b5; }
+.combatant-stats-mini { display: flex; justify-content: space-around; font-size: 10px; color: #998a6a; }
+.status-badges-mini { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; }
+.status-badges-mini .status-badge { font-size: 9px; padding: 1px 4px; }
+/* 调试房敌人卡选中态 */
+.debug-enemy-grid .location-card.selected {
+  border-color: #e74c3c;
+  background: rgba(231,76,60,0.12);
+}
+.debug-enemy-grid .location-card .location-name { display: flex; justify-content: space-between; }

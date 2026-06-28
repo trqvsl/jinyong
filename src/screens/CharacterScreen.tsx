@@ -1,6 +1,7 @@
 import { getItemById } from "../data/items"
 import type { Player, SkillCategory } from "../types"
 import { savePlayer } from "../game/player"
+import { recomputePlayerStats } from "../game/attributes"
 
 interface Props {
   player: Player
@@ -12,6 +13,18 @@ const CAT_ORDER: SkillCategory[] = ["外功", "内功", "轻功", "奇门"]
 const CAT_COLOR: Record<SkillCategory, string> = {
   "外功": "#c0392b", "内功": "#d4a017", "轻功": "#16a085", "奇门": "#8e44ad"
 }
+
+// 八大根基属性：键名 → 显示名 + 武侠意涵
+const ROOT_ATTRS: { key: keyof Player["roots"]; label: string; note: string }[] = [
+  { key: "strength", label: "力量", note: "外力根基，参与共构攻击力" },
+  { key: "external", label: "外功", note: "外家修为，与力量共构物理攻击" },
+  { key: "internal", label: "内功", note: "内家真气，催动外功招式" },
+  { key: "comprehension", label: "悟性", note: "修炼速度、武学门槛" },
+  { key: "constitution", label: "身体", note: "气血上限、防御" },
+  { key: "breath", label: "吐纳", note: "内力上限" },
+  { key: "agility", label: "身法", note: "速度、命中、暴击、闪避" },
+  { key: "luck", label: "福缘", note: "奇遇、剧情检定、逃跑" },
+]
 
 export function CharacterScreen({ player, onUpdate, onBack }: Props) {
   const catGroups = CAT_ORDER.map(cat => ({
@@ -33,6 +46,19 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
       onUpdate(updated)
     }
   }
+  // 给某根基属性 +1，消耗 1 属性点，然后重新推导面板
+  function investRoot(key: keyof Player["roots"]) {
+    if ((player.attributePoints ?? 0) <= 0) return
+    const invested: Player = {
+      ...player,
+      roots: { ...player.roots, [key]: player.roots[key] + 1 },
+      attributePoints: (player.attributePoints ?? 0) - 1,
+    }
+    const recomputed = recomputePlayerStats(invested)
+    savePlayer(recomputed)
+    onUpdate(recomputed)
+  }
+
 
   function consumeItem(itemId: string) {
     const item = getItemById(itemId)
@@ -81,13 +107,21 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
       </section>
 
       <section className="stat-panel">
-        <h2>资质与属性</h2>
-        <div className="char-attr-grid">
-          <div className="char-attr-item">
-            <span className="attr-label">资质</span>
-            <span className="attr-value">{player.aptitude}</span>
-            <span className="attr-note">影响修炼速度</span>
-          </div>
+        <h2>根基属性 {(player.attributePoints ?? 0) > 0 && <span className="panel-count highlight">待分配 {player.attributePoints}</span>}</h2>
+        <p className="hint">修炼根基，战斗属性由根基推导而来。{(player.attributePoints ?? 0) > 0 ? "点击 + 投入属性点。" : "升级或修炼秘籍可获得属性点。"}</p>
+        <div className="root-attr-grid">
+          {ROOT_ATTRS.map(attr => (
+            <div key={attr.key} className="root-attr-item">
+              <div className="root-attr-head">
+                <span className="root-attr-label">{attr.label}</span>
+                <span className="root-attr-value">{player.roots[attr.key]}</span>
+                {(player.attributePoints ?? 0) > 0 && (
+                  <button className="root-invest-btn" onClick={() => investRoot(attr.key)}>+</button>
+                )}
+              </div>
+              <span className="root-attr-note">{attr.note}</span>
+            </div>
+          ))}
         </div>
         <div className="char-stat-bars">
           {[
