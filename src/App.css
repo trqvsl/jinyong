@@ -2619,3 +2619,75 @@ body {
   background: rgba(231,76,60,0.12);
 }
 .debug-enemy-grid .location-card .location-name { display: flex; justify-content: space-between; }
+/* ===== 游历地图（SVG可视化） ===== */
+.map-canvas-wrap {
+  background: linear-gradient(160deg, #1a2230 0%, #2a2218 100%);
+  border-radius: 12px;
+  padding: 8px;
+  margin: 8px 0;
+  border: 1px solid rgba(200,170,110,0.2);
+}
+.map-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.map-outline {
+  fill: rgba(120,100,60,0.15);
+  stroke: rgba(200,170,110,0.55);
+  stroke-width: 0.5;
+}
+.map-outline-glow {
+  fill: none;
+  stroke: rgba(200,170,110,0.15);
+  stroke-width: 1.4;
+}
+.map-marker {
+  cursor: pointer;
+  transition: opacity .12s;
+}
+.map-marker.locked {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.marker-dot {
+  fill: #e74c3c;
+  stroke: #fff;
+  stroke-width: 0.25;
+}
+.marker-ring {
+  fill: none;
+  stroke: rgba(231,76,60,0.45);
+  stroke-width: 0.3;
+}
+.map-marker:hover .marker-ring {
+  stroke: #f0d878;
+  stroke-width: 0.5;
+}
+.map-marker:hover .marker-dot {
+  fill: #f0d878;
+  r: 1.7;
+}
+.marker-label {
+  font-size: 2.4px;
+  fill: #f4e4bc;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: rgba(0,0,0,0.6);
+  stroke-width: 0.5;
+  pointer-events: none;
+}
+.map-marker.locked .marker-label { fill: #8a7a5a; }
+.marker-lock {
+  font-size: 2px;
+  pointer-events: none;
+}
+.location-region {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: #998a6a;
+  border: 1px solid rgba(200,170,110,0.25);
+  border-radius: 8px;
+  padding: 0 6px;
+}

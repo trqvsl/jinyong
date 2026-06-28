@@ -49,7 +49,7 @@ export function MainScreen({ player, onUpdate, onAdventure, onSect, onCharacter,
         <h2>行动</h2>
         <div className="action-buttons">
           <button className="menu-btn" onClick={train}>闭关修炼</button>
-          <button className="menu-btn primary" onClick={onAdventure}>外出闯荡</button>
+          <button className="menu-btn primary" onClick={onAdventure}>江湖游历</button>
           <button className="menu-btn" onClick={onShop}>江湖商铺</button>
           <button className="menu-btn" onClick={onSect}>游历门派</button>
           <button className="menu-btn" onClick={onCharacter}>个人属性</button>

@@ -8,50 +8,66 @@ interface Props {
   onBack: () => void
 }
 
+// 简化的中国地图轮廓（SVG path，viewBox 0~100）
+// 这是示意性轮廓，不求精确，只求一眼能认出"这是中国地图"
+const CHINA_OUTLINE = "M 18,30 Q 22,22 30,20 L 45,18 Q 55,17 62,20 L 72,22 Q 80,24 86,30 L 90,38 Q 92,46 90,54 L 88,60 Q 86,66 82,70 L 78,74 Q 72,78 66,80 L 58,82 Q 48,84 40,82 L 32,80 Q 26,76 22,70 L 18,62 Q 14,52 14,44 L 16,36 Z"
+
 export function MapScreen({ player, onSelect, onBack }: Props) {
-  // 按区域分组
-  const grouped = useMemo(() => {
-    const all = getAllLocationsWithStatus(player)
-    const map = new Map<string, typeof all>()
-    for (const loc of all) {
-      const arr = map.get(loc.region) ?? []
-      arr.push(loc)
-      map.set(loc.region, arr)
-    }
-    return Array.from(map.entries())
-  }, [player])
+  const locations = useMemo(() => getAllLocationsWithStatus(player), [player])
 
   return (
     <div className="map-screen">
       <header className="top-bar">
-        <span className="player-name">江湖行脚</span>
+        <button className="back-btn" onClick={onBack}>← 返回</button>
+        <span className="player-name">江湖游历</span>
         <span className="day-info">第 {player.day} 日</span>
       </header>
 
-      <section className="stat-panel">
-        <h2>江湖总图</h2>
-        <p className="hint">择一处前往，每处都有自己的故事与风波。部分险地需扬名江湖方可踏足。</p>
-      </section>
+      <div className="map-canvas-wrap">
+        <svg className="map-canvas" viewBox="0 0 100 90" preserveAspectRatio="xMidYMid meet">
+          {/* 地图轮廓 */}
+          <path d={CHINA_OUTLINE} className="map-outline" />
+          {/* 装饰：山川纹理 */}
+          <path d={CHINA_OUTLINE} className="map-outline-glow" />
 
-      {grouped.map(([region, locs]) => (
-        <section key={region} className="stat-panel">
-          <h2>{region}</h2>
-          <div className="location-list">
-            {locs.map((loc) => (
-              <button
+          {/* 地名标点 */}
+          {locations.map((loc) => {
+            const { x, y } = loc.coordinates
+            return (
+              <g
                 key={loc.id}
-                className={`location-card ${loc.unlocked ? "" : "locked"}`}
+                className={`map-marker ${loc.unlocked ? "" : "locked"}`}
+                transform={`translate(${x}, ${y})`}
                 onClick={() => loc.unlocked && onSelect(loc.id)}
-                disabled={!loc.unlocked}
               >
-                <span className="location-name">{loc.name}</span>
-                <span className="location-desc">{loc.description}</span>
-                {!loc.unlocked && <span className="location-lock">未解锁</span>}
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
+                <circle r="1.4" className="marker-dot" />
+                <circle r="2.8" className="marker-ring" />
+                <text x="0" y="-2.6" textAnchor="middle" className="marker-label">{loc.name}</text>
+                {!loc.unlocked && <text x="0" y="3.4" textAnchor="middle" className="marker-lock">🔒</text>}
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+
+      <section className="stat-panel">
+        <h2>地名一览</h2>
+        <p className="hint">点击地图标点或下方地名前往。带🔒者为险地，需扬名江湖方可踏足。</p>
+        <div className="location-list">
+          {locations.map((loc) => (
+            <button
+              key={loc.id}
+              className={`location-card ${loc.unlocked ? "" : "locked"}`}
+              onClick={() => loc.unlocked && onSelect(loc.id)}
+              disabled={!loc.unlocked}
+            >
+              <span className="location-name">{loc.name}{!loc.unlocked && " 🔒"}</span>
+              <span className="location-desc">{loc.description}</span>
+              <span className="location-region">{loc.region}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="stat-panel">
         <button className="menu-btn" onClick={onBack}>返回</button>
