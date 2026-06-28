@@ -26,6 +26,7 @@ export function createPlayer(name: string): Player {
     reputation: 0,
     day: 1,
     skills: [getSkillById("changquan")!],
+    inventory: {},
     statuses: [],
   }
 }
@@ -53,6 +54,7 @@ function migrateSkill(old: any): Skill {
 function migratePlayer(p: any): Player {
   // 补 statuses
   if (!p.statuses) p.statuses = []
+  if (!p.inventory) p.inventory = {}
   // 迁移武功：确保每个武功都有 category
   if (Array.isArray(p.skills)) {
     p.skills = p.skills.map(migrateSkill)

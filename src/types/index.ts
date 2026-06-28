@@ -75,6 +75,7 @@ export interface Player extends Stats {
   reputation: number
   day: number
   skills: Skill[]
+  inventory: Record<string, number>
 }
 
 // 敌人（NPC）

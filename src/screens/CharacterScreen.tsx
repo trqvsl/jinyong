@@ -1,3 +1,4 @@
+import { getItemById } from "../data/items"
 import type { Player, SkillCategory } from "../types"
 import { savePlayer } from "../game/player"
 
@@ -31,6 +32,27 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
       savePlayer(updated)
       onUpdate(updated)
     }
+  }
+
+  function consumeItem(itemId: string) {
+    const item = getItemById(itemId)
+    if (!item?.usable || !item.apply) {
+      alert("此物暂不可直接使用。")
+      return
+    }
+    const updated = item.apply({
+      ...player,
+      inventory: {
+        ...player.inventory,
+        [itemId]: Math.max(0, (player.inventory[itemId] ?? 0) - 1),
+      },
+    })
+    const cleaned = { ...updated.inventory }
+    if (cleaned[itemId] <= 0) delete cleaned[itemId]
+    const finalPlayer = { ...updated, inventory: cleaned }
+    savePlayer(finalPlayer)
+    onUpdate(finalPlayer)
+    alert(`使用了 ${item.name}：${item.effectText}`)
   }
 
   return (
@@ -104,6 +126,32 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
           </div>
         ))}
         {player.skills.length === 0 && <p className="hint">尚未习得任何武功。</p>}
+      </section>
+
+      <section className="stat-panel">
+        <h2>行囊 <span className="panel-count">{Object.values(player.inventory).reduce((sum, count) => sum + count, 0)}</span></h2>
+        {Object.keys(player.inventory).filter((id) => (player.inventory[id] ?? 0) > 0).length === 0 ? <p className="hint">行囊空空，还没有收集到任何道具。</p> : (
+          <div className="char-bag-list">
+            {Object.entries(player.inventory).filter(([, count]) => count > 0).map(([itemId, count]) => {
+              const item = getItemById(itemId)
+              return (
+                <div key={itemId} className="char-skill-item char-bag-row">
+                  <div className="char-bag-info">
+                    <span className="char-skill-name">{item?.name ?? itemId} × {count}</span>
+                    <span className="char-skill-desc">{item?.effectText ?? "未知物品"}</span>
+                  </div>
+                  <button
+                    className="menu-btn char-use-btn"
+                    disabled={!item?.usable || count <= 0}
+                    onClick={() => consumeItem(itemId)}
+                  >
+                    {item?.usable ? "使用" : "留存"}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </section>
     </div>
   )

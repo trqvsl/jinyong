@@ -95,7 +95,7 @@ function applyStatus(unit: Player | Enemy, effect: Skill["effect"]): { unit: Pla
 
 // ---- 回合开始时结算所有状态 ----
 // 返回结算后的新状态 + 这一回合状态产生的日志
-export function tickStatuses(unit: Player | Enemy): { unit: Player | Enemy; logs: BattleLogEntry[] } {
+export function tickStatuses<T extends Player | Enemy>(unit: T): { unit: T; logs: BattleLogEntry[] } {
   const u = clone(unit)
   const logs: BattleLogEntry[] = []
   const remaining: StatusEffect[] = []
@@ -124,7 +124,7 @@ export function tickStatuses(unit: Player | Enemy): { unit: Player | Enemy; logs
     }
   }
   u.statuses = remaining
-  return { unit: u, logs }
+  return { unit: u as T, logs }
 }
 
 // 检查单位是否被眩晕（跳过回合）
@@ -161,7 +161,7 @@ export function resolveExternalAttack(
 }
 
 // ---- 玩家使用武功（统一入口，按 category 分流） ----
-export function usePlayerSkill(
+export function performPlayerSkill(
   player: Player, enemy: Enemy, skill: Skill
 ): { player: Player; enemy: Enemy; logs: BattleLogEntry[]; result: ActionResult } {
   const logs: BattleLogEntry[] = []
@@ -243,7 +243,7 @@ export function usePlayerSkill(
 }
 
 // ---- 敌人使用武功（AI 入口） ----
-export function useEnemySkill(
+export function performEnemySkill(
   player: Player, enemy: Enemy, skill: Skill
 ): { player: Player; enemy: Enemy; logs: BattleLogEntry[]; result: ActionResult } {
   const logs: BattleLogEntry[] = []

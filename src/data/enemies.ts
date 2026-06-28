@@ -1,4 +1,4 @@
-import type { Enemy } from "../types"
+import type { Enemy, Player } from "../types"
 import { getSkillById } from "./skills"
 
 // ============================================================
@@ -71,7 +71,24 @@ export const ENEMIES: Enemy[] = [
 ]
 
 // 随机选一个敌人（外出闯荡时调用）
-export function getRandomEnemy(): Enemy {
-  const idx = Math.floor(Math.random() * ENEMIES.length)
-  return structuredClone(ENEMIES[idx])
+export function getRandomEnemy(player?: Player): Enemy {
+  if (!player) {
+    const idx = Math.floor(Math.random() * ENEMIES.length)
+    return structuredClone(ENEMIES[idx])
+  }
+
+  const progression = player.level + Math.floor(player.day / 3)
+  let pool: Enemy[]
+
+  if (progression <= 2) {
+    pool = ENEMIES.filter((enemy) => enemy.id === "xialiubang" || enemy.id === "shanzei")
+  } else if (progression <= 4) {
+    pool = ENEMIES.filter((enemy) => enemy.id !== "xiejiaoshi")
+  } else {
+    pool = ENEMIES
+  }
+
+  if (pool.length === 0) pool = ENEMIES
+  const idx = Math.floor(Math.random() * pool.length)
+  return structuredClone(pool[idx])
 }

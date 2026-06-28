@@ -2,10 +2,10 @@ import type { Player } from "../types"
 import { savePlayer } from "../game/player"
 
 interface Props {
-  player: Player; onUpdate: (player: Player) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void
+  player: Player; onUpdate: (player: Player) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void; onShop: () => void
 }
 
-export function MainScreen({ player, onUpdate, onAdventure, onSect, onCharacter }: Props) {
+export function MainScreen({ player, onUpdate, onAdventure, onSect, onCharacter, onShop }: Props) {
   function train() {
     const gain = 1 + Math.floor(player.aptitude / 30)
     const updated: Player = { ...player, day: player.day + 1, attack: player.attack + gain,
@@ -49,6 +49,7 @@ export function MainScreen({ player, onUpdate, onAdventure, onSect, onCharacter 
         <div className="action-buttons">
           <button className="menu-btn" onClick={train}>闭关修炼</button>
           <button className="menu-btn primary" onClick={onAdventure}>外出闯荡</button>
+          <button className="menu-btn" onClick={onShop}>江湖商铺</button>
           <button className="menu-btn" onClick={onSect}>游历门派</button>
           <button className="menu-btn" onClick={onCharacter}>个人属性</button>
         </div>
