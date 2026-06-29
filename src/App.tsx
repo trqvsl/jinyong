@@ -13,7 +13,7 @@ import { EventScreen } from "./screens/EventScreen"
 import { MapScreen } from "./screens/MapScreen"
 import { NpcScreen } from "./screens/NpcScreen"
 import { DebugScreen } from "./screens/DebugScreen"
-import { getAdventureEnemy, getStoryEventByLocation } from "./data/events"
+import { getAdventureEnemy, getStoryEventByLocation, type EventChoiceResult, type AfterBattleEpilogue } from "./data/events"
 import { getEnemyById } from "./data/enemies"
 import "./App.css"
 
@@ -26,6 +26,8 @@ function App() {
   const [storyEvent, setStoryEvent] = useState<ReturnType<typeof getStoryEventByLocation> | null>(null)
   // 当前所选地点（用于抽取该地点专属事件与敌人池）
   const [locationId, setLocationId] = useState<string | null>(null)
+  // 剧情战斗的战后收尾配置：战斗由剧情触发时记下，结束后回事件屏播放收尾
+  const [pendingAfterBattle, setPendingAfterBattle] = useState<AfterBattleEpilogue | null>(null)
 
   function handleSelectPlayer(p: Player) { savePlayer(p); setPlayer(p); setScreen("main") }
   function handleUpdate(p: Player) { savePlayer(p); setPlayer(p) }
@@ -43,7 +45,7 @@ function App() {
     setScreen("event")
   }
 
-  function handleEventResolve(result: { player: Player; startBattle?: boolean; consumeDay?: boolean; enemyId?: string; relationChanges?: { npcId: string; delta: number }[] }) {
+  function handleEventResolve(result: EventChoiceResult) {
     let nextPlayer = result.consumeDay ? { ...result.player, day: result.player.day + 1 } : result.player
     nextPlayer = applyRelationChanges(nextPlayer, result.relationChanges)
     savePlayer(nextPlayer)
@@ -52,6 +54,8 @@ function App() {
     const loc = locationId ? getLocationById(locationId) : undefined
     const locPool = loc?.enemyPool ?? []
     if (result.startBattle) {
+      // 记下战后收尾，待战斗结束回放（无 afterBattle 的战斗仍直接回主菜单）
+      setPendingAfterBattle(result.afterBattle ?? null)
       setEnemies([getAdventureEnemy(nextPlayer, result.enemyId, locPool)])
       setScreen("battle")
     } else {
@@ -60,13 +64,44 @@ function App() {
     }
   }
 
-  function handleBattleEnd(result: { player: Player; outcome: "won" | "lost" }) {
-    // result.player 已由 BattleScreen 用 applyVictoryGrowth 算好（含经验/银两/升级）
-    const finalPlayer: Player = result.outcome === "won"
+  function handleBattleEnd(result: { player: Player; outcome: "won" | "lost" | "fled" }) {
+    const epilogue = pendingAfterBattle
+    setPendingAfterBattle(null)
+    setEnemies([])
+    // 剧情战斗的天数已在 handleEventResolve（consumeDay）里结算过，此处不再加；
+    // 调试/NPC 切磋等非剧情战斗，胜利时才算 1 天（修复原先剧情战斗天数被重复 +1 的问题）。
+    const finalPlayer: Player = result.outcome === "won" && !epilogue
       ? { ...result.player, day: result.player.day + 1 }
       : result.player
     savePlayer(finalPlayer); setPlayer(finalPlayer)
-    setScreen("main"); setEnemies([])
+
+    // 若是剧情触发的战斗，回到事件屏播放战后收尾；否则（调试/NPC 切磋）直接回主菜单
+    if (epilogue) {
+      let text: string
+      let p = finalPlayer
+      if (result.outcome === "won") {
+        text = epilogue.victoryText
+        if (epilogue.victoryRewards) p = epilogue.victoryRewards(finalPlayer)
+      } else if (result.outcome === "fled") {
+        text = epilogue.fledText ?? "你脱身而去，此事暂且作罢。"
+      } else {
+        text = epilogue.defeatText ?? "你力战不敌，黯然退去，须勤加修炼再图后举。"
+      }
+      if (p !== finalPlayer) { savePlayer(p); setPlayer(p) }
+      // 用一个一次性"收尾事件"承载战后剧情，玩家点继续后回主菜单
+      setStoryEvent({
+        id: "after-battle-epilogue",
+        title: result.outcome === "won" ? "得胜收尾" : result.outcome === "fled" ? "全身而退" : "力战不敌",
+        summary: "",
+        intro: text,
+        choices: [
+          { id: "done", text: "继续闯荡", description: "收拾心情，踏上新的旅程。", resolve: (pl) => ({ text: "你收拾心情，继续踏上江湖之路。", player: pl }) },
+        ],
+      })
+      setScreen("event")
+    } else {
+      setScreen("main")
+    }
   }
 
   // 调试屏：指定敌人直接进入战斗（用于验证战斗手感）

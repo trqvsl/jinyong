@@ -13,6 +13,15 @@ function grantItem(player: Player, itemId: string, amount = 1): Player {
   }
 }
 
+// 战斗结束后的剧情收尾：当战斗由剧情选项触发时，结束后回到事件屏播放对应收尾，
+// 而非直接弹回主菜单。无 afterBattle 的战斗（如调试战斗、NPC 切磋）仍直接结束。
+export interface AfterBattleEpilogue {
+  victoryText: string                                 // 胜利后的剧情收尾
+  defeatText?: string                                 // 战败收尾（缺省用通用辞）
+  fledText?: string                                   // 逃跑收尾（缺省用通用辞）
+  victoryRewards?: (player: Player) => Player         // 胜利额外结算（道具/声望/银两等）
+}
+
 export interface EventChoiceResult {
   text: string
   player: Player
@@ -20,6 +29,7 @@ export interface EventChoiceResult {
   consumeDay?: boolean
   enemyId?: string
   relationChanges?: { npcId: string; delta: number }[]  // 影响的 NPC 关系
+  afterBattle?: AfterBattleEpilogue                     // 战斗后的剧情收尾
 }
 
 export interface EventChoice {
@@ -64,6 +74,15 @@ export const STORY_EVENTS: StoryEvent[] = [
           startBattle: true,
           enemyId: "guanjun",
           consumeDay: true,
+          afterBattle: {
+            victoryText:
+              "官军被你与丘处机联手杀退。丘处机长剑入鞘，向抱拳深揖：\"阁下仗义出手，武艺胆识皆是不凡，丘某佩服。\"他见你根骨奇佳，传你两式全真剑法的御敌要诀，又赠碎银作盘缠：\"日后江湖重逢，再共谋一醉。\"经此一役，你在牛家村一带声名鹊起。",
+            victoryRewards: (p) => grantItem({ ...p, reputation: p.reputation + 5, gold: p.gold + 30, aptitude: Math.min(99, p.aptitude + 1) }, "small-hp-pill", 2),
+            defeatText:
+              "你力战不敌，身负重伤倒地。恍惚间似有人将你救出村外，再睁眼已在破庙之中，丘处机留下一瓶金创药便已匆匆离去——此役虽败，却让你深知己身修为尚浅，更添奋进之心。",
+            fledText:
+              "你见官军人多势众，虚晃几招趁乱脱身。身后厮杀声渐远，你保全了性命，却终究未能帮上那道人。",
+          },
         }),
       },
       {
@@ -110,6 +129,13 @@ export const STORY_EVENTS: StoryEvent[] = [
           player,
           startBattle: true,
           consumeDay: true,
+          afterBattle: {
+            victoryText:
+              "几个回合下来，地痞们被打得抱头鼠窜、四散而逃。行脚商人千恩万谢，硬塞给你一袋碎银作谢礼。你路见不平拔刀相助，义举传出，江湖声名小增。",
+            victoryRewards: (p) => grantItem({ ...p, gold: p.gold + 25, reputation: p.reputation + 3 }, "small-hp-pill", 1),
+            defeatText: "你寡不敌众，被地痞们围殴受伤。商人趁乱逃脱，你只能捂着伤口黯然离去。",
+            fledText: "你见对方人多，虚晃一招抽身而退，商人那头的纷争已无力顾及。",
+          },
         }),
       },
       {
@@ -478,7 +504,7 @@ export const STORY_EVENTS: StoryEvent[] = [
         id: "fight",
         text: "迎战毒物",
         description: "拔兵刃与星宿派妖人对峙。",
-        resolve: (player) => ({ text: "你怒喝一声，迎向那阴毒的星宿派人！", player, startBattle: true, enemyId: "duyaozi", consumeDay: true }),
+        resolve: (player) => ({ text: "你怒喝一声，迎向那阴毒的星宿派人！", player, startBattle: true, enemyId: "duyaozi", consumeDay: true, afterBattle: { victoryText: "你以深厚内力逼退毒雾，数招之间将那星宿派妖人打翻在地。他丢下一包解毒丹连滚带爬地逃了。你搜得些银两丹药，更在毒沼中磨练了抗毒之能。", victoryRewards: (p) => grantItem({ ...p, gold: p.gold + 35, reputation: p.reputation + 3 }, "small-hp-pill", 2), defeatText: "星宿派毒功阴狠，你不慎中了毒雾，身负重伤。那妖人狞笑几声也未追击，你勉强爬出毒沼，侥幸保住性命。", fledText: "你忌惮毒沼瘴气，不愿硬拼，屏息退出了星宿海。" } }),
       },
       {
         id: "retreat",
@@ -549,7 +575,7 @@ export const STORY_EVENTS: StoryEvent[] = [
         id: "break-array",
         text: "强破蛇阵",
         description: "运起内力，硬闯白驼山庄。",
-        resolve: (player) => ({ text: "你大喝一声冲入蛇阵，蛇群受惊四散，一名白驼山弟子拦住去路！", player, startBattle: true, enemyId: "ouyangfeng", consumeDay: true }),
+        resolve: (player) => ({ text: "你大喝一声冲入蛇阵，蛇群受惊四散，一名白驼山弟子拦住去路！", player, startBattle: true, enemyId: "ouyangfeng", consumeDay: true, afterBattle: { victoryText: "你冲破蛇阵，与那白驼山弟子激战数合将其击退。蛇群失了驱策四散而去，你在庄前寻得些银两与疗伤丹药。能在白驼山全身而退，已是难得的本事。", victoryRewards: (p) => grantItem({ ...p, gold: p.gold + 45, reputation: p.reputation + 4 }, "small-mp-pill", 2), defeatText: "白驼山武功诡异，你力战不敌，被蛇阵困住。千钧一发之际你拼死突围，虽保住性命，却已伤痕累累。", fledText: "你见蛇阵难破、强敌在后，当机立断绕道退走，未与白驼山弟子正面交锋。" } }),
       },
       {
         id: "detour",

@@ -138,7 +138,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         id: "ambush",
         text: "伏击巡夜",
         description: "遇到王府高手，索性一战。",
-        resolve: (player) => ({ text: "你撞上王府的护院高手，对方冷喝一声拔刀相向！", player, startBattle: true, enemyId: "emingke", consumeDay: true }),
+        resolve: (player) => ({ text: "你撞上王府的护院高手，对方冷喝一声拔刀相向！", player, startBattle: true, enemyId: "emingke", consumeDay: true, afterBattle: { victoryText: "你几招之间制服王府护院，搜身竟得了一本残破的武学手札与若干碎银。虽未及深入藏经之所，这番收获也已不菲，江湖经验更增几分。", victoryRewards: (p) => grantItem({ ...p, gold: p.gold + 40, reputation: p.reputation + 2 }, "small-mp-pill", 1), defeatText: "护院高手武艺不弱，你力战不敌，趁夜色狼狈逃出王府。此行空手而归，还险些折在里面。", fledText: "你见护院身手不凡，不愿纠缠，虚晃几招遁入夜色，全身而退。" } }),
       },
       {
         id: "retreat",

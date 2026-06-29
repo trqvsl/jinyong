@@ -48,6 +48,7 @@ export interface BattleSkill {
   mpCost: number
   effect?: SkillEffect
   targeting?: SkillTargeting   // 目标模式（默认 single 单体）
+  innerScale?: number          // 内功催动系数（由适配层从 Skill.innerScale 透传；0 表示该招不吃内功催动）
 }
 
 // 招式的目标模式：决定一次出招打几个目标、打谁
@@ -76,6 +77,11 @@ export interface Combatant {
   statuses: StatusEffect[]
   skills: BattleSkill[]
   atb: number            // 行动值（CTB 累积用），达到阈值获得行动权
+  // —— 以下可选：由适配层按根基属性推导后填入，让暴击/闪避/内功催动参与结算。
+  //    手写 Combatant（如 verify 脚本）可不填，engine 用兜底默认值，保持向后兼容。
+  critRate?: number      // 暴击率 0~1（身法根基推导）
+  dodgeRate?: number     // 闪避率 0~1（身法/福缘根基推导）
+  innerPower?: number    // 内功催动基础值（内功根基），按 skill.innerScale 临时叠加到攻击
 }
 
 // 一场战斗的状态：我方队伍 + 敌方队伍 + 行动轴
@@ -113,4 +119,5 @@ export interface ActionResult {
   mpUsed: number
   skillName: string
   statusApplied?: string
+  targetUid?: string      // 该结果对应的受击单位 uid（供界面精确挂飘字）
 }

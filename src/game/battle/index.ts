@@ -28,13 +28,5 @@ export {
   applyVictoryGrowth,
 } from "./adapter"
 
-// 兼容包装（对外保留旧导出名，签名兼容 Player/Enemy）
-export {
-  performPlayerSkillCompat as performPlayerSkill,
-  performEnemySkillCompat as performEnemySkill,
-  enemyChooseSkillCompat as enemyChooseSkill,
-  settleVictoryCompat as settleVictory,
-} from "./adapter"
-
 // 类型
 export type { Combatant, BattleSkill, BattleLogEntry, ActionResult, StatusEffect, StatusKind } from "./types"

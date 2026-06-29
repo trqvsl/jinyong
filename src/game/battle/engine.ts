@@ -144,20 +144,28 @@ export function resolveExternalAttack(
   const atk = effectiveStats(attacker)
   const def = effectiveStats(defender)
 
-  // 闪避判定（基于身法差）
+  // 内功催动：按当前招式的 innerScale，把攻击者的内功根基临时叠加到攻击力
+  // （innerPower 由适配层从 roots.internal 填入；敌人/未填则为 0）
+  const innerBoost = skill.innerScale && attacker.innerPower
+    ? Math.round(attacker.innerPower * skill.innerScale)
+    : 0
+  const atkValue = atk.attack + innerBoost
+
+  // 闪避：根基闪避率（身法/福缘推导，适配层填入）+ 小幅速度差修正
   const speedDiff = def.speed - atk.speed
-  const dodgeChance = Math.max(0, Math.min(0.4, (speedDiff / 10) * 0.12))
+  const dodgeChance = Math.max(0, Math.min(0.5, (defender.dodgeRate ?? 0.05) + (speedDiff / 10) * 0.04))
   if (Math.random() < dodgeChance) {
     return { damage: 0, isCrit: false, isDodge: true, mpUsed: skill.mpCost, skillName: skill.name }
   }
 
   // 基础伤害
-  const raw = skill.power + atk.attack - def.defense
+  const raw = skill.power + atkValue - def.defense
   const fluct = randInt(-15, 15) / 100
   let damage = Math.max(1, Math.round(raw * (1 + fluct)))
 
-  // 暴击
-  const isCrit = Math.random() < 0.1
+  // 暴击：根基暴击率（身法推导，适配层填入）
+  const critChance = Math.min(0.6, attacker.critRate ?? 0.1)
+  const isCrit = Math.random() < critChance
   if (isCrit) damage = Math.round(damage * 1.5)
 
   return { damage, isCrit, isDodge: false, mpUsed: skill.mpCost, skillName: skill.name }
@@ -403,7 +411,12 @@ export function resolveTargets(
     case "spread2":
       return aliveEnemies.slice(0, 2)
     case "random3": {
-      const shuffled = [...aliveEnemies].sort(() => Math.random() - 0.5)
+      // Fisher-Yates 洗牌（sort + Math.random 有统计偏差），取前 3 个
+      const shuffled = [...aliveEnemies]
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      }
       return shuffled.slice(0, 3)
     }
     case "self-side":
@@ -422,6 +435,13 @@ export function performAction(
   const results: ActionResult[] = []
   const actor = findCombatant(state, command.actorUid)
   if (!actor || actor.hp <= 0) return { state, logs, results }
+
+  // 眩晕：被点穴等控制时无法出招（界面流程层也会跳过，这里再兜底防御，避免被眩晕者仍扣内力/出招）
+  if (isStunned(actor)) {
+    const you = actor.side === "player" ? "你" : actor.name
+    logs.push({ text: `${you}被点穴封住经脉，动弹不得！`, type: "system" })
+    return { state, logs, results }
+  }
 
   const targeting = command.skill.targeting ?? "single"
   // 自身/我方增益（内功、轻功）：目标是自己或全队
@@ -449,7 +469,7 @@ export function performAction(
     for (const t of targets) {
       const skill = command.skill
       const apply = applyStatusToUnit(t, skill.effect)
-      if (apply.applied) results.push({ damage: 0, isCrit: false, isDodge: false, mpUsed: skill.mpCost, skillName: skill.name, statusApplied: apply.name })
+      if (apply.applied) results.push({ damage: 0, isCrit: false, isDodge: false, mpUsed: skill.mpCost, skillName: skill.name, statusApplied: apply.name, targetUid: t.uid })
       nextState = replaceUnit(nextState, apply.unit)
       logs.push({ text: `${targetLabel(t, isPlayer)}运起${skill.name}，${apply.name}！`, type: "status" })
     }
@@ -460,7 +480,7 @@ export function performAction(
   for (const target of targets) {
     const skill = command.skill
     const r = resolveExternalAttack(spentActor, target, skill)
-    results.push(r)
+    results.push({ ...r, targetUid: target.uid })
     if (r.isDodge) {
       logs.push({ text: `${targetLabel(target, !isPlayer)}身法灵动，闪开了${you}的${skill.name}！`, type: "dodge" })
       continue

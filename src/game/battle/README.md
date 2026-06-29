@@ -13,7 +13,7 @@
 battle/
 ├── types.ts      引擎内部类型（Combatant/BattleSkill/状态/结果）——自包含，不 import 全局 types
 ├── engine.ts     纯函数核心（伤害公式/状态结算/出招分流/AI/胜负判定）——无任何外部依赖
-├── adapter.ts    适配层：Player↔Combatant 转换、内功催动、成长结算、兼容包装
+├── adapter.ts    适配层：Player↔Combatant 转换（含根基属性推导：暴击/闪避/内功催动）、建场、成长结算
 └── index.ts      门面：对外统一入口，外部只从这里 import
 ```
 
@@ -29,16 +29,23 @@ battle/
 
 ## 怎么用
 
-### 界面层（推荐）
+### 界面层（推荐，多对多流程）
+界面层（如 `BattleScreen`）走多对多流程：用 adapter 建场/同步/结算成长，再用 engine 纯函数推进战斗。
 ```ts
-import { performPlayerSkill, performEnemySkill, enemyChooseSkill, settleVictory, checkBattleEnd, tickStatuses, isStunned } from "../game/battle"
-// 这些是"兼容包装"，签名接受 Player/Enemy，内部自动转 Combatant，无需感知引擎内部。
+import { createBattleState, syncPlayersFromState, applyVictoryGrowth } from "../game/battle/adapter"
+import {
+  performAction, advanceAtb, nextActor, checkBattleEndBySide,
+  tickUnitStatuses, enemyDecideAction, isStunned,
+} from "../game/battle/engine"
+// createBattleState(players, enemies) 建场（Player↔Combatant 自动转换，根基属性一并推导）；
+// performAction(state, command) 结算一次行动；advanceAtb/nextActor 驱动 CTB 行动轴；
+// checkBattleEndBySide 判胜负；isStunned 判断是否被点穴而跳过。
 ```
 
 ### 纯引擎（高级，如复用到别的项目）
 ```ts
-import { performPlayerSkill, tickStatuses } from "../game/battle/engine"
-import type { Combatant, BattleSkill } from "../game/battle/types"
+import { performAction, tickStatuses } from "../game/battle/engine"
+import type { Combatant, BattleSkill, BattleState } from "../game/battle/types"
 // 直接用 Combatant 调用，自己管状态。
 ```
 

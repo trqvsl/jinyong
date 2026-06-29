@@ -127,13 +127,27 @@ export function deleteSave(): void {
 
 // ---- 导出/导入存档码 ----
 
+// UTF-8 安全的 Base64 编解码（替代已废弃的 escape/unescape，后者对 emoji 等字符不稳定）
+function utf8ToBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str)
+  let bin = ""
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin)
+}
+function base64ToUtf8(b64: string): string {
+  const bin = atob(b64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
 export function exportSaveCode(player: Player): string {
-  return btoa(unescape(encodeURIComponent(JSON.stringify(player))))
+  return utf8ToBase64(JSON.stringify(player))
 }
 
 export function importSaveCode(code: string): Player | null {
   try {
-    const json = decodeURIComponent(escape(atob(code.trim())))
+    const json = base64ToUtf8(code.trim())
     return migratePlayer(JSON.parse(json))
   } catch {
     return null

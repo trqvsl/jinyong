@@ -8,9 +8,8 @@
 // ============================================================
 
 import type { Player, Enemy, Skill } from "../../types"
-import type { Combatant, BattleSkill, BattleState, BattleLogEntry, ActionResult } from "./types"
-import { recomputePlayerStats, effectiveAttack } from "../attributes"
-import { performPlayerSkill as enginePerformPlayer, performEnemySkill as enginePerformEnemy, enemyChooseSkill as engineEnemyChoose } from "./engine"
+import type { Combatant, BattleSkill, BattleState } from "./types"
+import { recomputePlayerStats, effectiveAttack, critRateOf, dodgeRateOf, luckDodgeBonus } from "../attributes"
 
 // 把全局 Skill 转成引擎需要的 BattleSkill（字段是兼容子集）
 export function toBattleSkill(skill: Skill): BattleSkill {
@@ -23,6 +22,7 @@ export function toBattleSkill(skill: Skill): BattleSkill {
     mpCost: skill.mpCost,
     effect: skill.effect,
     targeting: (skill as any).targeting,
+    innerScale: skill.innerScale,
   }
 }
 
@@ -38,9 +38,12 @@ export function playerToCombatant(player: Player): Combatant {
     hpMax: player.hpMax,
     mp: player.mp,
     mpMax: player.mpMax,
-    attack: effectiveAttack(player), // 无招式上下文 → 纯外功物理攻击
+    attack: effectiveAttack(player), // 纯外功物理攻击；内功催动按招式临时叠加（见 engine.resolveExternalAttack）
     defense: player.defense,
     speed: player.speed,
+    critRate: critRateOf(player.roots),                              // 暴击率（身法根基推导）
+    dodgeRate: dodgeRateOf(player.roots) + luckDodgeBonus(player.roots), // 闪避率（身法+福缘）
+    innerPower: player.roots.internal,                               // 内功催动基础，engine 按 skill.innerScale 叠加
     statuses: player.statuses.map((s) => ({ ...s })),
     skills: player.skills.map(toBattleSkill),
   }
@@ -60,6 +63,8 @@ export function enemyToCombatant(enemy: Enemy): Combatant {
     attack: enemy.attack,
     defense: enemy.defense,
     speed: enemy.speed,
+    critRate: 0.05,  // 敌人不走根基体系，给固定暴击/闪避
+    dodgeRate: 0.05,
     statuses: enemy.statuses.map((s) => ({ ...s })),
     skills: enemy.skills.map(toBattleSkill),
   }
@@ -107,47 +112,6 @@ export function combatantBackToPlayer(player: Player, combatant: Combatant): Pla
     mp: combatant.mp,
     statuses: combatant.statuses,
   }
-}
-
-// ---- 兼容包装：让旧式调用（Player/Enemy）平滑工作 ----
-export function performPlayerSkillCompat(
-  player: Player, enemy: Enemy, skill: Skill
-): { player: Player; enemy: Enemy; logs: BattleLogEntry[]; result: ActionResult } {
-  const pc = playerToCombatant(player)
-  const ec = enemyToCombatant(enemy)
-  const bs = toBattleSkill(skill)
-  pc.attack = computeAttackForSkill(player, skill)
-  const { player: npc, enemy: nec, logs, result } = enginePerformPlayer(pc, ec, bs)
-  return {
-    player: { ...player, hp: npc.hp, mp: npc.mp, statuses: npc.statuses },
-    enemy: { ...enemy, hp: nec.hp, mp: nec.mp, statuses: nec.statuses },
-    logs, result,
-  }
-}
-
-export function performEnemySkillCompat(
-  player: Player, enemy: Enemy, skill: Skill
-): { player: Player; enemy: Enemy; logs: BattleLogEntry[]; result: ActionResult } {
-  const pc = playerToCombatant(player)
-  const ec = enemyToCombatant(enemy)
-  const bs = toBattleSkill(skill)
-  const { player: npc, enemy: nec, logs, result } = enginePerformEnemy(pc, ec, bs)
-  return {
-    player: { ...player, hp: npc.hp, mp: npc.mp, statuses: npc.statuses },
-    enemy: { ...enemy, hp: nec.hp, mp: nec.mp, statuses: nec.statuses },
-    logs, result,
-  }
-}
-
-export function enemyChooseSkillCompat(enemy: Enemy): Skill {
-  const ec = enemyToCombatant(enemy)
-  const chosen = engineEnemyChoose(ec)
-  return enemy.skills.find((s) => s.id === chosen.id) ?? enemy.skills[0]
-}
-
-// settleVictory 兼容包装：接受 (player, enemy)
-export function settleVictoryCompat(player: Player, enemy: Enemy) {
-  return applyVictoryGrowth(player, enemy.expReward, enemy.goldReward)
 }
 
 // 战斗胜利后的成长结算（升级）——与存档耦合，从引擎移到这里。
