@@ -1,29 +1,47 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import type { Player } from "../types"
-import type { StoryEvent, EventChoiceResult } from "../data/events"
+import type { StoryEvent, Transition } from "../data/events"
+import { enterNode, visibleChoices, resolveChoice } from "../game/story/engine"
+
+// ============================================================
+// 剧情事件界面：纯展示，所有结算/流转交给引擎 + App 路由
+// - choosing：显示当前节点正文 + 可见选项（condition 过滤）
+// - result：显示选项/战后结果文字，点"继续"把 transition 交回 App
+// - initialResult：进入时直接显示结果（用于战后衔接），跳过节点选项
+// ============================================================
 
 interface Props {
   player: Player
   event: StoryEvent
-  onResolve: (result: EventChoiceResult) => void
+  nodeId: string
+  initialResult?: { text: string; transition: Transition }
+  onResolve: (r: { player: Player; transition: Transition; consumedDay: boolean }) => void
 }
 
-export function EventScreen({ player, event, onResolve }: Props) {
-  const [result, setResult] = useState<EventChoiceResult | null>(null)
-  const [chosenId, setChosenId] = useState<string | null>(null)
+export function EventScreen({ player, event, nodeId, initialResult, onResolve }: Props) {
+  // 进入节点：onEnter 幂等结算。initialResult 模式不进入节点（只显示结果）
+  const entered = initialResult ? null : enterNode(player, player.world, event, nodeId)
+  const [phase, setPhase] = useState<"choosing" | "result">(initialResult ? "result" : "choosing")
+  const [resultText, setResultText] = useState<string>(initialResult?.text ?? "")
+  const [pending, setPending] = useState<{ player: Player; transition: Transition; consumedDay: boolean } | null>(
+    initialResult ? { player, transition: initialResult.transition, consumedDay: false } : null
+  )
 
-  const titleTag = useMemo(() => {
-    if (event.id.includes("manual")) return "奇遇"
-    if (event.id.includes("trouble")) return "江湖"
-    return "见闻"
-  }, [event.id])
+  const node = entered?.node
+  const choices = entered ? visibleChoices(entered.player, entered.world, entered.node) : []
 
   function handleChoose(choiceId: string) {
-    const choice = event.choices.find((entry) => entry.id === choiceId)
+    if (!entered) return
+    const choice = choices.find((c) => c.id === choiceId)
     if (!choice) return
-    const resolved = choice.resolve(player)
-    setChosenId(choiceId)
-    setResult(resolved)
+    const r = resolveChoice(entered.player, entered.world, event, nodeId, choiceId)
+    setResultText(r.resultText ?? "")
+    setPending({ player: r.player, transition: r.transition, consumedDay: choice.consumeDay ?? false })
+    setPhase("result")
+  }
+
+  function handleContinue() {
+    if (pending) onResolve({ player: pending.player, transition: pending.transition, consumedDay: pending.consumedDay })
   }
 
   return (
@@ -34,35 +52,30 @@ export function EventScreen({ player, event, onResolve }: Props) {
       </header>
 
       <section className="event-hero stat-panel">
-        <div className="event-tag">{titleTag}</div>
-        <h1 className="event-title">{event.title}</h1>
-        <p className="event-summary">{event.summary}</p>
-        <div className="event-intro">{event.intro}</div>
+        <div className="event-tag">见闻</div>
+        <h1 className="event-title">{node?.title ?? "事后"}</h1>
+        {phase === "choosing" && node ? <div className="event-intro">{node.text}</div> : null}
       </section>
 
-      {!result && (
+      {phase === "choosing" && node && (
         <section className="stat-panel">
           <h2>你的选择</h2>
           <div className="event-choice-list">
-            {event.choices.map((choice) => (
-              <button key={choice.id} className="event-choice-card" onClick={() => handleChoose(choice.id)}>
-                <span className="event-choice-title">{choice.text}</span>
-                <span className="event-choice-desc">{choice.description}</span>
+            {choices.map((c) => (
+              <button key={c.id} className="event-choice-card" onClick={() => handleChoose(c.id)}>
+                <span className="event-choice-title">{c.text}</span>
+                <span className="event-choice-desc">{c.description}</span>
               </button>
             ))}
           </div>
         </section>
       )}
 
-      {result && (
+      {phase === "result" && (
         <section className="stat-panel">
           <h2>结果</h2>
-          <div className="event-result-text">{result.text}</div>
-          <div className="event-result-meta">
-            <span>已选择：{event.choices.find((choice) => choice.id === chosenId)?.text}</span>
-            <span>{result.startBattle ? "后续将进入战斗" : "本次事件直接结算"}</span>
-          </div>
-          <button className="menu-btn primary" onClick={() => onResolve(result)}>继续</button>
+          <div className="event-result-text">{resultText}</div>
+          <button className="menu-btn primary" onClick={handleContinue}>继续</button>
         </section>
       )}
     </div>

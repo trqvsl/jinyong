@@ -1,6 +1,7 @@
 import type { Player, Skill } from "../types"
 import { getSkillById } from "../data/skills"
 import { deriveStats } from "./attributes"
+import { createWorld, migrateWorld } from "./story/state"
 
 // ============================================================
 // 玩家角色相关逻辑
@@ -41,10 +42,12 @@ export function createPlayer(name: string): Player {
     gold: 100,
     aptitude: roots.comprehension, // 向后兼容：aptitude 指向悟性
     alignment: "中",
+    karma: 0,                       // 善恶值（alignment 由其派生）
     reputation: 0,
     day: 1,
     skills: [getSkillById("changquan")!],
     inventory: {},
+    world: createWorld(),           // 剧情世界状态（江湖记忆）
     statuses: [],
   }
 }
@@ -91,6 +94,9 @@ function migratePlayer(p: any): Player {
   if (p.attributePoints === undefined) p.attributePoints = 0
   if (!p.mastery) p.mastery = {}
   if (!p.relations) p.relations = {}
+  // 迁移到世界状态体系：补 karma（由旧 alignment 反推）与 world
+  if (p.karma === undefined) p.karma = p.alignment === "正" ? 30 : p.alignment === "邪" ? -30 : 0
+  p.world = migrateWorld(p.world)   // 总是迁移：补全缺失字段（completedEvents 等），兼容开发期旧存档
   // 迁移武功：确保每个武功都有 category
   if (Array.isArray(p.skills)) {
     p.skills = p.skills.map(migrateSkill)

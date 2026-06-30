@@ -3,6 +3,8 @@
 // 四类武功体系 + 状态效果系统是这次重构的核心。
 // ============================================================
 
+import type { WorldState } from "../data/story/schema"
+
 // 武功分类：外功(攻击) / 内功(增益治疗) / 轻功(闪避身法) / 奇门(毒术控制)
 export type SkillCategory = "外功" | "内功" | "轻功" | "奇门"
 
@@ -97,10 +99,12 @@ export interface Player extends Stats {
   mastery: Record<string, number>  // 招式熟练度 { skillId: 0~100 }
   relations: Record<string, number>  // NPC 关系值 { npcId: -100~100 }，0为中立
   alignment: Alignment
+  karma: number                          // 善恶值 -100~100（alignment 由 karma 派生）
   reputation: number
   day: number
   skills: Skill[]
   inventory: Record<string, number>
+  world: WorldState                      // 剧情世界状态（江湖记忆）
 }
 
 // 敌人（NPC）
