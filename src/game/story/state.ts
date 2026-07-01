@@ -72,6 +72,13 @@ export function migrateWorld(raw: unknown): WorldState {
   w.triggeredEvents = (r.triggeredEvents as string[]) ?? []
   w.seenNodes = (r.seenNodes as string[]) ?? []
   w.completedEvents = (r.completedEvents as string[]) ?? []
+
+  // 迁移 v0 → v1：旧存档 completedEvents 含射雕事件但无对应 arcBeat
+  if (w.completedEvents.includes("shendiao-niujia") && !w.arcs.shendiao?.beats.niujia) {
+    if (!w.arcs.shendiao) w.arcs.shendiao = { beats: {} }
+    w.arcs.shendiao.beats.niujia = "won"
+  }
+
   w.version = WORLD_VERSION
   return w
 }

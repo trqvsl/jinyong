@@ -155,6 +155,25 @@ export const NPCS: Npc[] = [
     dialogue: "杨康冷笑：\"哼，你这乡野村夫，也配与本王爷说话？\"",
     recruitCondition: () => false,
   } as Npc,
+  {
+    id: "qiuchuji",
+    name: "丘处机",
+    title: "全真七子",
+    work: "射雕英雄传",
+    alignment: "正",
+    roles: ["师父", "剧情"],
+    description: "全真教长春子，性如烈火，仗剑行侠。全真剑法与先天功皆有所成。",
+    combat: {
+      hp: 200, hpMax: 200, mp: 100, mpMax: 100,
+      attack: 28, defense: 20, speed: 18, statuses: [],
+      skills: [getSkillById("changquan")!, getSkillById("jiuyang")!],
+      expReward: 150, goldReward: 80,
+    },
+    locationId: "shaolin",
+    dialogue: "丘处机抱拳道：\"阁下仗义，贫道佩服。全真门下若有可传之处，不妨切磋一二。\"",
+    teaches: ["changquan"],
+    recruitCondition: () => false,
+  } as Npc,
 ]
 
 // 按 id 取 NPC

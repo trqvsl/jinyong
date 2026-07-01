@@ -11,15 +11,15 @@ const SAVE_KEY = "jinyong-save"
 
 export function createPlayer(name: string): Player {
   // 八大根基属性：力量/外功/内功/悟性/身体/吐纳/身法/福缘
-  // 初始值偏低，留给玩家升级分配属性点成长；悟性随机（原 aptitude）
+  // 【测试用】初始值调高，方便体验各种玩法；上线前改回低值
   const roots = {
-    strength: 5,
-    external: 5,
-    internal: 3,
+    strength: 30,
+    external: 30,
+    internal: 25,
     comprehension: Math.floor(Math.random() * 60) + 40, // 悟性随机 40~100（原 aptitude）
-    constitution: 5,
-    breath: 5,
-    agility: 5,
+    constitution: 30,
+    breath: 25,
+    agility: 30,
     luck: Math.floor(Math.random() * 30) + 20, // 福缘随机 20~50
   }
   const derived = deriveStats(roots, 1)
@@ -36,10 +36,10 @@ export function createPlayer(name: string): Player {
     defense: derived.defense,
     speed: derived.speed,
     roots,
-    attributePoints: 5, // 初始 5 点属性点供分配
+    attributePoints: 20, // 【测试用】多给属性点供分配
     mastery: {},
     relations: {},
-    gold: 100,
+    gold: 500, // 【测试用】多给银两
     aptitude: roots.comprehension, // 向后兼容：aptitude 指向悟性
     alignment: "中",
     karma: 0,                       // 善恶值（alignment 由其派生）

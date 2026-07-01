@@ -12,75 +12,12 @@ export type { StoryEvent, Transition, Condition, Consequence, Choice, StoryNode,
 // 写法见《剧情系统设计手册.md》。战斗用 transition.battle + onWin/onLose/onFlee。
 // ============================================================
 export const STORY_EVENTS: StoryEvent[] = [
-  // ===== 射雕篇开头：牛家村·风雪惊变 =====
-  {
-    id: "shendiao-niujia",
-    entryNode: "main",
-    locationId: "niujia",
-    weight: 6,
-    once: true,
-    nodes: {
-      main: {
-        title: "牛家村·风雪惊变",
-        text: "你踏雪夜宿牛家村。一户农舍灯火通明，两名壮汉正与一位道人对饮，那道人目光如电、杀气内敛，绝非寻常之辈。你尚未来得及细看，村外火把连绵——一队官军已围住村子，冷喝\"奉命缉拿钦犯\"。风雪里，一场血战似已无可避免。",
-        choices: [
-          {
-            id: "defend", text: "挺身力战", description: "护那道人，与官军周旋，不论出身，先救人再说。",
-            consequences: [{ kind: "reputation", delta: 3 }],
-            consumeDay: true,
-            resultText: "你纵身跃入农舍院中，拔兵刃迎向官军。那道人见有人援手，眼中闪过一丝讶异，随即与两名壮汉并肩而上。一番厮杀，官军暂退，那道人抱拳道：\"阁下胆识过人，今日之情，贫道丘处机记下了。\"",
-            transition: {
-              type: "battle", enemyId: "guanjun",
-              onWin: {
-                text: "官军被你与丘处机联手杀退。丘处机长剑入鞘，向抱拳深揖：\"阁下仗义出手，武艺胆识皆是不凡，丘某佩服。\"他见你根骨奇佳，传你两式全真剑法的御敌要诀，又赠碎银作盘缠：\"日后江湖重逢，再共谋一醉。\"经此一役，你在牛家村一带声名鹊起。",
-                consequences: [
-                  { kind: "karma", delta: 5 },
-                  { kind: "reputation", delta: 5 },
-                  { kind: "gold", delta: 30 },
-                  { kind: "aptitude", delta: 1 },
-                  { kind: "relation", npcId: "qiuchuji", delta: 15 },
-                  { kind: "factionAttitude", factionId: "quanzhen", delta: 10 },
-                  { kind: "item", id: "small-hp-pill", count: 2 },
-                  { kind: "arcBeat", arcId: "shendiao", beat: "niujia", result: "won" },
-                  { kind: "flag", name: "shendiao.niujia.helped", value: true },
-                ],
-                then: { type: "end" },
-              },
-              onLose: { text: "你力战不敌，身负重伤倒地。恍惚间似有人将你救出村外，再睁眼已在破庙之中，丘处机留下一瓶金创药便已匆匆离去——此役虽败，却让你深知己身修为尚浅，更添奋进之心。", then: { type: "end" } },
-              onFlee: { text: "你见官军人多势众，虚晃几招趁乱脱身。身后厮杀声渐远，你保全了性命，却终究未能帮上那道人。", then: { type: "end" } },
-            },
-          },
-          {
-            id: "escort-pregnant", text: "护送妇孺", description: "趁乱护送农舍中一位孕妇从后山出村，保全无辜。",
-            consequences: [
-              { kind: "reputation", delta: 4 },
-              { kind: "hp", delta: -5 },
-              { kind: "item", id: "field-ration", count: 1 },
-            ],
-            consumeDay: true,
-            resultText: "你借着风雪掩护，带着农舍中惊惶的孕妇从后山小路悄然出村。她紧紧护着腹中孩儿，低声谢你。走出数里，回望牛家村火光冲天，你心中隐隐觉得，这孩子日后恐怕不凡。",
-            transition: { type: "end" },
-          },
-          {
-            id: "watch", text: "冷眼旁观", description: "藏身暗处，把那道人的全真剑法看个仔细，伺机而动。",
-            consequences: [
-              { kind: "aptitude", delta: 2 },
-              { kind: "reputation", delta: -2 },
-            ],
-            consumeDay: true,
-            resultText: "你伏于梁上，看那道人长剑如虹，官军竟一时近不得身。全真剑法的招式变化被你尽收眼底，似有所悟。待双方两败俱伤各自散去，你才悄然离开——只是这一夜袖手，心中难免留下几分愧疚。",
-            transition: { type: "end" },
-          },
-        ],
-      },
-    },
-  },
-
   // ===== 路见纷争 =====
   {
     id: "roadside-trouble",
     entryNode: "main", weight: 4,
     nodes: { main: {
+      id: "main",
       text: "你沿山道前行，忽见几个地痞围住行脚商人。那商人神色惊慌，显然已被逼到绝境。",
       choices: [
         { id: "intervene", text: "拔刀相助", description: "挺身而出，直接与恶徒交手。",
@@ -103,6 +40,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "hidden-cache",
     entryNode: "main", weight: 3,
     nodes: { main: {
+      id: "main",
       text: "你在野外避雨时，发现荒祠后墙有一块砖松动，里面竟藏着一个布包。",
       choices: [
         { id: "take-gold", text: "取走银两", description: "拿走布包内的碎银与干粮，补足旅费。",
@@ -123,6 +61,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     entryNode: "main", weight: 2,
     condition: { kind: "not", item: { kind: "hasSkill", id: "tiyun" } },
     nodes: { main: {
+      id: "main",
       text: "你在林间歇脚时，发现石桌上压着几页泛黄残纸，字迹潦草，却暗含武学思路。",
       choices: [
         { id: "study", text: "细读残页", description: "花时间揣摩其中步法，或许能有所领悟。",
@@ -142,6 +81,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "escort-request",
     entryNode: "main", weight: 3,
     nodes: { main: {
+      id: "main",
       text: "你在茶摊歇脚时，一名行脚商人低声问你可否护送一程，说前方山道常有宵小出没。",
       choices: [
         { id: "accept", text: "接下委托", description: "护送商人走一段山路，赚一笔辛苦钱。",
@@ -160,6 +100,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "black-inn",
     entryNode: "main", weight: 2,
     nodes: { main: {
+      id: "main",
       text: "夜色渐沉，客栈门外挂着一盏红灯。掌柜笑着招呼你进门歇脚，可你总觉得这店气氛不对。",
       choices: [
         { id: "stay-alert", text: "将计就计", description: "先进店观察，若有异动再伺机而动。",
@@ -179,6 +120,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "senior-guidance",
     entryNode: "main", weight: 2,
     nodes: { main: {
+      id: "main",
       text: "老人抬眼看了你一会儿，忽然笑道：\"你气息尚浅，却也有几分骨气。可愿听老夫一言？\"",
       choices: [
         { id: "listen", text: "虚心求教", description: "停下脚步，认真听前辈指点呼吸与出招。",
@@ -199,6 +141,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     entryNode: "main", weight: 2,
     nodes: {
       main: {
+        id: "main",
         text: "你路过集市时，见一张木桌前人头攒动。赌徒满脸兴奋，连声叫你也来试试手气。",
         choices: [
           { id: "bet-small", text: "押一把小注", description: "拿些碎银碰碰运气，输赢都不至于伤筋动骨。",
@@ -215,11 +158,13 @@ export const STORY_EVENTS: StoryEvent[] = [
         ],
       },
       win: {
+        id: "win",
         text: "你手气不错，小赚一笔，围观众人都高看了你几眼。",
         onEnter: [{ kind: "gold", delta: 50 }],
         autoNext: { type: "end" },
       },
       lose: {
+        id: "lose",
         text: "你押错了门路，碎银被赢走，只好苦笑着退出人群。",
         autoNext: { type: "end" },
       },
@@ -231,6 +176,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "sect-messenger",
     entryNode: "main", weight: 2,
     nodes: { main: {
+      id: "main",
       text: "来人衣着整肃，见你气息不俗，便试探着问你是否有意日后上山拜访师门习艺。",
       choices: [
         { id: "ask-sects", text: "多问两句", description: "趁机了解各门各派的风格与路数。",
@@ -249,6 +195,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "linan-teahouse",
     entryNode: "main", locationId: "linan",
     nodes: { main: {
+      id: "main",
       text: "你走进临安城一家热闹的茶楼，角落里几名佩刀汉子压低声音，正谈论一桩惊天劫案。见你走近，他们警觉地住了口。",
       choices: [
         { id: "ask", text: "旁敲侧击", description: "买壶茶坐近，装作闲聊试探消息。",
@@ -268,6 +215,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "linan-nightmarket",
     entryNode: "main", locationId: "linan",
     nodes: { main: {
+      id: "main",
       text: "华灯初上，临安夜市人潮涌动。一名白须老者忽然拦住你，上下打量道：阁下印堂发亮，近来恐有大机缘。",
       choices: [
         { id: "hear-fortune", text: "听他一卦", description: "花些银两听听这老者的玄话。",
@@ -286,6 +234,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "shaolin-scripture",
     entryNode: "main", locationId: "shaolin",
     nodes: { main: {
+      id: "main",
       text: "你来到少林寺藏经阁外，一名小沙弥正低头扫地。他抬眼见你气息不俗，犹豫片刻，低声道：施主可愿听贫僧一言？",
       choices: [
         { id: "listen", text: "倾听相询", description: "停下脚步，听小沙弥说些什么。",
@@ -305,6 +254,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "huashan-cliff",
     entryNode: "main", locationId: "huashan",
     nodes: { main: {
+      id: "main",
       text: "你攀上华山险峰，狂风猎猎。远处的平台上传来金铁交鸣之声，几位高手正在切磋，掌风剑气激荡山林。",
       choices: [
         { id: "watch", text: "登高观战", description: "远观高手过招，揣摩其中门道。",
@@ -323,6 +273,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "emei-hermit",
     entryNode: "main", locationId: "emei",
     nodes: { main: {
+      id: "main",
       text: "峨眉山云雾深处，一位青衣女子正持剑起舞，剑光如匹练流转，凌厉中不失飘逸。她见你到来，剑势一顿。",
       choices: [
         { id: "challenge", text: "请教剑术", description: "主动请缨，与女子切磋一番。",
@@ -342,6 +293,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "xingxiu-poison",
     entryNode: "main", locationId: "xingxiu",
     nodes: { main: {
+      id: "main",
       text: "你深入星宿海，脚下毒沼冒泡，空气腥臭。一个阴恻恻的声音从雾中传来：嘿嘿，胆敢擅闯星宿海，留下命来！",
       choices: [
         { id: "fight", text: "迎战毒物", description: "拔兵刃与星宿派妖人对峙。",
@@ -364,6 +316,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "damos-eagle",
     entryNode: "main", locationId: "damos",
     nodes: { main: {
+      id: "main",
       text: "你在大漠中独行，忽见一只硕大无比的白雕自天际俯冲而下，爪下似抓着什么东西。它在你头顶盘旋，发出嘹亮的鸣叫。",
       choices: [
         { id: "track", text: "追踪神雕", description: "跟着白雕的方向走，看看有什么。",
@@ -383,6 +336,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "xiling-palace",
     entryNode: "main", locationId: "xiling",
     nodes: { main: {
+      id: "main",
       text: "你来到西夏雪山脚下，抬头望去，一道长长的石阶没入云端，据说顶端便是那神秘的灵鹫宫。石阶旁立着一块石碑，上书非缘者勿登。",
       choices: [
         { id: "climb", text: "拾级而上", description: "既是机缘，不妨一试。",
@@ -402,6 +356,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "baituo-snake",
     entryNode: "main", locationId: "baituo",
     nodes: { main: {
+      id: "main",
       text: "你靠近白驼山庄，只见庄外密密麻麻盘踞着无数毒蛇，结成一个诡异的蛇阵。庄门内传来一阵阴恻恻的笑声：既来白驼山，便留下做蛇饵吧！",
       choices: [
         { id: "break-array", text: "强破蛇阵", description: "运起内力，硬闯白驼山庄。",
@@ -424,6 +379,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "mingjiao-fire",
     entryNode: "main", locationId: "mingjiao",
     nodes: { main: {
+      id: "main",
       text: "你登上光明顶，圣火在夜风中猎猎作响。明教群豪齐聚，似有大事商议。有人察觉到你的到来，齐刷刷望向你。",
       choices: [
         { id: "parley", text: "坦然相见", description: "既然被发现了，索性以礼相待。",
@@ -442,6 +398,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "taohua-array",
     entryNode: "main", locationId: "taohuadao",
     nodes: { main: {
+      id: "main",
       text: "你在桃花岛桃林中穿行，看似寻常的桃树，走几步却发现景物全变——分明是奇门遁甲的大阵。四下桃花纷飞，你已辨不清方向。",
       choices: [
         { id: "break-array", text: "以武破阵", description: "不信邪，强行闯阵。",
@@ -461,6 +418,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     id: "dali-temple",
     entryNode: "main", locationId: "dali",
     nodes: { main: {
+      id: "main",
       text: "你来到大理天龙寺外，一位灰衣老僧正在扫地。他抬眼看你，目光温和却深邃：施主指法已有根基，可愿入寺一叙？",
       choices: [
         { id: "learn", text: "求教指法", description: "段氏指法天下闻名，机不可失。",

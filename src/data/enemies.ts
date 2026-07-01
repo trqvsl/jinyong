@@ -119,10 +119,34 @@ export const ENEMIES: Enemy[] = [
     goldReward: 40,
     description: "奉命缉拿的官府差役，刀枪齐备，人多势众。",
   },
+  {
+    id: "meichaofeng",
+    name: "梅超风",
+    hp: 160, hpMax: 160,
+    mp: 70, mpMax: 70,
+    attack: 26, defense: 12, speed: 20,
+    statuses: [],
+    skills: [getSkillById("huagu")!, getSkillById("qianzhu")!],
+    expReward: 120,
+    goldReward: 80,
+    description: "叛出桃花岛的黑风双煞之一，九阴白骨爪阴毒无比，双目虽盲却能听风辨形。",
+  },
+  {
+    id: "yangkang",
+    name: "杨康",
+    hp: 170, hpMax: 170,
+    mp: 70, mpMax: 70,
+    attack: 26, defense: 16, speed: 22,
+    statuses: [],
+    skills: [getSkillById("huagu")!, getSkillById("changquan")!],
+    expReward: 130,
+    goldReward: 100,
+    description: "金国小王爷，杨铁心之子却认贼作父。九阴白骨爪阴狠毒辣。",
+  },
 ]
 
 // 剧情专用敌人 id：这些敌人只由事件指定出现，不参与随机遇敌池
-const PLOT_ENEMY_IDS = new Set(["guanjun"])
+const PLOT_ENEMY_IDS = new Set(["guanjun", "meichaofeng", "yangkang"])
 
 // 按 id 取敌人（剧情事件指定敌人时用）
 export function getEnemyById(id: string): Enemy {

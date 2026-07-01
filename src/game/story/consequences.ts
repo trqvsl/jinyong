@@ -91,6 +91,9 @@ export function applyConsequences(
   }
 
   if (karmaChanged) p.alignment = deriveAlignment(p.karma)
+  // 关键同步：world 上的变更（arcBeat/npcAlive/flag 等）必须写回 player.world，
+  // 否则调用方只取 player 时 world 侧的变更会丢失
+  p.world = w
   return { player: p, world: w }
 }
 
