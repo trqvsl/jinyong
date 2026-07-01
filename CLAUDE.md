@@ -77,3 +77,46 @@ arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua
 - **通用事件无 condition 会抢先于有 arcBeat 条件的主线事件**
 - **React 闭包陷阱**：BattleScreen 用 useRef 持最新状态
 - **旧存档**：改 WorldState 结构后必须更新 migrateWorld
+
+## 文件索引（按任务场景分组）
+
+### 改剧情 / 加事件
+- `射雕主线脚本.md` — 自然语言脚本，先改这里达成共识
+- `src/data/story/shendiao.ts` — 射雕剧情数据（8 个 StoryEvent）
+- `src/data/events.ts` — 通用剧情事件 + 类型导出 + 查询函数
+- `src/data/story/schema.ts` — Consequence/Condition/Transition/StoryNode 等类型定义
+- `src/data/story/index.ts` — 剧情卷聚合（加新作品改这里）
+- `src/data/map.ts` — 地点定义 + 事件绑定（events 数组）
+- `src/game/story/consequences.ts` — 后果解释器（加新 Consequence 种类改这里）
+- `src/game/story/conditions.ts` — 条件解释器（加新 Condition 种类改这里）
+- `src/game/story/engine.ts` — 节点流转/结算逻辑
+- `src/game/story/state.ts` — WorldState 初始化/迁移/默认值
+- `src/screens/EventScreen.tsx` — 事件界面（choosing/autoNext/result 三阶段）
+- `src/App.tsx` — 路由编排（handleStoryResolve 处理 transition 分流）
+
+### 改战斗
+- `src/game/battle/types.ts` — Combatant/ActionResult/Team 等战斗类型
+- `src/game/battle/engine.ts` — 战斗核心逻辑（纯函数）
+- `src/game/battle/adapter.ts` — Player↔Combatant 适配层
+- `src/screens/BattleScreen.tsx` — 战斗界面 + 动画
+- `src/data/enemies.ts` — 敌人数据 + 随机遇敌逻辑
+- `src/data/skills.ts` — 武功数据（16+门）
+
+### 改角色 / 数值
+- `src/types/index.ts` — Player/Enemy/Skill/RootAttributes 等核心类型
+- `src/game/attributes.ts` — 根基→战斗属性推导公式
+- `src/game/player.ts` — 角色创建 + 存档 + 旧档迁移
+- `src/data/npcs.ts` — NPC 数据 + npcToEnemy 转换
+- `src/data/items.ts` — 道具定义 + apply 效果
+
+### 改界面
+- `src/screens/` — 所有界面组件（Title/Main/Battle/Event/Map/Sect/Shop/Character/Npc/Debug）
+- `src/App.tsx` — 根组件 + 屏幕路由
+- `src/App.css` — 全局样式 + 动画
+
+### 设计文档（非代码，只读参考）
+- `世界观设定.md` — 叙事定位、角色使用方式、写作约定
+- `战斗系统手册.md` — 根基体系、多对多设计
+- `剧情系统设计手册.md` — 因果网络、WorldState、迁移路线
+- `项目进展.md` — 各阶段里程碑记录
+- `学习笔记.md` — 技术概念笔记
