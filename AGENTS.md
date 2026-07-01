@@ -1,0 +1,123 @@
+# 金庸群侠传 · 项目指南
+
+> 本文件为 AI 编码助手提供项目上下文。内容与 CLAUDE.md 保持同步。
+> 只放"做事需要知道的"，详细设计见各设计文档。
+
+## 项目概况
+
+致敬半瓶神仙醋版金庸群侠传2/3 的网页 RPG。纯前端单机，React 19 + TypeScript 6 + Vite 8 + 纯 CSS。
+
+## 核心架构（三层分离）
+
+```
+data/          ← 纯数据，零逻辑（武功/敌人/NPC/门派/地图/剧情事件）
+game/          ← 纯逻辑引擎，零剧情认知（战斗引擎 / 剧情引擎 / 属性推导）
+screens/       ← 纯展示，调引擎
+App.tsx        ← 路由编排，不含业务逻辑
+```
+
+**铁律**：`game/story/*` 不认识任何剧情/NPC id；`data/` 不含函数（apply 除外）。
+
+## 关键类型与数据流
+
+- `Player`（`src/types/index.ts`）：战斗属性 + 八大根基 `roots` + `karma`/`world`/`relations`/`inventory`
+- `WorldState`（`src/data/story/schema.ts`）：npcs/factions/arcs/flags/triggeredEvents/seenNodes/completedEvents
+- **世界状态挂 `player.world`**，`applyConsequences` 会同步 `p.world = w`（必须，否则 arcBeat 丢失）
+- `karma` → 自动派生 `alignment`（≥30 正，≤-30 邪）
+- 根基属性经 `src/game/attributes.ts` 推导战斗属性
+
+## 剧情引擎（声明式）
+
+- **Consequence**（写入）：17 种，数值用 delta/set，NPC 命运用 npcAlive/npcTag/arcBeat
+- **Condition**（查询）：14 种 + and/or/not，missing key 有默认值（npc alive=true, recruited=false, faction attitude=0）
+- **Transition**（流转）：end / goto / branch / random / battle / gotoEvent / gameOver
+- **StoryNode**：`choices?`（选择）或 `autoNext`（纯叙事自动流转）或无（终点）
+- **StoryEvent**：`once?` + `condition?` + `entryNode` + `nodes: Record<string, StoryNode>`
+- 节点 Record 的 **key 必须与 node.id 一致**（enterNode 按 key 查找，goto 按 nodeId 查找）
+- `EventScreen` 支持 three phases：choosing（选项）/ autoNext（纯叙事+继续按钮）/ result（结果+继续）
+
+## 事件触发机制
+
+1. 玩家去地图选地点 → `getStoryEventByLocation(player, loc.events)`
+2. 遍历 loc.events 数组，返回第一个 `notCompleted + checkCondition 通过` 的
+3. **数组顺序即优先级**：射雕主线事件排在通用事件前
+4. `once: true` 的事件完成后进 `completedEvents`，不再触发
+5. arcBeat 条件实现线性串联：完成前一节点的 arcBeat 才解锁下一个
+
+## 战斗引擎（自包含模块）
+
+- `src/game/battle/`：types / engine / adapter，纯函数零外部依赖
+- 多对多 CTB 行动顺序，支持群攻（横扫/双击/乱打）
+- 剧情战斗通过 `pendingBattleTransition` 衔接战后流转
+
+## 射雕主线（8 节点因果链）
+
+详见 `射雕主线脚本.md`（自然语言）↔ `src/data/story/shendiao.ts`（代码），一一对应。
+
+arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua → yangkang → huashan
+
+## 存档迁移
+
+- `migratePlayer()`（`src/game/player.ts`）：补 statuses/inventory/roots/karma/world/mastery/relations
+- `migrateWorld()`（`src/game/story/state.ts`）：补 completedEvents/seenNodes + 旧 completedEvents→arcBeat 兼容
+- **加新字段必须同步进迁移函数**
+
+## 开发命令
+
+- `npm run dev` — 启动开发服务器 http://localhost:5173/
+- `npm run build` — tsc + vite build
+- `npx tsx scripts/verify-story.ts` — 剧情引擎 34 项验证
+- `npx tsx scripts/verify-battle.ts` — 战斗引擎 13 项验证
+- `npx tsx scripts/verify-fixes.ts` — 修复回归 7 项验证
+
+## 常见坑
+
+- **applyConsequences 返回后 `player.world` 必须等于 `world`**（已修复，但改 consequences 时别破坏）
+- **节点 key ≠ node.id 会导致 enterNode 找不到节点**
+- **纯叙事节点（autoNext）需要 EventScreen 有对应 phase**，否则卡死
+- **通用事件无 condition 会抢先于有 arcBeat 条件的主线事件**
+- **React 闭包陷阱**：BattleScreen 用 useRef 持最新状态
+- **旧存档**：改 WorldState 结构后必须更新 migrateWorld
+
+## 文件索引（按任务场景分组）
+
+### 改剧情 / 加事件
+- `射雕主线脚本.md` — 自然语言脚本，先改这里达成共识
+- `src/data/story/shendiao.ts` — 射雕剧情数据（8 个 StoryEvent）
+- `src/data/events.ts` — 通用剧情事件 + 类型导出 + 查询函数
+- `src/data/story/schema.ts` — Consequence/Condition/Transition/StoryNode 等类型定义
+- `src/data/story/index.ts` — 剧情卷聚合（加新作品改这里）
+- `src/data/map.ts` — 地点定义 + 事件绑定（events 数组）
+- `src/game/story/consequences.ts` — 后果解释器（加新 Consequence 种类改这里）
+- `src/game/story/conditions.ts` — 条件解释器（加新 Condition 种类改这里）
+- `src/game/story/engine.ts` — 节点流转/结算逻辑
+- `src/game/story/state.ts` — WorldState 初始化/迁移/默认值
+- `src/screens/EventScreen.tsx` — 事件界面（choosing/autoNext/result 三阶段）
+- `src/App.tsx` — 路由编排（handleStoryResolve 处理 transition 分流）
+
+### 改战斗
+- `src/game/battle/types.ts` — Combatant/ActionResult/Team 等战斗类型
+- `src/game/battle/engine.ts` — 战斗核心逻辑（纯函数）
+- `src/game/battle/adapter.ts` — Player↔Combatant 适配层
+- `src/screens/BattleScreen.tsx` — 战斗界面 + 动画
+- `src/data/enemies.ts` — 敌人数据 + 随机遇敌逻辑
+- `src/data/skills.ts` — 武功数据（16+门）
+
+### 改角色 / 数值
+- `src/types/index.ts` — Player/Enemy/Skill/RootAttributes 等核心类型
+- `src/game/attributes.ts` — 根基→战斗属性推导公式
+- `src/game/player.ts` — 角色创建 + 存档 + 旧档迁移
+- `src/data/npcs.ts` — NPC 数据 + npcToEnemy 转换
+- `src/data/items.ts` — 道具定义 + apply 效果
+
+### 改界面
+- `src/screens/` — 所有界面组件（Title/Main/Battle/Event/Map/Sect/Shop/Character/Npc/Debug）
+- `src/App.tsx` — 根组件 + 屏幕路由
+- `src/App.css` — 全局样式 + 动画
+
+### 设计文档（非代码，只读参考）
+- `世界观设定.md` — 叙事定位、角色使用方式、写作约定
+- `战斗系统手册.md` — 根基体系、多对多设计
+- `剧情系统设计手册.md` — 因果网络、WorldState、迁移路线
+- `项目进展.md` — 各阶段里程碑记录
+- `学习笔记.md` — 技术概念笔记
