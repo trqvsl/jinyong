@@ -94,6 +94,7 @@ function migratePlayer(p: any): Player {
   if (p.attributePoints === undefined) p.attributePoints = 0
   if (!p.mastery) p.mastery = {}
   if (!p.relations) p.relations = {}
+  p.aptitude = p.roots.comprehension
   // 迁移到世界状态体系：补 karma（由旧 alignment 反推）与 world
   if (p.karma === undefined) p.karma = p.alignment === "正" ? 30 : p.alignment === "邪" ? -30 : 0
   p.world = migrateWorld(p.world)   // 总是迁移：补全缺失字段（completedEvents 等），兼容开发期旧存档

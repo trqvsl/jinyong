@@ -4,6 +4,7 @@ import type { Transition, StoryEvent } from "./data/events"
 import { savePlayer } from "./game/player"
 import { applyConsequences } from "./game/story/consequences"
 import { getNpcState } from "./game/story/state"
+import { pollWorldEvent } from "./game/story/worldScheduler"
 import { getLocationById } from "./data/map"
 import { NPCS, type Npc } from "./data/npcs"
 import { getStoryEventByLocation, getStoryEventById, getAdventureEnemy } from "./data/events"
@@ -46,7 +47,27 @@ function App() {
     )
   }
 
-  function handleSelectPlayer(p: Player) { savePlayer(p); setPlayer(p); setScreen("main") }
+  function returnToMain(nextPlayer: Player) {
+    const polled = pollWorldEvent(nextPlayer, nextPlayer.world)
+    savePlayer(polled.player)
+    setPlayer(polled.player)
+
+    if (polled.event) {
+      setStoryEvent(polled.event)
+      setStoryNodeId(polled.event.entryNode)
+      setStoryInitialResult(undefined)
+      setLocationId(null)
+      setScreen("event")
+      return
+    }
+
+    setStoryEvent(null)
+    setStoryInitialResult(undefined)
+    setLocationId(null)
+    setScreen("main")
+  }
+
+  function handleSelectPlayer(p: Player) { returnToMain(p) }
   function handleUpdate(p: Player) { savePlayer(p); setPlayer(p) }
   function handleAdventure() { setScreen("map") }
 
@@ -75,11 +96,9 @@ function App() {
       p = { ...p, world: { ...p.world, completedEvents: [...p.world.completedEvents, storyEvent.id] } }
     }
     savePlayer(p); setPlayer(p)
-
     switch (t.type) {
       case "end":
-        setStoryEvent(null); setStoryInitialResult(undefined)
-        setScreen("main")
+        returnToMain(p)
         break
       case "goto":
         setStoryInitialResult(undefined)
@@ -95,16 +114,15 @@ function App() {
       case "gotoEvent": {
         const ev = getStoryEventById(t.eventId)
         if (ev) { setStoryEvent(ev); setStoryNodeId(ev.entryNode); setStoryInitialResult(undefined) }
-        else { setStoryEvent(null); setScreen("main") }
+        else { returnToMain(p) }
         break
       }
       case "gameOver":
         // 阶段4 接多结局系统；当前简化为回主菜单
-        setStoryEvent(null); setStoryInitialResult(undefined)
-        setScreen("main")
+        returnToMain(p)
         break
       default: // branch/random 理论上已解析完
-        setStoryEvent(null); setScreen("main")
+        returnToMain(p)
     }
   }
 
@@ -125,8 +143,8 @@ function App() {
         }
         setChallengeNpcId(null)
       }
-      savePlayer(finalPlayer); setPlayer(finalPlayer)
-      setScreen("main"); setEnemies([])
+      setEnemies([])
+      returnToMain(finalPlayer)
       return
     }
     const bt = pendingBattleTransition
@@ -141,7 +159,7 @@ function App() {
     }
 
     const ot = resolveBattleOutcome(result.player, result.player.world, bt, result.outcome)
-    if (!ot) { setScreen("main"); return }
+    if (!ot) { returnToMain(result.player); return }
     savePlayer(ot.player); setPlayer(ot.player)
     setStoryInitialResult({ text: ot.text, transition: ot.then })
     setScreen("event")
@@ -184,13 +202,13 @@ function App() {
           initialResult={storyInitialResult} onResolve={handleStoryResolve}
         />
       )}
-      {screen === "map" && player && <MapScreen player={player} onSelect={handleSelectLocation} onBack={() => setScreen("main")} />}
-      {screen === "debug" && player && <DebugScreen player={player} onUpdate={handleUpdate} onBack={() => setScreen("main")} onTestBattle={handleTestBattle} />}
-      {screen === "npc" && player && <NpcScreen player={player} onUpdate={handleUpdate} onChallenge={handleChallengeNpc} onBack={() => setScreen("main")} />}
+      {screen === "map" && player && <MapScreen player={player} onSelect={handleSelectLocation} onBack={() => returnToMain(player)} />}
+      {screen === "debug" && player && <DebugScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} onTestBattle={handleTestBattle} />}
+      {screen === "npc" && player && <NpcScreen player={player} onUpdate={handleUpdate} onChallenge={handleChallengeNpc} onBack={() => returnToMain(player)} />}
       {screen === "battle" && player && enemies.length > 0 && <BattleScreen player={player} enemies={enemies} teammates={getRecruitedTeammates(player)} onEnd={handleBattleEnd} />}
-      {screen === "sect" && player && <SectScreen player={player} onLearn={handleLearn} onBack={() => setScreen("main")} />}
-      {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={() => setScreen("main")} />}
-      {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={() => setScreen("main")} />}
+      {screen === "sect" && player && <SectScreen player={player} onLearn={handleLearn} onBack={() => returnToMain(player)} />}
+      {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}
+      {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}
     </div>
   )
 }

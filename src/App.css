@@ -2261,6 +2261,64 @@ body {
   letter-spacing: 2px;
 }
 
+.event-script-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.event-narration-box,
+.event-dialogue-box {
+  border-radius: 16px;
+  border: 1px solid rgba(201, 190, 168, 0.95);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,241,232,0.98));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+}
+
+.event-narration-box {
+  padding: 18px 20px;
+}
+
+.event-dialogue-box {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 16px;
+  padding: 18px;
+  align-items: stretch;
+}
+
+.event-portrait-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(139, 44, 31, 0.9), rgba(95, 30, 20, 0.92));
+  color: #fff;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  min-height: 92px;
+}
+
+.event-dialogue-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.event-dialogue-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+
+.event-dialogue-text {
+  line-height: 1.95;
+  font-size: 17px;
+  color: var(--ink);
+}
+
 .event-summary {
   margin: 0 0 16px;
   color: var(--ink-soft);
@@ -2277,10 +2335,17 @@ body {
 .event-speaker {
   text-align: right;
   font-style: italic;
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: 14px;
   margin-top: 8px;
   opacity: 0.8;
+}
+
+.event-page-indicator {
+  align-self: flex-end;
+  color: var(--ink-soft);
+  font-size: 13px;
+  letter-spacing: 1px;
 }
 
 .event-choice-list {
@@ -2336,6 +2401,15 @@ body {
 @media (max-width: 720px) {
   .event-title {
     font-size: 28px;
+  }
+
+  .event-dialogue-box {
+    grid-template-columns: 1fr;
+  }
+
+  .event-portrait-frame {
+    min-height: 64px;
+    font-size: 24px;
   }
 
   .event-result-meta {

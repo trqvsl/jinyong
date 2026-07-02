@@ -104,6 +104,7 @@ export function recomputePlayerStats(player: Player): Player {
   const derived = deriveStats(player.roots, player.level)
   return {
     ...player,
+    aptitude: player.roots.comprehension,
     attack: derived.attack,
     defense: derived.defense,
     hpMax: derived.hpMax,

@@ -44,7 +44,12 @@ export function applyConsequences(
       case "exp": p.exp = Math.max(0, p.exp + (c.delta ?? 0)); break
       case "hp": p.hp = clamp(p.hp + (c.delta ?? 0), 0, p.hpMax); break
       case "mp": p.mp = clamp(p.mp + (c.delta ?? 0), 0, p.mpMax); break
-      case "aptitude": p.aptitude = clamp(p.aptitude + (c.delta ?? 0), 0, 99); break
+      case "aptitude": {
+        const nextAptitude = clamp(p.aptitude + (c.delta ?? 0), 0, 99)
+        p.aptitude = nextAptitude
+        p.roots = { ...p.roots, comprehension: nextAptitude }
+        break
+      }
       case "attack": p.attack = Math.max(0, p.attack + (c.delta ?? 0)); break
       case "speed": p.speed = Math.max(0, p.speed + (c.delta ?? 0)); break
       case "item": {

@@ -1,5 +1,6 @@
 import type { Player } from "../types"
 import { savePlayer } from "../game/player"
+import { recomputePlayerStats } from "../game/attributes"
 
 interface Props {
   player: Player; onUpdate: (player: Player) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void; onShop: () => void; onNpc?: () => void; onDebug?: () => void
@@ -9,8 +10,18 @@ export function MainScreen({ player, onUpdate, onAdventure, onSect, onCharacter,
   // onDebug 可选；调试入口，正式游玩可隐藏
   function train() {
     const gain = 1 + Math.floor(player.aptitude / 30)
-    const updated: Player = { ...player, day: player.day + 1, attack: player.attack + gain,
-      defense: player.defense + Math.floor(gain / 2), hp: player.hpMax, mp: player.mpMax }
+    const cultivated: Player = {
+      ...player,
+      day: player.day + 1,
+      roots: {
+        ...player.roots,
+        external: player.roots.external + gain,
+        internal: player.roots.internal + 1,
+        constitution: player.roots.constitution + Math.max(1, Math.floor(gain / 2)),
+      },
+    }
+    const recomputed = recomputePlayerStats(cultivated)
+    const updated: Player = { ...recomputed, hp: recomputed.hpMax, mp: recomputed.mpMax }
     savePlayer(updated); onUpdate(updated)
   }
   const catCounts = player.skills.reduce((acc, s) => { acc[s.category] = (acc[s.category] || 0) + 1; return acc }, {} as Record<string, number>)
