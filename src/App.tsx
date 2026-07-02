@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { Player, Enemy } from "./types"
 import type { Transition, StoryEvent } from "./data/events"
 import { savePlayer } from "./game/player"
+import { applyConsequences } from "./game/story/consequences"
 import { getNpcState } from "./game/story/state"
 import { getLocationById } from "./data/map"
 import { NPCS, type Npc } from "./data/npcs"
@@ -33,6 +34,8 @@ function App() {
   const [storyInitialResult, setStoryInitialResult] = useState<{ text: string; transition: Transition } | undefined>(undefined)
   // 当前战斗对应的 transition（剧情战斗用；调试/NPC切磋为 null）
   const [pendingBattleTransition, setPendingBattleTransition] = useState<Transition | null>(null)
+  // NPC 切磋时的 npcId，战后结算关系后果
+  const [challengeNpcId, setChallengeNpcId] = useState<string | null>(null)
 
   // 已入队且角色为"队友"的 NPC，参战时传入 BattleScreen
   function getRecruitedTeammates(p: Player): Npc[] {
@@ -108,8 +111,20 @@ function App() {
   // 战斗结束：剧情战斗按 onWin/onLose/onFlee 衔接收尾；非剧情战斗直接回主菜单
   function handleBattleEnd(result: { player: Player; outcome: "won" | "lost" | "fled" }) {
     if (!pendingBattleTransition) {
-      // 调试 / NPC 切磋：胜利算 1 天，回主菜单
-      const finalPlayer = result.outcome === "won" ? { ...result.player, day: result.player.day + 1 } : result.player
+      // NPC 切磋：结算关系后果
+      let finalPlayer = result.outcome === "won" ? { ...result.player, day: result.player.day + 1 } : result.player
+      if (challengeNpcId) {
+        const delta = result.outcome === "won" ? 5 : result.outcome === "lost" ? -3 : 0
+        if (delta !== 0) {
+          const cs: import("./data/story/schema").Consequence[] = [
+            { kind: "relation", npcId: challengeNpcId, delta },
+            ...(result.outcome === "won" ? [{ kind: "reputation" as const, delta: 2 }] : []),
+          ]
+          const r = applyConsequences(finalPlayer, finalPlayer.world, cs)
+          finalPlayer = r.player
+        }
+        setChallengeNpcId(null)
+      }
       savePlayer(finalPlayer); setPlayer(finalPlayer)
       setScreen("main"); setEnemies([])
       return
@@ -132,10 +147,11 @@ function App() {
     setScreen("event")
   }
 
-  // NPC 切磋：把 NPC 转 Enemy 进战斗（非剧情，战后回主菜单）
-  function handleChallengeNpc(enemy: Enemy) {
+  // NPC 切磋：把 NPC 转 Enemy 进战斗（非剧情，战后回主菜单+结算关系）
+  function handleChallengeNpc(enemy: Enemy, npcId?: string) {
     if (!player) return
     setPendingBattleTransition(null)
+    setChallengeNpcId(npcId ?? null)
     setEnemies([enemy])
     setScreen("battle")
   }

@@ -37,6 +37,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
                   { kind: "aptitude", delta: 1 },
                   { kind: "relation", npcId: "qiuchuji", delta: 15 },
                   { kind: "npcRelationType", npcId: "qiuchuji", relationType: "朋友" },
+                  { kind: "npcFaction", npcId: "qiuchuji", faction: "quanzhen" },
                   { kind: "factionAttitude", factionId: "quanzhen", delta: 10 },
                   { kind: "item", id: "small-hp-pill", count: 2 },
                   { kind: "arcBeat", arcId: "shendiao", beat: "niujia", result: "won" },
@@ -90,6 +91,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       aftermath: {
         id: "aftermath",
         title: "风雪之后",
+        speaker: "丘处机",
         text: "风雪渐歇。你远远望见那道人抱起一名婴儿匆匆北去，另一对夫妇也抱着襁褓消失在夜色中。农舍中的孕妇紧紧护着腹中孩儿，在火光中默默垂泪。这两个孩子，日后怕是不凡——一个随道人北上学艺，一个生于金人府邸，命运的天平，从这个风雪夜开始倾斜。",
         autoNext: { type: "end" },
       },
@@ -149,6 +151,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       drill: {
         id: "drill",
         title: "大漠·江南七怪",
+        speaker: "柯镇恶",
         text: "入夜，七位师父围坐篝火。那矮胖女子韩小莹低声叹息：\"这孩子资质虽钝，胜在勤恳，只是……\"话未说完，为首的柯镇恶冷声道：\"既收了他做徒弟，便不谈资质。靖儿，再练！\"郭靖默默起身，又打了一套拳法。七位师父各有绝学，却因一个承诺，在这苦寒大漠守了整整十年——你暗暗敬佩。",
         autoNext: { type: "goto", nodeId: "farewell" },
         onEnter: [{ kind: "reputation", delta: 1 }],
@@ -156,6 +159,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       farewell: {
         id: "farewell",
         title: "大漠·惜别",
+        speaker: "郭靖",
         text: "数日后，你辞别郭靖继续南行。他追出三里地，塞给你一包干粮：\"江湖路远，兄弟保重！\"你望着他憨厚的背影，心知此人日后必成大器。只是此刻他尚不知，南方的中原正等着他——和一个扮作小乞丐的聪慧女子。",
         autoNext: { type: "end" },
         onEnter: [
@@ -216,6 +220,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       reveal: {
         id: "reveal",
         title: "真相·桃花岛上小东邪",
+        speaker: "黄蓉",
         text: "夜深，小乞丐忽然摘下头上破帽，抖落煤灰——一头青丝如瀑泻下，竟是个绝色少女！她咯咯笑道：\"我叫黄蓉，桃花岛黄药师之女。你这人若有趣，改日来岛上找我爹下棋。\"郭靖目瞪口呆，你却并不意外——那份聪慧与傲气，本就不是寻常乞丐能有的。",
         autoNext: { type: "end" },
         onEnter: [
@@ -277,6 +282,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       feast: {
         id: "feast",
         title: "松林·降龙初现",
+        speaker: "洪七公",
         text: "洪七公酒足饭饱，忽然拍拍肚子站起来：\"吃了人家姑娘这么多好菜，不还个人情说不过去。靖儿，过来！\"他右掌推出，掌风激荡松林，落叶纷飞——正是降龙十八掌第一式「亢龙有悔」！郭靖依样施为，虽笨拙却掌力浑厚。七公转头看向你：\"你也要学？\"",
         autoNext: {
           type: "branch",
@@ -289,6 +295,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       teaching: {
         id: "teaching",
         title: "降龙十八掌·初窥",
+        speaker: "洪七公",
         text: "洪七公见你有心，便传你降龙十八掌的入门心法。他讲得粗疏，要旨却清晰无比——至刚至阳，一掌既出，有去无回。你反复演练，终于摸到了第一式的门径。七公大笑：\"孺子可教！不过这门掌法，非一日之功，你日后须勤加修炼。\"",
         autoNext: { type: "end" },
         onEnter: [
@@ -522,6 +529,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       result: {
         id: "result",
         title: "桃花岛·翁婿和解",
+        speaker: "黄药师",
         text: "黄药师长叹一声：\"罢了。蓉儿既认了那傻小子，老夫再拦也无用。\"他看了你一眼：\"你既为客，便在此盘桓数日。\"数日间，你观摩了桃花岛的奇门术数与音律武学，获益匪浅。临行时黄药师破天荒送至码头：\"日后若有难处，可来桃花岛寻我。\"——这便是东邪对友人最高的礼遇。",
         autoNext: { type: "end" },
         onEnter: [
@@ -531,6 +539,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
           { kind: "aptitude", delta: 2 },
           { kind: "skill", id: "lanhua" },
           { kind: "npcRelationType", npcId: "huangyaoshi-npc", relationType: "朋友" },
+          { kind: "npcFaction", npcId: "huangyaoshi-npc", faction: "taohuadao" },
         ],
       },
     },
@@ -669,6 +678,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       aftermath: {
         id: "aftermath",
         title: "铁枪庙·雨霁",
+        speaker: "郭靖",
         text: "铁枪庙的雨渐渐停了。郭靖默默将杨铁心的铁枪从废墟中拔出，擦净泥污，插回村口。穆念慈跪在庙前低声啜泣。你望着这一切，心中百味杂陈——这便是江湖：恩怨纠葛，身不由己。而更大的风浪，尚在华山之巅等着。",
         autoNext: { type: "end" },
         onEnter: [
@@ -750,6 +760,17 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             resultText: "你纵身至郭靖身侧，与他联手抵挡各路挑战者。二人配合默契，降龙掌与你所学武学相辅相成，竟将数位高手逼退。郭靖大笑：\"兄弟好身手！\"",
             transition: { type: "goto", nodeId: "contest" },
           },
+          {
+            id: "seek-yangkang", text: "寻访杨康", description: "铁枪庙一别，不知他是否尚在人世。",
+            condition: { kind: "npcHasTag", npcId: "yangkang", tag: "杨康遁走" },
+            consequences: [
+              { kind: "karma", delta: 3 },
+              { kind: "relation", npcId: "yangkang", delta: 5 },
+            ],
+            consumeDay: true,
+            resultText: "你趁论剑间隙下山，在华山脚下的小镇找到了杨康。他面容消瘦，眼中却不再有那股阴鸷之气。\"你居然还来找我……\"他沉默良久，\"我已不再是完颜康了。\"你与他默默饮尽一壶浊酒，各自无言——江湖路远，各人有各人的归途。",
+            transition: { type: "goto", nodeId: "contest" },
+          },
         ],
       },
       contest: {
@@ -768,6 +789,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       "epilogue-hero": {
         id: "epilogue-hero",
         title: "射雕·侠之大者",
+        speaker: "郭靖",
         text: "华山论剑落幕。你行侠仗义、扶危济困的声名已传遍江湖。郭靖握住你的手：\"兄弟，你我虽非同姓，却胜似手足。靖愿与你共守襄阳、抗击鞑虏！\"黄蓉在旁盈盈一笑，洪七公大笑远去，黄药师拂袖归岛。你立于华山之巅，俯瞰万里河山——这一遭穿越，终是不负此行。",
         autoNext: { type: "end" },
         onEnter: [
@@ -783,6 +805,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       "epilogue-outcast": {
         id: "epilogue-outcast",
         title: "射雕·独步江湖",
+        speaker: "欧阳锋",
         text: "华山论剑落幕，众人散去。你独行下山，欧阳锋忽然出现在路旁：\"嘿嘿，小子，你跟那帮伪君子不是一路人。老夫看好你。\"他递来一枚蛇形令牌——持此可入白驼山修炼。你回望华山之巅的余晖，心中冷笑：这江湖，不过是另一个名利场罢了。",
         autoNext: { type: "end" },
         onEnter: [
@@ -797,6 +820,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       "epilogue-wanderer": {
         id: "epilogue-wanderer",
         title: "射雕·江湖路远",
+        speaker: "黄蓉",
         text: "华山论剑落幕。你既未与郭靖同守襄阳，也未随欧阳锋入白驼山。你只是背起行囊，继续走你自己的江湖路。身后传来黄蓉的声音：\"喂——下次再见面，记得请我吃饭！\"你没有回头，嘴角却微微上扬。这个世界的故事远未结束，而你的旅途，才刚刚开始。",
         autoNext: { type: "end" },
         onEnter: [

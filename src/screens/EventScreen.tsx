@@ -69,7 +69,12 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
       <section className="event-hero stat-panel">
         <div className="event-tag">见闻</div>
         <h1 className="event-title">{node?.title ?? "事后"}</h1>
-        {(phase === "choosing" || phase === "autoNext") && node ? <div className="event-intro">{node.text}</div> : null}
+        {(phase === "choosing" || phase === "autoNext") && node ? (
+          <>
+            <div className="event-intro">{node.text}</div>
+            {node.speaker && <div className="event-speaker">——{node.speaker}</div>}
+          </>
+        ) : null}
       </section>
 
       {phase === "choosing" && node && (

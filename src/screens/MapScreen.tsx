@@ -1,6 +1,8 @@
 import { useMemo } from "react"
 import type { Player } from "../types"
 import { getAllLocationsWithStatus } from "../data/map"
+import { getNpcState } from "../game/story/state"
+import { getNpcById } from "../data/npcs"
 
 interface Props {
   player: Player
@@ -63,7 +65,20 @@ export function MapScreen({ player, onSelect, onBack }: Props) {
             >
               <span className="location-name">{loc.name}{!loc.unlocked && " 🔒"}</span>
               <span className="location-desc">{loc.description}</span>
-              <span className="location-region">{loc.region}</span>
+              <span className="location-region">
+                {loc.region}
+                {loc.npcIds && loc.npcIds
+                  .filter(id => getNpcState(player.world, id).alive !== false)
+                  .map(id => getNpcById(id)?.name)
+                  .filter(Boolean)
+                  .length > 0
+                  && ` · ${loc.npcIds
+                    .filter(id => getNpcState(player.world, id).alive !== false)
+                    .map(id => getNpcById(id)?.name)
+                    .filter(Boolean)
+                    .join("、")}`
+                }
+              </span>
             </button>
           ))}
         </div>

@@ -2274,6 +2274,15 @@ body {
   color: var(--ink);
 }
 
+.event-speaker {
+  text-align: right;
+  font-style: italic;
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 8px;
+  opacity: 0.8;
+}
+
 .event-choice-list {
   display: flex;
   flex-direction: column;

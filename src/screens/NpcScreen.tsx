@@ -18,7 +18,7 @@ import { getLocationById } from "../data/map"
 interface Props {
   player: Player
   onUpdate: (player: Player) => void
-  onChallenge: (enemy: ReturnType<typeof npcToEnemy>) => void
+  onChallenge: (enemy: ReturnType<typeof npcToEnemy>, npcId?: string) => void
   onBack: () => void
 }
 
@@ -205,7 +205,7 @@ export function NpcScreen({ player, onUpdate, onChallenge, onBack }: Props) {
           <div className="combatant-stats cinematic" style={{ marginBottom: 8 }}>
             <span>气血 {npc.combat.hpMax}</span><span>攻 {npc.combat.attack}</span><span>速 {npc.combat.speed}</span>
           </div>
-          <button className="menu-btn primary" onClick={() => onChallenge(npcToEnemy(npc))}>挑战 {npc.name}</button>
+          <button className="menu-btn primary" onClick={() => onChallenge(npcToEnemy(npc), npc.id)}>挑战 {npc.name}</button>
         </section>
       )}
 
