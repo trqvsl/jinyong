@@ -64,6 +64,7 @@ console.log("\n=== 3. NPC 命运 / 阵营 / arcBeat / flag ===")
     { kind: "npcAlive", npcId: "yangkang", alive: false },
     { kind: "npcRecruit", npcId: "guojing", recruited: true },
     { kind: "npcTag", npcId: "yangkang", tag: "已黑化" },
+    { kind: "npcRelationType", npcId: "hongqigong", relationType: "师徒" },
     { kind: "factionAttitude", factionId: "quanzhen", delta: 15 },
     { kind: "factionAttitude", factionId: "quanzhen", set: -40 },
     { kind: "arcBeat", arcId: "shendiao", beat: "niujia", result: "won" },
@@ -73,6 +74,7 @@ console.log("\n=== 3. NPC 命运 / 阵营 / arcBeat / flag ===")
   check("杨康死亡", w.npcs["yangkang"].alive === false)
   check("郭靖入队", w.npcs["guojing"].recruited === true)
   check("杨康命运标记", w.npcs["yangkang"].fateTags.includes("已黑化"))
+  check("NPC 关系类型写入", w.npcs["hongqigong"].relationType === "师徒")
   check("阵营态度 set 覆盖", w.factions["quanzhen"].attitude === -40, `att=${w.factions["quanzhen"].attitude}`)
   check("arcBeat 写入", w.arcs["shendiao"].beats["niujia"] === "won")
   check("flag 写入", w.flags["niujiacun.helped"] === true)
@@ -88,6 +90,8 @@ console.log("\n=== 4. checkCondition：默认值 + 区间 + 组合 ===")
   check("karma 区间 lte（25 不 ≥30）", !checkCondition(p, w, { kind: "karma", gte: 30 }))
   check("NPC 无条目默认 alive=true", checkCondition(p, w, { kind: "npcAlive", npcId: "nobody", alive: true }))
   check("NPC 无条目默认 recruited=false", !checkCondition(p, w, { kind: "npcRecruited", npcId: "nobody" }))
+  check("npcRelationType 未设置默认=初识", checkCondition(p, w, { kind: "npcRelationType", npcId: "nobody", eq: "初识" }))
+  check("npcRelationType 初识≠朋友", !checkCondition(p, w, { kind: "npcRelationType", npcId: "nobody", eq: "朋友" }))
   check("faction 无条目默认 attitude=0，gte10 不满足", !checkCondition(p, w, { kind: "factionAttitude", factionId: "xxx", gte: 10 }))
   check("arcBeat 未完成 → false", !checkCondition(p, w, { kind: "arcBeat", arcId: "a", beat: "b" }))
   check("and 组合", checkCondition(p, w, { kind: "and", items: [{ kind: "karma", gte: 20 }, { kind: "reputation", gte: 5 }] }))
@@ -101,6 +105,14 @@ console.log("\n=== 4. checkCondition：默认值 + 区间 + 组合 ===")
   check("arcBeat 已完成不论结果（result 缺省）", checkCondition(r.player, r.world, { kind: "arcBeat", arcId: "a", beat: "b" }))
   check("arcBeat 指定 result=lost 匹配", checkCondition(r.player, r.world, { kind: "arcBeat", arcId: "a", beat: "b", result: "lost" }))
   check("arcBeat 指定 result=won 不匹配", !checkCondition(r.player, r.world, { kind: "arcBeat", arcId: "a", beat: "b", result: "won" }))
+}
+{
+  // npcRelationType 条件：设置后匹配
+  const p = mkPlayer()
+  const w = createWorld()
+  const r = applyConsequences(p, w, [{ kind: "npcRelationType", npcId: "hongqigong", relationType: "师徒" }])
+  check("npcRelationType 匹配（师徒）", checkCondition(r.player, r.world, { kind: "npcRelationType", npcId: "hongqigong", eq: "师徒" }))
+  check("npcRelationType 不匹配（朋友）", !checkCondition(r.player, r.world, { kind: "npcRelationType", npcId: "hongqigong", eq: "朋友" }))
 }
 
 console.log("\n=== 5. resolveBranch：条件分叉 + 嵌套 + else ===")

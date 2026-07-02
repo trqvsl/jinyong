@@ -1,4 +1,5 @@
 import type { Enemy, Alignment } from "../types"
+import type { Condition } from "./story/schema"
 import { getSkillById } from "./skills"
 
 // ============================================================
@@ -6,6 +7,7 @@ import { getSkillById } from "./skills"
 // 设计见《世界观设定.md》：原著角色承担四重作用——
 //   对手(战斗) / 队友(入队) / 关键NPC(剧情/传功) / 情节枢纽(名场面)
 // 一套 NPC 数据既支持战斗（复用 Enemy 结构），也支持剧情交互。
+// 所有字段均为声明式数据（无函数）， recruitCondition 使用 Condition 类型。
 // ============================================================
 
 // NPC 在剧情中的角色定位（可叠加多种）
@@ -25,10 +27,11 @@ export interface Npc {
 
   // 剧情/交互数据
   locationId?: string         // 常驻地点（玩家可去此地寻访）
-  dialogue?: string           // 寻访时的对话
+  dialogue?: string           // 默认对话（无变体匹配时使用）
+  dialogueVariants?: { when: Condition; text: string }[]  // 条件对话变体，按序匹配首个
   teaches?: string[]          // 可传授的武功 id（作师父时）
-  questEventId?: string       // 关联的剧情事件 id
-  recruitCondition?: (player: { reputation: number; alignment: Alignment }) => boolean  // 入队条件
+  recruitCondition?: Condition  // 入队条件（声明式，与 recruitDialogue 配合）
+  recruitDialogue?: string    // 入队成功时的风味文字
 }
 
 // 把 NPC 转成 Enemy（战斗时用）
@@ -59,9 +62,15 @@ export const NPCS: Npc[] = [
     },
     locationId: "damos",
     dialogue: "郭靖抱拳道：\"兄台豪气干云，靖佩服。若有意，可与我同行闯荡江湖。\"",
-    roles_note: undefined,
-    recruitCondition: (p) => p.reputation >= 20 && p.alignment !== "邪",
-  } as Npc,
+    dialogueVariants: [
+      { when: { kind: "arcBeat", arcId: "shendiao", beat: "huashan" }, text: "郭靖肃然道：\"华山一别，你我已是生死之交。襄阳若有难，望兄来援。\"他目光坚毅，手中降龙十八掌蓄势待发。" },
+      { when: { kind: "npcRelationType", npcId: "guojing", eq: "知己" }, text: "郭靖紧紧握住你的手：\"兄弟！你我肝胆相照，靖此生不换！\"他眼眶微红，那份憨直中的真情令人动容。" },
+      { when: { kind: "npcRelationType", npcId: "guojing", eq: "朋友" }, text: "郭靖大笑道：\"兄弟！又见面了，靖甚是想念！\"他拍了拍你的肩膀，力道之大险些把你拍个趔趄。" },
+      { when: { kind: "relation", npcId: "guojing", gte: 20 }, text: "郭靖憨厚一笑：\"兄台，咱们虽非旧识，靖却觉得与你十分投缘。\"他挠了挠头，目光诚恳。" },
+    ],
+    recruitCondition: { kind: "and", items: [{ kind: "reputation", gte: 20 }, { kind: "karma", gte: 0 }] },
+    recruitDialogue: "郭靖郑重抱拳：\"兄台侠义为怀，靖愿与君同行，共赴江湖！\"",
+  },
   {
     id: "huangrong",
     name: "黄蓉",
@@ -78,9 +87,14 @@ export const NPCS: Npc[] = [
     },
     locationId: "taohuadao",
     dialogue: "黄蓉狡黠一笑：\"你这人倒有趣。蓉儿看你顺眼，便指点你两手如何？\"",
+    dialogueVariants: [
+      { when: { kind: "arcBeat", arcId: "shendiao", beat: "huashan" }, text: "黄蓉柔声道：\"这一路走来，多亏有你。蓉儿……记在心里了。\"她别过脸去，发间飘来一阵桃花香。" },
+      { when: { kind: "relation", npcId: "huangrong", gte: 20 }, text: "黄蓉亲热地挽住你的胳膊：\"你可算来了！蓉儿正闷得慌呢，走，咱们去捉弄一下靖哥哥！\"她笑靥如花，眼珠骨碌碌转着坏主意。" },
+    ],
     teaches: ["dagou", "lanhua"],
-    recruitCondition: (p) => p.reputation >= 15 && p.alignment !== "邪",
-  } as Npc,
+    recruitCondition: { kind: "and", items: [{ kind: "reputation", gte: 15 }, { kind: "karma", gte: 0 }] },
+    recruitDialogue: "黄蓉眨眨眼：\"好呀，有你同行准有趣！蓉儿这就收拾包袱，咱们说走就走！\"",
+  },
   {
     id: "hongqigong",
     name: "洪七公",
@@ -97,9 +111,13 @@ export const NPCS: Npc[] = [
     },
     locationId: "linan",
     dialogue: "洪七公啃着鸡腿大笑：\"小子，你想学俺的降龙十八掌？先给俺弄只叫花鸡来！\"",
+    dialogueVariants: [
+      { when: { kind: "npcRelationType", npcId: "hongqigong", eq: "师徒" }, text: "洪七公拍着你的肩膀哈哈大笑：\"好徒弟！俺老叫花收你这徒弟，真是捡到宝了！来来来，今天教你第三式！\"他眼中满是欣慰。" },
+      { when: { kind: "relation", npcId: "hongqigong", gte: 10 }, text: "洪七公嚼着烤鸡含糊道：\"小子不错，有点侠气。俺老叫花走南闯北，最看得上你这种人。\"他撕下一只鸡腿递给你。" },
+    ],
     teaches: ["xianglong18", "dagou"],
-    recruitCondition: () => false, // 洪七公只传功不入队
-  } as Npc,
+    // 洪七公只传功不入队，不设 recruitCondition
+  },
   {
     id: "huangyaoshi-npc",
     name: "黄药师",
@@ -116,9 +134,14 @@ export const NPCS: Npc[] = [
     },
     locationId: "taohuadao",
     dialogue: "黄药师冷冷瞥你一眼：\"能闯过老夫的桃花阵，倒也有几分本事。说吧，所来为何？\"",
+    dialogueVariants: [
+      { when: { kind: "npcRelationType", npcId: "huangyaoshi-npc", eq: "朋友" }, text: "黄药师微微颔首，语气比从前和缓了些许：\"你既通过了老夫的试炼，便是桃花岛的客人。有什么想学的，不妨直言。\"" },
+      { when: { kind: "arcBeat", arcId: "shendiao", beat: "huashan" }, text: "黄药师破天荒露出一丝笑意：\"华山一役，你倒没给老夫丢脸。\"他拂了拂衣袖，\"蓉儿眼光不错。\"" },
+    ],
     teaches: ["lanhua", "tiyun"],
-    recruitCondition: (p) => p.reputation >= 30,
-  } as Npc,
+    recruitCondition: { kind: "reputation", gte: 30 },
+    recruitDialogue: "黄药师微微颔首：\"你的名头老夫有所耳闻。若愿来桃花岛小住，老夫不拦你。\"",
+  },
   {
     id: "ouyangfeng-npc",
     name: "欧阳锋",
@@ -135,8 +158,12 @@ export const NPCS: Npc[] = [
     },
     locationId: "baituo",
     dialogue: "欧阳锋阴阴一笑：\"嘿嘿，小子，你想学老夫的蛤蟆功？先接我一掌再说！\"",
-    recruitCondition: () => false, // 西毒不可入队
-  } as Npc,
+    dialogueVariants: [
+      { when: { kind: "arcBeat", arcId: "shendiao", beat: "huashan" }, text: "欧阳锋目光幽深：\"小子，你与那帮伪君子果然不是一路人。白驼山的大门，永远为你敞开。\"他嘿嘿笑了两声，转身隐入蛇群之中。" },
+      { when: { kind: "relation", npcId: "ouyangfeng-npc", gte: 10 }, text: "欧阳锋打量你片刻，忽然阴笑：\"嘿嘿，你这小子身上有股狠劲，老夫喜欢。来，陪老夫过两招！\"" },
+    ],
+    // 西毒不可入队
+  },
   {
     id: "yangkang",
     name: "杨康",
@@ -153,8 +180,14 @@ export const NPCS: Npc[] = [
     },
     locationId: "linan",
     dialogue: "杨康冷笑：\"哼，你这乡野村夫，也配与本王爷说话？\"",
-    recruitCondition: () => false,
-  } as Npc,
+    dialogueVariants: [
+      { when: { kind: "npcHasTag", npcId: "yangkang", tag: "杨康已黑化" }, text: "杨康双眼赤红，五指成爪：\"你逼我的……这一切都是你们逼我的！\"他浑身散发着九阴白骨爪的阴寒之气，已全然不顾后果。" },
+      { when: { kind: "npcHasTag", npcId: "yangkang", tag: "杨康遁走" }, text: "杨康远遁的身影在雨中若隐若现。他回头看了你一眼——那目光里有不甘，也有说不清的复杂情绪。" },
+      { when: { kind: "npcRelationType", npcId: "yangkang", eq: "朋友" }, text: "杨康犹豫片刻，压低声音：\"你救了我……我杨康不是不识好歹的人。但大金与宋的恩怨，你不懂。\"他目光闪烁，似在权衡。" },
+      { when: { kind: "relation", npcId: "yangkang", gte: 10 }, text: "杨康微微点头，语气稍缓：\"你倒不像那些迂腐之辈。本王爷……倒可以与你多聊几句。\"" },
+    ],
+    // 杨康不可入队
+  },
   {
     id: "qiuchuji",
     name: "丘处机",
@@ -171,9 +204,13 @@ export const NPCS: Npc[] = [
     },
     locationId: "shaolin",
     dialogue: "丘处机抱拳道：\"阁下仗义，贫道佩服。全真门下若有可传之处，不妨切磋一二。\"",
+    dialogueVariants: [
+      { when: { kind: "npcRelationType", npcId: "qiuchuji", eq: "朋友" }, text: "丘处机哈哈大笑，拍着你的肩膀：\"好兄弟！牛家村那夜你我并肩杀敌，贫道至今记忆犹新！\"他目光中满是豪气与信任。" },
+      { when: { kind: "relation", npcId: "qiuchuji", gte: 10 }, text: "丘处机微微点头：\"阁下侠名渐起，贫道甚是欣慰。若要精进武学，全真的门随时为你敞开。\"" },
+    ],
     teaches: ["changquan"],
-    recruitCondition: () => false,
-  } as Npc,
+    // 丘处机只传功不入队
+  },
 ]
 
 // 按 id 取 NPC

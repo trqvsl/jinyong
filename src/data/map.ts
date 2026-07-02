@@ -16,6 +16,7 @@ export interface Location {
   coordinates: { x: number; y: number }  // 在总图上的相对坐标（0~100）
   events: string[]               // 该地点专属奇遇事件 id
   enemyPool: string[]            // 该地点的随机敌人池
+  npcIds?: string[]              // 常驻该地点的 NPC id（双向参考，用于地图/NPC界面显示）
   unlock?: (player: Player) => boolean   // 解锁条件
 }
 
@@ -40,6 +41,7 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 74, y: 70 },
     events: ["shendiao-meet-rong", "shendiao-qigong", "shendiao-wangfu", "linan-teahouse", "linan-nightmarket"],
     enemyPool: ["xialiubang", "shanzei"],
+    npcIds: ["hongqigong", "yangkang"],
   },
 
   // ===== 中原 =====
@@ -52,6 +54,7 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 55, y: 50 },
     events: ["shaolin-scripture"],
     enemyPool: ["shanzei", "emingke"],
+    npcIds: ["qiuchuji"],
     unlock: (player) => player.reputation >= 5,
   },
   {
@@ -99,6 +102,7 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 30, y: 22 },
     events: ["shendiao-damos", "damos-eagle"],
     enemyPool: ["shanzei", "emingke"],
+    npcIds: ["guojing"],
   },
   {
     id: "xiling",
@@ -122,6 +126,7 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 18, y: 38 },
     events: ["baituo-snake"],
     enemyPool: ["duyaozi", "ouyangfeng"],
+    npcIds: ["ouyangfeng-npc"],
     unlock: (player) => player.reputation >= 15,
   },
   {
@@ -146,6 +151,7 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 88, y: 60 },
     events: ["shendiao-taohua", "taohua-array"],
     enemyPool: ["emingke", "huangyaoshi"],
+    npcIds: ["huangrong", "huangyaoshi-npc"],
     unlock: (player) => player.reputation >= 15,
   },
 

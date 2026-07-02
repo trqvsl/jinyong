@@ -22,6 +22,8 @@ export function checkCondition(player: Player, world: WorldState, cond?: Conditi
       return getNpcState(world, cond.npcId).recruited
     case "npcHasTag":
       return getNpcState(world, cond.npcId).fateTags.includes(cond.tag)
+    case "npcRelationType":
+      return (getNpcState(world, cond.npcId).relationType ?? "初识") === cond.eq
     case "factionAttitude":
       return inRange(getFactionState(world, cond.factionId).attitude, cond.gte, cond.lte)
     case "arcBeat": {

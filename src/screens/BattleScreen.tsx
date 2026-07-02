@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import type { Player, Enemy, Skill } from "../types"
 import type { Combatant as EngineCombatant, BattleState as EngineBattleState, BattleSkill as EngineBattleSkill } from "../game/battle/types"
 import type { PortraitSpec } from "../assets/portraits"
+import type { Npc } from "../data/npcs"
 import { PLAYER_PORTRAIT, ENEMY_PORTRAITS } from "../assets/portraits"
 import { getItemById } from "../data/items"
 import {
@@ -9,6 +10,7 @@ import {
   tickUnitStatuses, enemyDecideAction, findCombatant, isStunned,
 } from "../game/battle/engine"
 import { createBattleState, syncPlayersFromState, applyVictoryGrowth } from "../game/battle/adapter"
+import { npcToPlayerSideCombatant } from "../game/npc"
 import { fleeChanceOf } from "../game/attributes"
 
 interface FloatText {
@@ -21,6 +23,7 @@ interface FloatText {
 interface Props {
   player: Player
   enemies: Enemy[]
+  teammates?: Npc[]    // 已入队 NPC 队友，AI 自动操控
   onEnd: (result: { player: Player; outcome: "won" | "lost" | "fled"; rewards?: { exp: number; gold: number; leveledUp: boolean } }) => void
 }
 
@@ -32,8 +35,15 @@ function uidToPortraitId(uid: string): string {
   return m ? m[1] : "default"
 }
 
-export function BattleScreen({ player, enemies, onEnd }: Props) {
-  const [state, setState] = useState<EngineBattleState>(() => createBattleState([player], enemies))
+export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
+  const [state, setState] = useState<EngineBattleState>(() => {
+    const base = createBattleState([player], enemies)
+    // 将 NPC 队友追加到玩家侧
+    if (teammates && teammates.length > 0) {
+      base.playerSide = [...base.playerSide, ...teammates.map(npcToPlayerSideCombatant)]
+    }
+    return base
+  })
   const [log, setLog] = useState<{ text: string; type: string }[]>([
     { text: enemies.length > 1 ? "遭遇 " + enemies.map(function(e: Enemy){return e.name}).join("、") + " 等" + enemies.length + "人！" : ("遭遇 " + (enemies[0] ? enemies[0].name : "") + "！" + (enemies[0] ? enemies[0].description : "")), type: "system" },
   ])
@@ -146,6 +156,23 @@ export function BattleScreen({ player, enemies, onEnd }: Props) {
     }, 500)
   }
 
+  // NPC 队友自动行动（复用敌方 AI 决策，但目标是敌方）
+  function doNpcTeammateAction(curState: EngineBattleState, actor: EngineCombatant) {
+    setPhase("busy")
+    const cur = findCombatant(curState, actor.uid)
+    if (!cur || cur.hp <= 0 || isStunned(cur)) { afterAction(curState, actor.uid); return }
+    setTimeout(() => {
+      const cmd = enemyDecideAction(curState, cur)
+      if (!cmd) { afterAction(curState, actor.uid); return }
+      const r = performAction(curState, cmd)
+      setState(r.state)
+      pushLog(r.logs)
+      flashSkill(cmd.skill.name, r.results.some((x) => x.isCrit))
+      attachFloats(r, "enemy")
+      setTimeout(() => afterAction(r.state, actor.uid), 850)
+    }, 500)
+  }
+
   // 一次行动后：消耗该行动者的 ATB，调度下一个能行动的单位
   function afterAction(curState: EngineBattleState, actorUid: string) {
     const th = curState.atbThreshold || 100
@@ -191,6 +218,9 @@ export function BattleScreen({ player, enemies, onEnd }: Props) {
       setCurrentActorUid(cur.uid)
       if (cur.side === "enemy") {
         setTimeout(() => doEnemyAction(ticked.state, cur), 700)
+      } else if (cur.uid.startsWith("npc-")) {
+        // NPC 队友：AI 自动操控（复用敌方决策逻辑，目标改为敌方）
+        setTimeout(() => doNpcTeammateAction(ticked.state, cur), 600)
       } else {
         setPhase("acting")
       }
@@ -230,7 +260,7 @@ export function BattleScreen({ player, enemies, onEnd }: Props) {
 
   const turnOrder = useMemo(() => previewTurnOrder(state, 6), [state])
   const currentActor = currentActorUid ? findCombatant(state, currentActorUid) : null
-  const isPlayerTurn = currentActor?.side === "player" && phase === "acting"
+  const isPlayerTurn = currentActor?.side === "player" && !currentActor?.uid.startsWith("npc-") && phase === "acting"
 
   const ownedItems = Object.entries({ ...player.inventory, ...inventoryPatch.current }).filter(([, count]) => count > 0)
   function handleUseItem(itemId: string) {

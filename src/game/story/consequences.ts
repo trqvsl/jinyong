@@ -67,6 +67,7 @@ export function applyConsequences(
       case "npcAlive": ensureNpc(w, c.npcId).alive = c.alive; break
       case "npcRecruit": ensureNpc(w, c.npcId).recruited = c.recruited; break
       case "npcFaction": ensureNpc(w, c.npcId).faction = c.faction; break
+      case "npcRelationType": ensureNpc(w, c.npcId).relationType = c.relationType; break
       case "npcTag": {
         const n = ensureNpc(w, c.npcId)
         const add = c.add ?? true

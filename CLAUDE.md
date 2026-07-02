@@ -20,15 +20,15 @@ App.tsx        ← 路由编排，不含业务逻辑
 ## 关键类型与数据流
 
 - `Player`（`src/types/index.ts`）：战斗属性 + 八大根基 `roots` + `karma`/`world`/`relations`/`inventory`
-- `WorldState`（`src/data/story/schema.ts`）：npcs/factions/arcs/flags/triggeredEvents/seenNodes/completedEvents
+- `WorldState`（`src/data/story/schema.ts`）：npcs（含 relationType 语义关系）/factions/arcs/flags/triggeredEvents/seenNodes/completedEvents
 - **世界状态挂 `player.world`**，`applyConsequences` 会同步 `p.world = w`（必须，否则 arcBeat 丢失）
 - `karma` → 自动派生 `alignment`（≥30 正，≤-30 邪）
 - 根基属性经 `src/game/attributes.ts` 推导战斗属性
 
 ## 剧情引擎（声明式）
 
-- **Consequence**（写入）：17 种，数值用 delta/set，NPC 命运用 npcAlive/npcTag/arcBeat
-- **Condition**（查询）：14 种 + and/or/not，missing key 有默认值（npc alive=true, recruited=false, faction attitude=0）
+- **Consequence**（写入）：18 种，数值用 delta/set，NPC 命运用 npcAlive/npcTag/npcRelationType/arcBeat
+- **Condition**（查询）：15 种 + and/or/not，missing key 有默认值（npc alive=true, recruited=false, faction attitude=0, relationType=初识）
 - **Transition**（流转）：end / goto / branch / random / battle / gotoEvent / gameOver
 - **StoryNode**：`choices?`（选择）或 `autoNext`（纯叙事自动流转）或无（终点）
 - **StoryEvent**：`once?` + `condition?` + `entryNode` + `nodes: Record<string, StoryNode>`
@@ -65,7 +65,7 @@ arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua
 
 - `npm run dev` — 启动开发服务器 http://localhost:5173/
 - `npm run build` — tsc + vite build
-- `npx tsx scripts/verify-story.ts` — 剧情引擎 34 项验证
+- `npx tsx scripts/verify-story.ts` — 剧情引擎 38 项验证
 - `npx tsx scripts/verify-battle.ts` — 战斗引擎 13 项验证
 - `npx tsx scripts/verify-fixes.ts` — 修复回归 7 项验证
 

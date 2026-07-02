@@ -12,12 +12,25 @@ export type BeatResult = "won" | "lost" | "skipped" | "done"
 // 世界状态 WorldState（挂在 player.world，随存档持久化）
 // ============================================================
 
+// NPC 关系类型：语义化关系性质（与好感值 player.relations 正交）
+export type NpcRelationType =
+  | "初识"    // 刚认识，无特殊羁绊
+  | "朋友"    // 友人
+  | "知己"    // 深交知己
+  | "挚友"    // 生死之交
+  | "师徒"    // 师父与弟子（方向由上下文决定）
+  | "同门"    // 同门师兄弟
+  | "恋人"    // 情侣
+  | "仇敌"    // 宿敌
+  | "主从"    // 主仆/上下级
+
 // NPC 命运：好感之外的"关系状态"（好感值仍用 player.relations，不重复存）
 export interface WorldNpcState {
   alive: boolean                 // 生死（守门：已死 NPC 不再出现）
   recruited: boolean             // 是否已加入主角队伍
   faction: string                // 当前所属阵营（可随剧情转变）
   fateTags: string[]             // 命运标记（如 "杨康已黑化"）
+  relationType?: NpcRelationType // 语义关系类型，undefined = 初识
 }
 
 // 阵营/门派：对玩家的态度 + 势力消长
@@ -64,6 +77,7 @@ export type Consequence =
   | { kind: "npcAlive"; npcId: string; alive: boolean }
   | { kind: "npcRecruit"; npcId: string; recruited: boolean }
   | { kind: "npcFaction"; npcId: string; faction: string }
+  | { kind: "npcRelationType"; npcId: string; relationType: NpcRelationType }
   | { kind: "npcTag"; npcId: string; tag: string; add?: boolean }   // 默认 add=true，false=移除
   | { kind: "factionAttitude"; factionId: string; delta?: number; set?: number }
   | { kind: "factionPower"; factionId: string; delta?: number; set?: number }
@@ -81,6 +95,7 @@ export type Condition =
   | { kind: "npcAlive"; npcId: string; alive?: boolean }
   | { kind: "npcRecruited"; npcId: string }
   | { kind: "npcHasTag"; npcId: string; tag: string }
+  | { kind: "npcRelationType"; npcId: string; eq: NpcRelationType }
   | { kind: "factionAttitude"; factionId: string; gte?: number; lte?: number }
   | { kind: "arcBeat"; arcId: string; beat: string; result?: BeatResult }  // result 缺省=已完成不论结果
   | { kind: "flag"; name: string; eq?: boolean | number | string }

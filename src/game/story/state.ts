@@ -8,7 +8,7 @@ import type {
 import { ALIGNMENT_THRESHOLDS } from "../../data/story/schema"
 import type { Alignment } from "../../types"
 
-export const WORLD_VERSION = 1
+export const WORLD_VERSION = 2
 
 // 空世界：所有 Record 初始为空，字段渐进生长
 export function createWorld(): WorldState {
@@ -79,6 +79,7 @@ export function migrateWorld(raw: unknown): WorldState {
     w.arcs.shendiao.beats.niujia = "won"
   }
 
+  // 迁移 v1 → v2：WorldNpcState 新增 relationType（optional，无需数据迁移）
   w.version = WORLD_VERSION
   return w
 }

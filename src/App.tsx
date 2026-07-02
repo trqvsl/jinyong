@@ -2,7 +2,9 @@ import { useState } from "react"
 import type { Player, Enemy } from "./types"
 import type { Transition, StoryEvent } from "./data/events"
 import { savePlayer } from "./game/player"
+import { getNpcState } from "./game/story/state"
 import { getLocationById } from "./data/map"
+import { NPCS, type Npc } from "./data/npcs"
 import { getStoryEventByLocation, getStoryEventById, getAdventureEnemy } from "./data/events"
 import { resolveBranch, pickRandom, resolveBattleOutcome } from "./game/story/engine"
 import { getEnemyById } from "./data/enemies"
@@ -31,6 +33,15 @@ function App() {
   const [storyInitialResult, setStoryInitialResult] = useState<{ text: string; transition: Transition } | undefined>(undefined)
   // 当前战斗对应的 transition（剧情战斗用；调试/NPC切磋为 null）
   const [pendingBattleTransition, setPendingBattleTransition] = useState<Transition | null>(null)
+
+  // 已入队且角色为"队友"的 NPC，参战时传入 BattleScreen
+  function getRecruitedTeammates(p: Player): Npc[] {
+    return NPCS.filter(npc =>
+      npc.roles.includes("队友") &&
+      getNpcState(p.world, npc.id).recruited &&
+      getNpcState(p.world, npc.id).alive !== false
+    )
+  }
 
   function handleSelectPlayer(p: Player) { savePlayer(p); setPlayer(p); setScreen("main") }
   function handleUpdate(p: Player) { savePlayer(p); setPlayer(p) }
@@ -160,7 +171,7 @@ function App() {
       {screen === "map" && player && <MapScreen player={player} onSelect={handleSelectLocation} onBack={() => setScreen("main")} />}
       {screen === "debug" && player && <DebugScreen player={player} onUpdate={handleUpdate} onBack={() => setScreen("main")} onTestBattle={handleTestBattle} />}
       {screen === "npc" && player && <NpcScreen player={player} onUpdate={handleUpdate} onChallenge={handleChallengeNpc} onBack={() => setScreen("main")} />}
-      {screen === "battle" && player && enemies.length > 0 && <BattleScreen player={player} enemies={enemies} onEnd={handleBattleEnd} />}
+      {screen === "battle" && player && enemies.length > 0 && <BattleScreen player={player} enemies={enemies} teammates={getRecruitedTeammates(player)} onEnd={handleBattleEnd} />}
       {screen === "sect" && player && <SectScreen player={player} onLearn={handleLearn} onBack={() => setScreen("main")} />}
       {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={() => setScreen("main")} />}
       {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={() => setScreen("main")} />}
