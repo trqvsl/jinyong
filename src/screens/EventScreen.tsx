@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import type { Player } from "../types"
 import type { StoryEvent, Transition } from "../data/events"
+import type { Consequence } from "../data/story/schema"
 import { enterNode, visibleChoices, resolveChoice } from "../game/story/engine"
 
 // ============================================================
@@ -65,15 +66,18 @@ function splitTextChunks(text: string): string[] {
 
 function inferSpeaker(context: string, fallbackSpeaker?: string): string | undefined {
   const compact = context.replace(/\s+/g, "").slice(-40)
-  const match = compact.match(/([一-龥A-Za-z0-9·]{2,12})(?:[一-龥，、；：]{0,8})?(?:道|说道|笑道|冷笑道|低声道|轻声道|高声道|喝道|问道|答道|叹道|叫道|喃喃道|缓缓道|淡淡道|沉声道|大笑道|开口道|回头道)[:：]?$/)
-  return match?.[1] ?? fallbackSpeaker
+  const verbMatch = compact.match(/([一-龥A-Za-z0-9·]{2,12})(?:[一-龥，、；：]{0,8})?(?:道|说道|笑道|冷笑道|低声道|轻声道|高声道|喝道|问道|答道|叹道|叫道|喃喃道|缓缓道|淡淡道|沉声道|大笑道|开口道|回头道|叹息道|低声叹息道|轻笑道)[:：]?$/)
+  if (verbMatch?.[1]) return verbMatch[1]
+
+  const colonMatch = compact.match(/([一-龥A-Za-z0-9·]{2,12})(?:[一-龥，、；：]{0,10})?(?:叹息|低声叹息|轻笑|冷哼|低声|轻声|高声|沉声|喝问|笑骂|笑吟吟地说|说道|说|笑|问|答|道)?[:：]$/)
+  return colonMatch?.[1] ?? fallbackSpeaker
 }
 
 function parseStorySegments(text: string, fallbackSpeaker?: string): ScriptSegment[] {
   const normalized = text.trim()
   if (!normalized) return [{ type: "narration", text: "" }]
 
-  const quoteRegex = /“([^”]+)”/g
+  const quoteRegex = /“([^”]+)”|"([^"]+)"/g
   const segments: ScriptSegment[] = []
   let cursor = 0
   let matched = false
@@ -81,7 +85,7 @@ function parseStorySegments(text: string, fallbackSpeaker?: string): ScriptSegme
   for (const match of normalized.matchAll(quoteRegex)) {
     matched = true
     const full = match[0]
-    const quote = match[1]?.trim() ?? ""
+    const quote = (match[1] ?? match[2] ?? "").trim()
     const index = match.index ?? 0
     const before = normalized.slice(cursor, index).trim()
     if (before) segments.push({ type: "narration", text: before })
@@ -124,6 +128,61 @@ function buildScriptPages(text: string, fallbackSpeaker?: string): ScriptSegment
   return pages.length > 0 ? pages : [[{ type: "narration", text: text.trim() }]]
 }
 
+function formatDelta(delta?: number, positive = "+"): string {
+  const value = delta ?? 0
+  return `${value >= 0 ? positive : ""}${value}`
+}
+
+function summarizeConsequences(consequences?: Consequence[]): string[] {
+  if (!consequences || consequences.length === 0) return []
+
+  const summary: string[] = []
+  for (const c of consequences) {
+    switch (c.kind) {
+      case "aptitude":
+        summary.push(`悟性 ${formatDelta(c.delta)}`)
+        break
+      case "reputation":
+        summary.push(`名声 ${formatDelta(c.delta)}`)
+        break
+      case "karma":
+        summary.push(`善恶 ${formatDelta(c.delta)}`)
+        break
+      case "gold":
+        summary.push(`银两 ${formatDelta(c.delta)} 两`)
+        break
+      case "hp":
+        summary.push(`气血 ${formatDelta(c.delta)}`)
+        break
+      case "mp":
+        summary.push(`内力 ${formatDelta(c.delta)}`)
+        break
+      case "attack":
+        summary.push(`攻击 ${formatDelta(c.delta)}`)
+        break
+      case "speed":
+        summary.push(`身法 ${formatDelta(c.delta)}`)
+        break
+      case "exp":
+        summary.push(`经验 ${formatDelta(c.delta)}`)
+        break
+      case "item":
+        summary.push(`${(c.count ?? 1) >= 0 ? "获得" : "失去"}道具 ×${Math.abs(c.count ?? 1)}`)
+        break
+      case "skill":
+        summary.push("习得武功")
+        break
+      case "relation":
+        summary.push(`关系 ${formatDelta(c.delta)}`)
+        break
+      default:
+        break
+    }
+  }
+
+  return Array.from(new Set(summary))
+}
+
 export function EventScreen({ player, event, nodeId, initialResult, onResolve }: Props) {
   // 进入节点：onEnter 幂等结算。initialResult 模式不进入节点（只显示结果）
   const entered = initialResult ? null : enterNode(player, player.world, event, nodeId)
@@ -139,6 +198,7 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
   const [pending, setPending] = useState<{ player: Player; transition: Transition; consumedDay: boolean } | null>(
     initialResult ? { player, transition: initialResult.transition, consumedDay: false } : null
   )
+  const [resultMeta, setResultMeta] = useState<string[]>([])
   const [pageIndex, setPageIndex] = useState(0)
 
   const activeText = phase === "result" ? resultText : node?.text ?? ""
@@ -160,6 +220,7 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
     const r = resolveChoice(entered.player, entered.world, event, nodeId, choiceId)
     if (!r) return
     setResultText(r.resultText ?? "")
+    setResultMeta(summarizeConsequences(choice.consequences))
     setPending({ player: r.player, transition: r.transition, consumedDay: choice.consumeDay ?? false })
     setPageIndex(0)
     setPhase("result")
@@ -246,6 +307,9 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
 
       {phase === "result" && (
         <section className="stat-panel">
+          {resultMeta.length > 0 && (
+            <div className="event-result-meta">{resultMeta.join(" · ")}</div>
+          )}
           <button className="menu-btn primary" onClick={handleContinue}>继续</button>
         </section>
       )}

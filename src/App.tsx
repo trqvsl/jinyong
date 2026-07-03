@@ -197,7 +197,7 @@ function App() {
       )}
       {screen === "event" && player && storyEvent && (
         <EventScreen
-          key={`${storyNodeId}-${storyInitialResult ? "r" : "c"}`}
+          key={`${storyEvent.id}:${storyNodeId}-${storyInitialResult ? "r" : "c"}`}
           player={player} event={storyEvent} nodeId={storyNodeId}
           initialResult={storyInitialResult} onResolve={handleStoryResolve}
         />

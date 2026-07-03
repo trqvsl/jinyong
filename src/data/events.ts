@@ -450,6 +450,14 @@ export function getRandomStoryEvent(player: Player): StoryEvent {
   return weighted[Math.floor(Math.random() * weighted.length)]
 }
 
+function getRandomGenericStoryEvent(player: Player): StoryEvent {
+  const ALL = STORY_EVENTS.filter((e) => notCompleted(player, e))
+  const available = ALL.filter((e) => checkCondition(player, player.world, e.condition))
+  const pool = available.length > 0 ? available : ALL
+  const weighted = pool.flatMap((e) => Array(e.weight ?? 1).fill(e))
+  return weighted[Math.floor(Math.random() * weighted.length)]
+}
+
 export function getStoryEventById(id: string): StoryEvent | undefined {
   return [...STORY_EVENTS, ...STORY_VOLUMES].find((e) => e.id === id)
 }
@@ -460,7 +468,7 @@ export function getStoryEventByLocation(player: Player, locationEvents: string[]
     const e = getStoryEventById(id)
     if (e && notCompleted(player, e) && checkCondition(player, player.world, e.condition)) return e
   }
-  return getRandomStoryEvent(player)
+  return getRandomGenericStoryEvent(player)
 }
 
 export function getAdventureEnemy(player: Player, enemyId?: string, locationPool?: string[]) {

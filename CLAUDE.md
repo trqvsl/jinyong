@@ -120,3 +120,6 @@ arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua
 - `剧情系统设计手册.md` — 因果网络、WorldState、迁移路线
 - `项目进展.md` — 各阶段里程碑记录
 - `学习笔记.md` — 技术概念笔记
+
+### 项目内共享 Skill
+- `.claude/skills/jinyong-story-writer.md` — 金庸 RPG 剧情写作 Skill；用于生成/改写地点支线、主线节点、world events，强调游戏感、人物气质、非剧透、禁止替玩家写内心；文件内已附调用模板，可直接复用
