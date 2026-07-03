@@ -43,12 +43,19 @@ export interface WorldArcState {
   beats: Record<string, BeatResult>
 }
 
+export interface WorldPartyState {
+  activeNpcIds: string[]
+  reserveNpcIds: string[]
+}
+
 export interface WorldState {
   version: number
   npcs: Record<string, WorldNpcState>
   factions: Record<string, WorldFactionState>
   arcs: Record<string, WorldArcState>
   flags: Record<string, boolean | number | string>
+  party: WorldPartyState
+  pendingWorldEvents: string[]      // 待查看的江湖回响/消息事件 id（按进入主界面顺序排队）
   triggeredEvents: string[]        // 已触发过的涌现事件 id（防重复）
   seenNodes: string[]              // 已结算过 onEnter 的节点 id（防重复结算）
   completedEvents: string[]        // 已完成的 once 事件 id（一次性剧情节点防重复触发）
@@ -143,16 +150,23 @@ export interface StoryNode {
   title?: string
   text: string
   speaker?: string
+  letterIntro?: string
+  letterSignature?: string
   onEnter?: Consequence[]          // 进入节点时结算（幂等，由 seenNodes 守护）
   choices?: Choice[]               // 有 = 选择节点
   autoNext?: Transition            // 无 choice 时展示后自动流转（可用 branch 条件分流）
   // 约定：choices 与 autoNext 至少有其一；都无 = 终点节点（等价 end）
 }
 
+export type StoryPresentation = "default" | "letter"
+export type StoryLetterStyle = "formal" | "note" | "secret"
+
 export interface StoryEvent {
   id: string
   entryNode: string
   nodes: Record<string, StoryNode>
+  presentation?: StoryPresentation
+  letterStyle?: StoryLetterStyle
   locationId?: string
   weight?: number
   condition?: Condition

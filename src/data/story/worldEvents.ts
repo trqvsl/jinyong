@@ -58,18 +58,21 @@ export const WORLD_EVENTS: WorldEvent[] = [
     event: {
       id: "world-quanzhen-letter",
       entryNode: "main",
+      presentation: "letter",
+      letterStyle: "formal",
       nodes: {
         main: {
           id: "main",
           title: "江湖回响·全真来信",
-          speaker: "全真弟子",
-          text: "你回到落脚处时，一名全真弟子已在门前恭候，将一封火漆尚新的书信递到你手中。信中丘处机笔走龙蛇：\"牛家村雪夜一别，闻君近日侠名渐著，贫道甚慰。全真门下不敢忘义，特奉薄礼，以谢旧情。\"信末还附了几句运剑使气的口诀。",
+          letterIntro: "你回到落脚处时，一名全真弟子已在门前等候，将一封火漆尚新的书信递到你手中。",
+          text: "牛家村雪夜一别，闻君近日侠名渐著，贫道甚慰。全真门下不敢忘义，特奉薄礼，以谢旧情。另附全真剑诀“回风引气”三句，或可助你运剑换息。",
+          letterSignature: "丘处机",
           choices: [
             {
               id: "read-letter",
-              text: "拆信细读",
+              text: "收下书信",
               description: "收下全真门下这份善意与谢礼。",
-              resultText: "你将书信反复读了几遍，把其中口诀默记于心，又把随信送来的薄礼一并收起。那名全真弟子打个稽首便飘然下阶，门前只余一缕松烟味，久久未散。",
+              resultText: "你将书信反复读了几遍，把其中口诀默记于心，又把随信送来的薄礼一并收起。那名全真弟子打个稽首便离去了。",
               consequences: [
                 { kind: "relation", npcId: "qiuchuji", delta: 3 },
                 { kind: "reputation", delta: 2 },
@@ -101,13 +104,13 @@ export const WORLD_EVENTS: WorldEvent[] = [
         main: {
           id: "main",
           title: "江湖回响·夜半敲窗",
-          text: "你夜里刚熄灯，窗棂便被人轻轻叩了三下。推窗一看，黄蓉正蹲在屋檐上晃着一只食盒，笑得像偷到鱼的小猫。她压低声音：\"你这人白天总忙得不见影，我只好夜里来找你了。喏，刚做好的点心，再不吃就凉啦。\"说着，她已经利落地翻窗进屋，把食盒啪地搁在桌上。",
+          text: "你夜里刚熄灯，窗棂便被人叩了三下。推窗一看，黄蓉正蹲在屋檐上提着一只食盒。黄蓉：\"你白天总不见人影，我只好夜里来找你。喏，刚做好的点心，再不吃就凉了。\"她翻窗进屋，把食盒搁在桌上。",
           choices: [
             {
               id: "share-snack",
               text: "陪她吃完",
               description: "夜色正好，索性陪黄蓉把这份点心吃完。",
-              resultText: "你们一边分吃点心，一边有一搭没一搭地闲聊。黄蓉说起临安的趣闻，也问你最近又惹了什么风波。她嘴上总爱挖苦两句，眼底却分明是开心的。临走时她轻轻哼道：\"算你还有良心，没有让我白来。\"",
+              resultText: "你们把食盒里的点心分着吃完，又聊了些临安近来的事。临走前，黄蓉：\"算你还有良心，没有让我白来。\"",
               consequences: [
                 { kind: "relation", npcId: "huangrong", delta: 5 },
                 { kind: "hp", delta: 15 },
@@ -133,17 +136,21 @@ export const WORLD_EVENTS: WorldEvent[] = [
     event: {
       id: "world-guojing-medicine",
       entryNode: "main",
+      presentation: "letter",
+      letterStyle: "note",
       nodes: {
         main: {
           id: "main",
           title: "江湖回响·靖传良药",
-          text: "你回到住处时，门口木栏上挂着一个粗布包，包裹里是两瓶金创药和一封字迹歪斜的小纸条。纸上写着：\"兄弟，听说你近来常与人动手，药留给你，别总逞强。——郭靖\"字写得不算漂亮，却一笔一画都认真得很，像那个人一样。",
+          letterIntro: "你回到住处时，门口木栏上挂着一个粗布包，包里是两瓶金创药和一张小纸条。",
+          text: "兄弟，听说你近来常与人动手，药留给你，别总逞强。",
+          letterSignature: "郭靖",
           choices: [
             {
               id: "accept-medicine",
-              text: "收下这份心意",
+              text: "收起纸条与药瓶",
               description: "把药和纸条都妥帖收好。",
-              resultText: "你把纸条折好收入怀中，又把两瓶金创药塞进包袱最顺手的位置。粗布包上还沾着一点风沙，像是有人赶了老远的路，只为把东西安安稳稳挂到你门前。",
+              resultText: "你把纸条折好收入怀中，又把两瓶金创药塞进包袱最顺手的位置。",
               consequences: [
                 { kind: "relation", npcId: "guojing", delta: 4 },
                 { kind: "item", id: "small-hp-pill", count: 2 },
@@ -169,17 +176,21 @@ export const WORLD_EVENTS: WorldEvent[] = [
     event: {
       id: "world-baituo-invitation",
       entryNode: "main",
+      presentation: "letter",
+      letterStyle: "secret",
       nodes: {
         main: {
           id: "main",
           title: "江湖回响·白驼密帖",
-          text: "你在枕边发现一封不知何时塞进来的薄帖，信封内还掉出一小片蛇蜕。帖中只写了一句话：\"白驼山向来只认有胆有牙的人。你若愿来，自会有人引路。——锋\"字迹阴厉，纸上还带着淡淡药香，显然出自西毒一脉。",
+          letterIntro: "你在枕边发现一封不知何时塞进来的薄帖，信封里还掉出一小片蛇蜕。",
+          text: "白驼山只认有胆有牙的人。你若愿来，自会有人引路。",
+          letterSignature: "锋",
           choices: [
             {
               id: "burn-it",
               text: "先收着再说",
               description: "不急着应，也不急着拒，先把这张密帖留作后手。",
-              resultText: "你把密帖收入袖中，纸角擦过手背，药香里还混着一点淡淡蛇腥。院墙外忽有一声极轻的瓦响，等你推窗去看，长巷里只剩一截晃动的灯影。",
+              resultText: "你把密帖收入袖中，先留作后手。",
               consequences: [
                 { kind: "flag", name: "world.baituo.invited", value: true },
                 { kind: "reputation", delta: 2 },

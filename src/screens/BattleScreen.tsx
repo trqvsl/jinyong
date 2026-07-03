@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import type { Player, Enemy, Skill } from "../types"
-import type { Combatant as EngineCombatant, BattleState as EngineBattleState, BattleSkill as EngineBattleSkill } from "../game/battle/types"
+import type { Combatant as EngineCombatant, BattleState as EngineBattleState, BattleSkill as EngineBattleSkill, BattleLogEntry as EngineBattleLogEntry } from "../game/battle/types"
 import type { PortraitSpec } from "../assets/portraits"
 import type { Npc } from "../data/npcs"
 import { PLAYER_PORTRAIT, ENEMY_PORTRAITS } from "../assets/portraits"
 import { getItemById } from "../data/items"
 import {
   performAction, advanceAtb, nextActor, checkBattleEndBySide, previewTurnOrder,
-  tickUnitStatuses, enemyDecideAction, findCombatant, isStunned,
+  tickUnitStatuses, enemyDecideAction, findCombatant, isStunned, applyStatusToCombatant, healCombatant, restoreMpCombatant,
 } from "../game/battle/engine"
 import { createBattleState, syncPlayersFromState, applyVictoryGrowth } from "../game/battle/adapter"
 import { npcToPlayerSideCombatant } from "../game/npc"
 import { fleeChanceOf } from "../game/attributes"
+import { getBattleSupportMechanicRules, getBattleTriggeredSupportEffects, getBattleTriggeredSupportEvents, type BattleSupportMechanicEffect, type PartyBondBonus, type PartySupportBonus, type PartySupportTotals } from "../game/party"
+import type { StatusEffect as EngineStatusEffect, StatusKind as EngineStatusKind } from "../game/battle/types"
 
 interface FloatText {
   id: number
@@ -22,8 +24,13 @@ interface FloatText {
 
 interface Props {
   player: Player
+  battlePlayer?: Player
   enemies: Enemy[]
   teammates?: Npc[]    // 已入队 NPC 队友，AI 自动操控
+  partySupportBonuses?: PartySupportBonus[]
+  partyBondBonuses?: PartyBondBonus[]
+  partySupportTotals?: PartySupportTotals
+  openingSupportLines?: string[]
   onEnd: (result: { player: Player; outcome: "won" | "lost" | "fled"; rewards?: { exp: number; gold: number; leveledUp: boolean } }) => void
 }
 
@@ -35,9 +42,11 @@ function uidToPortraitId(uid: string): string {
   return m ? m[1] : "default"
 }
 
-export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
+export function BattleScreen({ player, battlePlayer, enemies, teammates, partySupportBonuses = [], partyBondBonuses = [], partySupportTotals = { attack: 0, defense: 0, speed: 0 }, openingSupportLines = [], onEnd }: Props) {
+  const combatPlayer = battlePlayer ?? player
+  const supportMechanicRules = useMemo(() => getBattleSupportMechanicRules(player), [player])
   const [state, setState] = useState<EngineBattleState>(() => {
-    const base = createBattleState([player], enemies)
+    const base = createBattleState([combatPlayer], enemies)
     // 将 NPC 队友追加到玩家侧
     if (teammates && teammates.length > 0) {
       base.playerSide = [...base.playerSide, ...teammates.map(npcToPlayerSideCombatant)]
@@ -46,6 +55,7 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
   })
   const [log, setLog] = useState<{ text: string; type: string }[]>([
     { text: enemies.length > 1 ? "遭遇 " + enemies.map(function(e: Enemy){return e.name}).join("、") + " 等" + enemies.length + "人！" : ("遭遇 " + (enemies[0] ? enemies[0].name : "") + "！" + (enemies[0] ? enemies[0].description : "")), type: "system" },
+    ...openingSupportLines.map((text) => ({ text, type: "status" })),
   ])
   const [phase, setPhase] = useState<"acting" | "busy" | "ended">("acting")
   const [outcome, setOutcome] = useState<"won" | "lost" | "fled" | null>(null)
@@ -57,11 +67,15 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
   const [screenShake, setScreenShake] = useState(false)
   const [skillFlash, setSkillFlash] = useState<{ name: string; isCrit: boolean } | null>(null)
   const [showItems, setShowItems] = useState(false)
+  const [supportHighlightNpcIds, setSupportHighlightNpcIds] = useState<string[]>([])
+  const [supportHighlightBondIds, setSupportHighlightBondIds] = useState<string[]>([])
 
   const stateRef = useRef(state)
   stateRef.current = state
   // 战斗中对背包的修改（用道具扣库存），结束时合并回传给父组件
   const inventoryPatch = useRef<Record<string, number>>({})
+  const triggeredSupportRef = useRef<{ crit: boolean; guard: boolean; victory: boolean }>({ crit: false, guard: false, victory: false })
+  const supportStatusRestoreRef = useRef<Partial<Record<EngineStatusKind, EngineStatusEffect | null>>>({})
   const logEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [log])
@@ -83,6 +97,111 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
     setSkillFlash({ name, isCrit })
     if (isCrit) { setScreenShake(true); setTimeout(() => setScreenShake(false), 450) }
     setTimeout(() => setSkillFlash(null), 650)
+  }
+
+  function highlightSupport(sourceNpcIds: string[], sourceBondIds: string[]) {
+    if (sourceNpcIds.length > 0) {
+      setSupportHighlightNpcIds(sourceNpcIds)
+      setTimeout(() => setSupportHighlightNpcIds([]), 1600)
+    }
+    if (sourceBondIds.length > 0) {
+      setSupportHighlightBondIds(sourceBondIds)
+      setTimeout(() => setSupportHighlightBondIds([]), 1600)
+    }
+  }
+
+  function rememberSupportStatusBaseline(curState: EngineBattleState, kind: EngineStatusKind) {
+    if (Object.prototype.hasOwnProperty.call(supportStatusRestoreRef.current, kind)) return
+    const mainPlayer = curState.playerSide[0]
+    supportStatusRestoreRef.current[kind] = mainPlayer?.statuses.find((status) => status.kind === kind) ?? null
+  }
+
+  function cleanupSupportStatuses(curState: EngineBattleState): EngineBattleState {
+    const entries = Object.entries(supportStatusRestoreRef.current) as [EngineStatusKind, EngineStatusEffect | null][]
+    if (entries.length === 0) return curState
+    const mainPlayer = curState.playerSide[0]
+    if (!mainPlayer) return curState
+    const restoredKinds = new Set(entries.map(([kind]) => kind))
+    const restoredStatuses = mainPlayer.statuses.filter((status) => !restoredKinds.has(status.kind))
+    for (const [, previous] of entries) {
+      if (previous) restoredStatuses.push(previous)
+    }
+    return {
+      ...curState,
+      playerSide: curState.playerSide.map((unit, index) => index === 0 ? { ...unit, statuses: restoredStatuses } : unit),
+    }
+  }
+
+  function applySupportMechanicEffect(curState: EngineBattleState, effect: BattleSupportMechanicEffect): { state: EngineBattleState; logs: EngineBattleLogEntry[] } {
+    const mainPlayerUid = curState.playerSide[0]?.uid
+    if (!mainPlayerUid) return { state: curState, logs: [] }
+
+    if (effect.kind === "heal") {
+      const healed = healCombatant(curState, mainPlayerUid, effect.potency)
+      if (healed.healed > 0) {
+        setTimeout(() => addFloat(mainPlayerUid, `+${healed.healed}`, "heal"), 180)
+      }
+      return {
+        state: healed.state,
+        logs: [{ text: effect.text.replace(`${effect.potency}`, `${healed.healed}`), type: "status" }],
+      }
+    }
+
+    if (effect.kind === "restore-mp") {
+      const restored = restoreMpCombatant(curState, mainPlayerUid, effect.potency)
+      if (restored.restored > 0) {
+        setTimeout(() => addFloat(mainPlayerUid, `气+${restored.restored}`, "status"), 180)
+      }
+      return {
+        state: restored.state,
+        logs: [{ text: effect.text.replace(`${effect.potency}`, `${restored.restored}`), type: "status" }],
+      }
+    }
+
+    rememberSupportStatusBaseline(curState, effect.kind)
+    const applied = applyStatusToCombatant(curState, mainPlayerUid, {
+      target: "self",
+      kind: effect.kind,
+      potency: effect.potency,
+      duration: effect.duration ?? 1,
+      applyChance: 1,
+    })
+    if (applied.applied) {
+      const floatText = effect.kind === "shield"
+        ? `护盾+${effect.potency}`
+        : effect.kind === "buff-def"
+          ? `防↑${effect.potency}`
+          : effect.kind === "buff-spd"
+            ? `速↑${effect.potency}`
+          : effect.kind === "buff-chase"
+            ? `追击势`
+            : `攻↑${effect.potency}`
+      setTimeout(() => addFloat(mainPlayerUid, floatText, "status"), 180)
+    }
+    return {
+      state: applied.state,
+      logs: [{ text: effect.text, type: "status" }],
+    }
+  }
+
+  function emitTriggeredSupport(curState: EngineBattleState, trigger: "crit" | "guard" | "victory"): { state: EngineBattleState; logs: EngineBattleLogEntry[] } {
+    if (triggeredSupportRef.current[trigger]) return { state: curState, logs: [] }
+    const events = getBattleTriggeredSupportEvents(player, trigger)
+    const effects = getBattleTriggeredSupportEffects(player, trigger)
+    if (events.length === 0 && effects.length === 0) return { state: curState, logs: [] }
+    triggeredSupportRef.current[trigger] = true
+    let nextState = curState
+    const logs: EngineBattleLogEntry[] = events.map((event) => ({ text: event.text, type: "status" }))
+    for (const effect of effects) {
+      const applied = applySupportMechanicEffect(nextState, effect)
+      nextState = applied.state
+      logs.push(...applied.logs)
+    }
+    highlightSupport(
+      Array.from(new Set([...events.flatMap((event) => event.npcIds), ...effects.flatMap((effect) => effect.npcIds)])),
+      Array.from(new Set([...events.flatMap((event) => event.bondIds), ...effects.flatMap((effect) => effect.bondIds)])),
+    )
+    return { state: nextState, logs }
   }
 
   // 玩家点招式按钮（skill 来自 currentActor.skills，是 BattleSkill）
@@ -119,11 +238,18 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
   function resolvePlayerAction(actor: EngineCombatant, skill: EngineBattleSkill, targetUids: string[]) {
     setPhase("busy")
     const r = performAction(stateRef.current, { actorUid: actor.uid, skill, targetUids })
-    setState(r.state)
-    pushLog(r.logs)
+    let nextState = r.state
+    const nextLogs = [...r.logs]
+    if (actor.uid === stateRef.current.playerSide[0]?.uid && r.results.some((x) => x.isCrit)) {
+      const support = emitTriggeredSupport(nextState, "crit")
+      nextState = support.state
+      nextLogs.push(...support.logs)
+    }
+    setState(nextState)
+    pushLog(nextLogs)
     flashSkill(skill.name, r.results.some((x) => x.isCrit))
     attachFloats(r, actor.side === "player" ? "enemy" : "player")
-    setTimeout(() => afterAction(r.state, actor.uid), 850)
+    setTimeout(() => afterAction(nextState, actor.uid), 850)
   }
 
   // 把结算结果里的伤害/闪避/状态挂到对应受击单位的飘字层。
@@ -148,11 +274,19 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
       const cmd = enemyDecideAction(curState, cur)
       if (!cmd) { afterAction(curState, actor.uid); return }
       const r = performAction(curState, cmd)
-      setState(r.state)
-      pushLog(r.logs)
+      let nextState = r.state
+      const nextLogs = [...r.logs]
+      const mainPlayer = r.state.playerSide[0]
+      if (mainPlayer && mainPlayer.hp > 0 && mainPlayer.hp / Math.max(1, mainPlayer.hpMax) <= 0.35) {
+        const support = emitTriggeredSupport(nextState, "guard")
+        nextState = support.state
+        nextLogs.push(...support.logs)
+      }
+      setState(nextState)
+      pushLog(nextLogs)
       flashSkill(cmd.skill.name, r.results.some((x) => x.isCrit))
       attachFloats(r, "player")
-      setTimeout(() => afterAction(r.state, actor.uid), 850)
+      setTimeout(() => afterAction(nextState, actor.uid), 850)
     }, 500)
   }
 
@@ -231,7 +365,15 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
   }
 
   function finishBattle(result: "won" | "lost" | "fled", finalState: EngineBattleState) {
-    const synced = syncPlayersFromState([player], finalState)[0]
+    let resolvedState = finalState
+    const finalLogs: EngineBattleLogEntry[] = []
+    if (result === "won") {
+      const support = emitTriggeredSupport(resolvedState, "victory")
+      resolvedState = support.state
+      finalLogs.push(...support.logs)
+    }
+    const syncedCombatPlayer = syncPlayersFromState([combatPlayer], cleanupSupportStatuses(resolvedState))[0]
+    const synced: Player = { ...player, hp: syncedCombatPlayer.hp, mp: syncedCombatPlayer.mp, statuses: syncedCombatPlayer.statuses }
     // 合并战斗中消耗的道具库存（用道具扣的库存记在 inventoryPatch）
     const withItems: Player = { ...synced, inventory: { ...synced.inventory, ...inventoryPatch.current } }
     if (result === "won") {
@@ -239,6 +381,7 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
       const totalGold = enemies.reduce(function(s: number, e: Enemy){return s+e.goldReward},0)
       const { player: grown, rewards } = applyVictoryGrowth(withItems, totalExp, totalGold)
       pushLog([
+        ...finalLogs,
         { text: "得胜！", type: "system" },
         { text: `获得经验 ${rewards.exp} 点，银两 ${rewards.gold} 两`, type: "system" },
         ...(rewards.leveledUp ? [{ text: `境界突破！升到 ${grown.level} 级！`, type: "crit" }] : []),
@@ -310,6 +453,49 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
         ))}
       </div>
 
+      {(partySupportBonuses.length > 0 || partyBondBonuses.length > 0 || (teammates?.length ?? 0) > 0) && (
+        <div className="battle-support-panel">
+          <div className="battle-support-head">
+            <span className="battle-support-title">随行支援</span>
+            <span className="battle-support-total">攻+{partySupportTotals.attack} / 防+{partySupportTotals.defense} / 速+{partySupportTotals.speed}</span>
+          </div>
+          <div className="battle-support-list">
+            {partySupportBonuses.map((bonus) => (
+              <span key={bonus.npcId} className={`battle-support-chip ${supportHighlightNpcIds.includes(bonus.npcId) ? "active" : ""}`}>{bonus.npcName}：攻+{bonus.attack} 防+{bonus.defense} 速+{bonus.speed}</span>
+            ))}
+            {partyBondBonuses.map((bond) => (
+              <span key={bond.id} className={`battle-support-chip bond ${supportHighlightBondIds.includes(bond.id) ? "active" : ""}`}>{bond.name}：攻+{bond.attack} 防+{bond.defense} 速+{bond.speed}</span>
+            ))}
+          </div>
+          {partyBondBonuses.length > 0 && (
+            <div className="battle-bond-lines">
+              {partyBondBonuses.map((bond) => <div key={bond.id} className={`battle-bond-line ${supportHighlightBondIds.includes(bond.id) ? "active" : ""}`}>{bond.name}：{bond.battleLine}</div>)}
+            </div>
+          )}
+          {supportMechanicRules.length > 0 && (
+            <div className="battle-support-rules">
+              {supportMechanicRules.map((rule) => (
+                <div key={rule.trigger} className="battle-support-rule">
+                  <div className="battle-support-rule-headline">
+                    <span className="battle-support-rule-name">{rule.title}</span>
+                    <span className="battle-support-rule-trigger">{rule.triggerLabel}</span>
+                    <span className="battle-support-rule-effect">{rule.focusTags.join(" / ")}</span>
+                  </div>
+                  <div className="battle-support-rule-sources">
+                    {rule.sourceEntries.map((entry) => (
+                      <div key={entry.key} className={`battle-support-rule-source ${entry.type}`}>
+                        <span className="battle-support-rule-source-name">{entry.label}</span>
+                        <span className="battle-support-rule-source-effect">{entry.details.join(" · ")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="battle-stage-shell battle-stage-multi">
         <div className="battle-row enemy-row">
           {state.enemySide.map((c) => (
@@ -318,8 +504,8 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
         </div>
         <div className="battle-stage-center"><div className="versus-mark">对 决</div></div>
         <div className="battle-row player-row">
-          {state.playerSide.map((c) => (
-            <CombatantCardMini key={c.uid} unit={c} portrait={PLAYER_PORTRAIT} shaken={shakenUid === c.uid} floats={floats.filter((f) => f.uid === c.uid)} highlight={currentActorUid === c.uid} />
+          {state.playerSide.map((c, index) => (
+            <CombatantCardMini key={c.uid} unit={c} portrait={PLAYER_PORTRAIT} shaken={shakenUid === c.uid} floats={floats.filter((f) => f.uid === c.uid)} highlight={currentActorUid === c.uid} supportActive={!!teammates?.[index - 1] && supportHighlightNpcIds.includes(teammates[index - 1].id)} tagText={index === 0 ? "主角" : `随行${index}`} />
           ))}
         </div>
       </div>
@@ -382,22 +568,24 @@ export function BattleScreen({ player, enemies, teammates, onEnd }: Props) {
 }
 
 function CombatantCardMini({
-  unit, portrait, shaken, floats, highlight, selectable, onSelect,
+  unit, portrait, shaken, floats, highlight, selectable, onSelect, tagText, supportActive,
 }: {
   unit: EngineCombatant
   portrait: PortraitSpec
   shaken: boolean
   floats: FloatText[]
   highlight?: boolean
+  supportActive?: boolean
   selectable?: boolean
   onSelect?: () => void
+  tagText?: string
 }) {
   return (
     <div
-      className={`combatant-card-mini ${unit.side} ${shaken ? "shake" : ""} ${highlight ? "active" : ""} ${selectable ? "selectable" : ""} ${unit.hp <= 0 ? "down" : ""}`}
+      className={`combatant-card-mini ${unit.side} ${shaken ? "shake" : ""} ${highlight ? "active" : ""} ${supportActive ? "support-active" : ""} ${selectable ? "selectable" : ""} ${unit.hp <= 0 ? "down" : ""}`}
       onClick={selectable ? onSelect : undefined}
     >
-      <div className="combatant-tag-mini">{unit.side === "player" ? "我方" : "敌方"}</div>
+      <div className="combatant-tag-mini">{tagText ?? (unit.side === "player" ? "我方" : "敌方")}</div>
       <div className="combatant-figure-wrap-mini">
         <div className="combatant-figure-mini" style={{ ["--figure-primary" as string]: portrait.palette.primary, ["--figure-secondary" as string]: portrait.palette.secondary }}>
           <div className="figure-emblem">{portrait.emblem}</div>

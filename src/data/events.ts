@@ -1,8 +1,4 @@
-import type { Player } from "../types"
 import type { StoryEvent } from "./story/schema"
-import { checkCondition } from "../game/story/conditions"
-import { getRandomEnemy, getEnemyById, getRandomEnemyFromPool } from "./enemies"
-import { STORY_VOLUMES } from "./story"
 
 // 对外导出剧情类型（UI 层从 events 一处 import 即可）
 export type { StoryEvent, Transition, Condition, Consequence, Choice, StoryNode, Outcome, WorldState } from "./story/schema"
@@ -18,7 +14,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     entryNode: "main", weight: 4,
     nodes: { main: {
       id: "main",
-      text: "你沿山道前行，忽见几个地痞围住行脚商人。那商人神色惊慌，显然已被逼到绝境。",
+      text: "你沿山道前行，忽见几个地痞围住行脚商人。那商人背靠山石，已经退无可退。",
       choices: [
         { id: "intervene", text: "拔刀相助", description: "挺身而出，直接与恶徒交手。",
           consumeDay: true, resultText: "你喝止恶徒，对方恼羞成怒，拔拳相向！",
@@ -70,7 +66,7 @@ export const STORY_EVENTS: StoryEvent[] = [
           transition: { type: "end" } },
         { id: "memorize", text: "记下要点离开", description: "不强求立刻参透，只把关键句记在心里。",
           consequences: [{ kind: "mp", delta: 22 }, { kind: "aptitude", delta: 1 }], consumeDay: true,
-          resultText: "你将关键句牢记于心，内息运转似乎也顺畅了些。",
+          resultText: "你将关键句牢记于心，再一运气，内息果然顺畅了些。",
           transition: { type: "end" } },
       ],
     } },
@@ -121,11 +117,11 @@ export const STORY_EVENTS: StoryEvent[] = [
     entryNode: "main", weight: 2,
     nodes: { main: {
       id: "main",
-      text: "老人抬眼看了你一会儿，忽然笑道：\"你气息尚浅，却也有几分骨气。可愿听老夫一言？\"",
+      text: "老人抬眼看了你一会儿。老人：\"你气息尚浅，却也有几分骨气。可愿听老夫一言？\"",
       choices: [
         { id: "listen", text: "虚心求教", description: "停下脚步，认真听前辈指点呼吸与出招。",
           consequences: [{ kind: "attack", delta: 1 }, { kind: "speed", delta: 1 }, { kind: "reputation", delta: 1 }], consumeDay: true,
-          resultText: "老人只寥寥几句，却让你顿觉豁然开朗，内息与身法都精进了一分。",
+          resultText: "老人只寥寥几句，便点破了你呼吸换劲的几处关节。你照着试了两遍，内息与身法都顺了不少。",
           transition: { type: "end" } },
         { id: "bow-leave", text: "抱拳告辞", description: "礼数周全地退下，不打扰前辈清修。",
           consequences: [{ kind: "hp", delta: 20 }, { kind: "item", id: "small-mp-pill", count: 1 }], consumeDay: true,
@@ -196,7 +192,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     entryNode: "main", locationId: "linan",
     nodes: { main: {
       id: "main",
-      text: "你走进临安城一家热闹的茶楼，角落里几名佩刀汉子压低声音，正谈论一桩惊天劫案。见你走近，他们警觉地住了口。",
+      text: "你走进临安城一家热闹的茶楼，角落里几名佩刀汉子正凑在一处说话。见你走近，他们立刻住了口。",
       choices: [
         { id: "ask", text: "旁敲侧击", description: "买壶茶坐近，装作闲聊试探消息。",
           consequences: [{ kind: "reputation", delta: 1 }, { kind: "aptitude", delta: 1 }], consumeDay: true,
@@ -216,11 +212,11 @@ export const STORY_EVENTS: StoryEvent[] = [
     entryNode: "main", locationId: "linan",
     nodes: { main: {
       id: "main",
-      text: "华灯初上，临安夜市人潮涌动。一名白须老者忽然拦住你，上下打量道：阁下印堂发亮，近来恐有大机缘。",
+      text: "华灯初上，临安夜市人潮涌动。一名白须老者拦住你，上下打量了一眼。老者：\"阁下印堂发亮，近来恐有大机缘。\"",
       choices: [
         { id: "hear-fortune", text: "听他一卦", description: "花些银两听听这老者的玄话。",
           consequences: [{ kind: "gold", delta: -20 }, { kind: "reputation", delta: 1 }], consumeDay: true,
-          resultText: "老者掐指一算，只留下一句福至心灵便飘然而去。说来奇怪，你此后确实觉得诸事顺遂。",
+          resultText: "老者掐指一算，只留下一句\"福至心灵\"，转身便走进夜市人群里。",
           transition: { type: "end" } },
         { id: "walk-on", text: "摇头走开", description: "江湖骗子多，不凑这热闹。",
           consumeDay: true, resultText: "你没理会那老者，继续逛市。夜风送爽，倒也惬意。",
@@ -235,7 +231,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     entryNode: "main", locationId: "shaolin",
     nodes: { main: {
       id: "main",
-      text: "你来到少林寺藏经阁外，一名小沙弥正低头扫地。他抬眼见你气息不俗，犹豫片刻，低声道：施主可愿听贫僧一言？",
+      text: "你来到少林寺藏经阁外，一名小沙弥正低头扫地。他抬眼看了看你。小沙弥：\"施主可愿听贫僧一言？\"",
       choices: [
         { id: "listen", text: "倾听相询", description: "停下脚步，听小沙弥说些什么。",
           consequences: [{ kind: "mp", delta: 25 }, { kind: "aptitude", delta: 1 }], consumeDay: true,
@@ -345,7 +341,7 @@ export const STORY_EVENTS: StoryEvent[] = [
           transition: { type: "end" } },
         { id: "admire", text: "远观赞叹", description: "雪山高寒，量力而行。",
           consequences: [{ kind: "reputation", delta: 1 }], consumeDay: true,
-          resultText: "你在山脚仰望良久，叹造化之奇，遂转身离去，心中却已种下一颗武学之念。",
+          resultText: "你在山脚仰望良久，雪线上的石阶一直没入云里。站够了，才拢紧衣襟转身下山。",
           transition: { type: "end" } },
       ],
     } },
@@ -436,43 +432,3 @@ export const STORY_EVENTS: StoryEvent[] = [
 
 // ============================================================
 // 查询函数
-// ============================================================
-// 排除已完成的 once 事件（一次性剧情节点做完不再触发）
-function notCompleted(player: Player, e: StoryEvent): boolean {
-  return !(player.world.completedEvents ?? []).includes(e.id)
-}
-
-export function getRandomStoryEvent(player: Player): StoryEvent {
-  const ALL = [...STORY_EVENTS, ...STORY_VOLUMES].filter((e) => notCompleted(player, e))
-  const available = ALL.filter((e) => checkCondition(player, player.world, e.condition))
-  const pool = available.length > 0 ? available : ALL
-  const weighted = pool.flatMap((e) => Array(e.weight ?? 1).fill(e))
-  return weighted[Math.floor(Math.random() * weighted.length)]
-}
-
-function getRandomGenericStoryEvent(player: Player): StoryEvent {
-  const ALL = STORY_EVENTS.filter((e) => notCompleted(player, e))
-  const available = ALL.filter((e) => checkCondition(player, player.world, e.condition))
-  const pool = available.length > 0 ? available : ALL
-  const weighted = pool.flatMap((e) => Array(e.weight ?? 1).fill(e))
-  return weighted[Math.floor(Math.random() * weighted.length)]
-}
-
-export function getStoryEventById(id: string): StoryEvent | undefined {
-  return [...STORY_EVENTS, ...STORY_VOLUMES].find((e) => e.id === id)
-}
-
-// 按地点取事件：优先该地点专属剧情（未完成且满足 condition），否则回退随机事件
-export function getStoryEventByLocation(player: Player, locationEvents: string[]): StoryEvent {
-  for (const id of locationEvents) {
-    const e = getStoryEventById(id)
-    if (e && notCompleted(player, e) && checkCondition(player, player.world, e.condition)) return e
-  }
-  return getRandomGenericStoryEvent(player)
-}
-
-export function getAdventureEnemy(player: Player, enemyId?: string, locationPool?: string[]) {
-  if (enemyId) return getEnemyById(enemyId)
-  if (locationPool && locationPool.length > 0) return getRandomEnemyFromPool(player, locationPool)
-  return getRandomEnemy(player)
-}

@@ -8,7 +8,7 @@ import type {
 import { ALIGNMENT_THRESHOLDS } from "../../data/story/schema"
 import type { Alignment } from "../../types"
 
-export const WORLD_VERSION = 2
+export const WORLD_VERSION = 4
 
 // 空世界：所有 Record 初始为空，字段渐进生长
 export function createWorld(): WorldState {
@@ -18,6 +18,8 @@ export function createWorld(): WorldState {
     factions: {},
     arcs: {},
     flags: {},
+    party: { activeNpcIds: [], reserveNpcIds: [] },
+    pendingWorldEvents: [],
     triggeredEvents: [],
     seenNodes: [],
     completedEvents: [],
@@ -69,9 +71,15 @@ export function migrateWorld(raw: unknown): WorldState {
   w.factions = (r.factions as WorldState["factions"]) ?? {}
   w.arcs = (r.arcs as WorldState["arcs"]) ?? {}
   w.flags = (r.flags as WorldState["flags"]) ?? {}
+  w.party = (r.party as WorldState["party"]) ?? { activeNpcIds: [], reserveNpcIds: [] }
+  w.pendingWorldEvents = (r.pendingWorldEvents as string[]) ?? []
   w.triggeredEvents = (r.triggeredEvents as string[]) ?? []
   w.seenNodes = (r.seenNodes as string[]) ?? []
   w.completedEvents = (r.completedEvents as string[]) ?? []
+
+  const legacyPending = typeof w.flags.pendingWorldEventId === "string" ? w.flags.pendingWorldEventId : undefined
+  if (legacyPending && !w.pendingWorldEvents.includes(legacyPending)) w.pendingWorldEvents.push(legacyPending)
+  if (legacyPending) delete w.flags.pendingWorldEventId
 
   // 迁移 v0 → v1：旧存档 completedEvents 含射雕事件但无对应 arcBeat
   if (w.completedEvents.includes("shendiao-niujia") && !w.arcs.shendiao?.beats.niujia) {
@@ -80,6 +88,8 @@ export function migrateWorld(raw: unknown): WorldState {
   }
 
   // 迁移 v1 → v2：WorldNpcState 新增 relationType（optional，无需数据迁移）
+  // 迁移 v2 → v3：pendingWorldEventId 改为 pendingWorldEvents 队列（上方已兼容导入）
+  // 迁移 v3 → v4：新增 party 状态（上方已补默认值）
   w.version = WORLD_VERSION
   return w
 }

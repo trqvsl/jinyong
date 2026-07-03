@@ -17,6 +17,7 @@ export type StatusKind =
   | "buff-atk"  // 攻击增益
   | "buff-def"  // 防御增益
   | "buff-spd"  // 身法增益
+  | "buff-chase" // 追击势：下一次命中追加伤害
   | "heal"      // 回春：每回合回血
   | "stun"      // 眩晕：跳过回合
   | "shield"    // 护盾：减伤

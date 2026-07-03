@@ -2,6 +2,9 @@ import { getItemById } from "../data/items"
 import type { Player, SkillCategory } from "../types"
 import { savePlayer } from "../game/player"
 import { recomputePlayerStats } from "../game/attributes"
+import { getLocationById } from "../data/map"
+import { getRelationLevel } from "../game/relations"
+import { getActivePartyNpcs, getReservePartyNpcs, moveActiveNpc, setNpcPartyActive, MAX_ACTIVE_TEAMMATES, normalizePlayerParty, getNpcBattleRole, getPartySupportBonuses, getPartySupportTotals, getPartyBondBonuses, getBattleSupportMechanicRules } from "../game/party"
 
 interface Props {
   player: Player
@@ -27,6 +30,12 @@ const ROOT_ATTRS: { key: keyof Player["roots"]; label: string; note: string }[] 
 ]
 
 export function CharacterScreen({ player, onUpdate, onBack }: Props) {
+  const activeParty = getActivePartyNpcs(player)
+  const reserveParty = getReservePartyNpcs(player)
+  const supportBonuses = getPartySupportBonuses(player)
+  const bondBonuses = getPartyBondBonuses(player)
+  const supportTotals = getPartySupportTotals(player)
+  const supportMechanicRules = getBattleSupportMechanicRules(player)
   const catGroups = CAT_ORDER.map(cat => ({
     cat,
     skills: player.skills.filter(s => s.category === cat)
@@ -38,12 +47,17 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
     return Math.min(100, Math.round((cur / max) * 100))
   }
 
+  function persist(nextPlayer: Player) {
+    const normalized = normalizePlayerParty(nextPlayer)
+    savePlayer(normalized)
+    onUpdate(normalized)
+  }
+
   function handleResetName() {
     const name = prompt("请输入新名字（8字以内）：", player.name)
     if (name && name.trim()) {
       const updated = { ...player, name: name.trim().slice(0, 8) }
-      savePlayer(updated)
-      onUpdate(updated)
+      persist(updated)
     }
   }
   // 给某根基属性 +1，消耗 1 属性点，然后重新推导面板
@@ -55,8 +69,7 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
       attributePoints: (player.attributePoints ?? 0) - 1,
     }
     const recomputed = recomputePlayerStats(invested)
-    savePlayer(recomputed)
-    onUpdate(recomputed)
+    persist(recomputed)
   }
 
 
@@ -76,9 +89,60 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
     const cleaned = { ...updated.inventory }
     if (cleaned[itemId] <= 0) delete cleaned[itemId]
     const finalPlayer = { ...updated, inventory: cleaned }
-    savePlayer(finalPlayer)
-    onUpdate(finalPlayer)
+    persist(finalPlayer)
     alert(`使用了 ${item.name}：${item.effectText}`)
+  }
+
+  function handleToggleParty(npcId: string, active: boolean) {
+    persist(setNpcPartyActive(player, npcId, active))
+  }
+
+  function handleMoveParty(npcId: string, direction: "forward" | "backward") {
+    persist(moveActiveNpc(player, npcId, direction))
+  }
+
+  function renderPartyMember(npcId: string, mode: "active" | "reserve", order?: number) {
+    const npc = [...activeParty, ...reserveParty].find((item) => item.id === npcId)
+    if (!npc) return null
+    const locationName = npc.locationId ? getLocationById(npc.locationId)?.name : undefined
+    const relation = getRelationLevel(player, npc.id, player.world)
+    const support = supportBonuses.find((item) => item.npcId === npc.id)
+    const strongestSkill = [...npc.combat.skills].sort((a, b) => b.power - a.power)[0]
+    const role = getNpcBattleRole(npc)
+
+    return (
+      <div key={npc.id} className={`party-member-card ${mode}`}>
+        <div className="party-member-main">
+          {typeof order === "number" && <div className="party-member-order">位次 {order + 1}</div>}
+          <div className="party-member-title-row">
+            <div className="party-member-name">{npc.title}·{npc.name}</div>
+            <span className={`relation-badge rel-${relation.tone}`}>{relation.label}</span>
+          </div>
+          <div className="party-member-meta">{npc.work} · {npc.alignment}道{locationName ? ` · 常驻${locationName}` : ""}</div>
+          <div className="party-member-tags">
+            <span className="char-tag">定位 {role}</span>
+            <span className="char-tag">气血 {npc.combat.hpMax}</span>
+            <span className="char-tag">攻击 {npc.combat.attack}</span>
+            <span className="char-tag">身法 {npc.combat.speed}</span>
+            {strongestSkill && <span className="char-tag">主修 {strongestSkill.name}</span>}
+            {support && <span className="char-tag">随行加成 攻+{support.attack} / 防+{support.defense} / 速+{support.speed}</span>}
+          </div>
+          <div className="party-member-desc">{npc.description}</div>
+          {support && <div className="party-member-support-note">{support.description}</div>}
+        </div>
+        <div className="party-member-actions">
+          {mode === "active" ? (
+            <>
+              <button className="menu-btn party-action-btn" disabled={order === 0} onClick={() => handleMoveParty(npc.id, "forward")}>前移</button>
+              <button className="menu-btn party-action-btn" disabled={order === activeParty.length - 1} onClick={() => handleMoveParty(npc.id, "backward")}>后移</button>
+              <button className="menu-btn party-action-btn" onClick={() => handleToggleParty(npc.id, false)}>转候补</button>
+            </>
+          ) : (
+            <button className="menu-btn party-action-btn" onClick={() => handleToggleParty(npc.id, true)}>编入出战</button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -103,6 +167,71 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
             <span className="char-tag">名声 {player.reputation}</span>
             <span className="char-tag">银两 {player.gold}</span>
           </div>
+        </div>
+      </section>
+
+      <section className="stat-panel">
+        <h2>同行队伍 <span className="panel-count">{activeParty.length}/{MAX_ACTIVE_TEAMMATES}</span></h2>
+        <p className="hint">已入队人物不会自动全员上阵。这里只管理当前随行出战的队友与候补名单。</p>
+        <div className="party-team-bonus-banner">当前随行加成：攻击 +{supportTotals.attack} / 防御 +{supportTotals.defense} / 身法 +{supportTotals.speed}</div>
+        {bondBonuses.length > 0 && (
+          <div className="party-bond-list">
+            {bondBonuses.map((bond) => (
+              <div key={bond.id} className="party-bond-item">
+                <div className="party-bond-name">{bond.name}</div>
+                <div className="party-bond-value">攻+{bond.attack} 防+{bond.defense} 速+{bond.speed}</div>
+                <div className="party-bond-desc">{bond.description}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {supportMechanicRules.length > 0 && (
+          <div className="party-trigger-rule-list detailed">
+            {supportMechanicRules.map((rule) => (
+              <div key={rule.trigger} className="party-trigger-rule-item">
+                <div className="party-trigger-rule-head">
+                  <span className="party-trigger-rule-name">{rule.title}</span>
+                  <span className="party-trigger-rule-trigger">{rule.triggerLabel}</span>
+                </div>
+                <div className="party-trigger-rule-desc">{rule.summary}</div>
+                <div className="party-trigger-rule-tags">
+                  {rule.focusTags.map((tag) => <span key={tag} className="party-trigger-rule-tag">{tag}</span>)}
+                </div>
+                <div className="party-trigger-rule-source-list">
+                  {rule.sourceEntries.map((entry) => (
+                    <div key={entry.key} className={`party-trigger-rule-source-item ${entry.type}`}>
+                      <div className="party-trigger-rule-source-name">{entry.label}</div>
+                      <ul className="party-trigger-rule-detail-list">
+                        {entry.details.map((detail, index) => <li key={index}>{detail}</li>)}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="party-section-block">
+          <div className="party-section-head">出战位</div>
+          {activeParty.length === 0 ? (
+            <p className="hint">你暂时独自行走江湖，还没有安排任何同行队友。</p>
+          ) : (
+            <div className="party-list">
+              {activeParty.map((npc, index) => renderPartyMember(npc.id, "active", index))}
+            </div>
+          )}
+        </div>
+
+        <div className="party-section-block">
+          <div className="party-section-head">候补</div>
+          {reserveParty.length === 0 ? (
+            <p className="hint">暂无候补队友。</p>
+          ) : (
+            <div className="party-list reserve">
+              {reserveParty.map((npc) => renderPartyMember(npc.id, "reserve"))}
+            </div>
+          )}
         </div>
       </section>
 

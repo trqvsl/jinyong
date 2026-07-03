@@ -1,16 +1,14 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, type KeyboardEvent } from "react"
 import type { Player } from "../types"
 import type { StoryEvent, Transition } from "../data/events"
-import type { Consequence } from "../data/story/schema"
 import { enterNode, visibleChoices, resolveChoice } from "../game/story/engine"
-
-// ============================================================
-// 剧情事件界面：纯展示，所有结算/流转交给引擎 + App 路由
-// - choosing：显示当前节点正文 + 可见选项（condition 过滤）
-// - autoNext：纯叙事节点（无 choices，有 autoNext），显示正文 + "继续"
-// - result：显示选项/战后结果文字，点"继续"把 transition 交回 App
-// - initialResult：进入时直接显示结果（用于战后衔接），跳过节点选项
-// ============================================================
+import {
+  buildScriptPages,
+  getEventTag,
+  getLetterMeta,
+  mergeLetterPageText,
+  summarizeConsequences,
+} from "./eventPresenter"
 
 interface Props {
   player: Player
@@ -20,168 +18,6 @@ interface Props {
   onResolve: (r: { player: Player; transition: Transition; consumedDay: boolean }) => void
 }
 
-const PAGE_CHAR_LIMIT = 72
-
-interface ScriptSegment {
-  type: "narration" | "dialogue"
-  text: string
-  speaker?: string
-}
-
-function splitTextChunks(text: string): string[] {
-  const normalized = text.trim()
-  if (!normalized) return [""]
-
-  const paragraphs = normalized
-    .split(/\n{2,}/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-
-  const chunks: string[] = []
-
-  for (const paragraph of paragraphs.length > 0 ? paragraphs : [normalized]) {
-    const sentences = paragraph
-      .split(/(?<=[。！？；])/)
-      .map((part) => part.trim())
-      .filter(Boolean)
-
-    let current = ""
-    for (const sentence of sentences.length > 0 ? sentences : [paragraph]) {
-      if (!current) {
-        current = sentence
-        continue
-      }
-      if ((current + sentence).length > PAGE_CHAR_LIMIT) {
-        chunks.push(current)
-        current = sentence
-      } else {
-        current += sentence
-      }
-    }
-    if (current) chunks.push(current)
-  }
-
-  return chunks.length > 0 ? chunks : [normalized]
-}
-
-function inferSpeaker(context: string, fallbackSpeaker?: string): string | undefined {
-  const compact = context.replace(/\s+/g, "").slice(-40)
-  const verbMatch = compact.match(/([一-龥A-Za-z0-9·]{2,12})(?:[一-龥，、；：]{0,8})?(?:道|说道|笑道|冷笑道|低声道|轻声道|高声道|喝道|问道|答道|叹道|叫道|喃喃道|缓缓道|淡淡道|沉声道|大笑道|开口道|回头道|叹息道|低声叹息道|轻笑道)[:：]?$/)
-  if (verbMatch?.[1]) return verbMatch[1]
-
-  const colonMatch = compact.match(/([一-龥A-Za-z0-9·]{2,12})(?:[一-龥，、；：]{0,10})?(?:叹息|低声叹息|轻笑|冷哼|低声|轻声|高声|沉声|喝问|笑骂|笑吟吟地说|说道|说|笑|问|答|道)?[:：]$/)
-  return colonMatch?.[1] ?? fallbackSpeaker
-}
-
-function parseStorySegments(text: string, fallbackSpeaker?: string): ScriptSegment[] {
-  const normalized = text.trim()
-  if (!normalized) return [{ type: "narration", text: "" }]
-
-  const quoteRegex = /“([^”]+)”|"([^"]+)"/g
-  const segments: ScriptSegment[] = []
-  let cursor = 0
-  let matched = false
-
-  for (const match of normalized.matchAll(quoteRegex)) {
-    matched = true
-    const full = match[0]
-    const quote = (match[1] ?? match[2] ?? "").trim()
-    const index = match.index ?? 0
-    const before = normalized.slice(cursor, index).trim()
-    if (before) segments.push({ type: "narration", text: before })
-    if (quote) {
-      segments.push({ type: "dialogue", text: quote, speaker: inferSpeaker(before, fallbackSpeaker) })
-    }
-    cursor = index + full.length
-  }
-
-  const after = normalized.slice(cursor).trim()
-  if (after) segments.push({ type: "narration", text: after })
-
-  if (!matched) {
-    return [{ type: fallbackSpeaker ? "dialogue" : "narration", text: normalized, speaker: fallbackSpeaker }]
-  }
-
-  return segments.length > 0 ? segments : [{ type: "narration", text: normalized }]
-}
-
-function buildScriptPages(text: string, fallbackSpeaker?: string): ScriptSegment[][] {
-  const segments = parseStorySegments(text, fallbackSpeaker)
-  const pages: ScriptSegment[][] = []
-  let currentPage: ScriptSegment[] = []
-  let currentChars = 0
-
-  for (const segment of segments) {
-    const chunks = splitTextChunks(segment.text)
-    for (const chunk of chunks) {
-      if (currentPage.length > 0 && currentChars + chunk.length > PAGE_CHAR_LIMIT) {
-        pages.push(currentPage)
-        currentPage = []
-        currentChars = 0
-      }
-      currentPage.push({ ...segment, text: chunk })
-      currentChars += chunk.length
-    }
-  }
-
-  if (currentPage.length > 0) pages.push(currentPage)
-  return pages.length > 0 ? pages : [[{ type: "narration", text: text.trim() }]]
-}
-
-function formatDelta(delta?: number, positive = "+"): string {
-  const value = delta ?? 0
-  return `${value >= 0 ? positive : ""}${value}`
-}
-
-function summarizeConsequences(consequences?: Consequence[]): string[] {
-  if (!consequences || consequences.length === 0) return []
-
-  const summary: string[] = []
-  for (const c of consequences) {
-    switch (c.kind) {
-      case "aptitude":
-        summary.push(`悟性 ${formatDelta(c.delta)}`)
-        break
-      case "reputation":
-        summary.push(`名声 ${formatDelta(c.delta)}`)
-        break
-      case "karma":
-        summary.push(`善恶 ${formatDelta(c.delta)}`)
-        break
-      case "gold":
-        summary.push(`银两 ${formatDelta(c.delta)} 两`)
-        break
-      case "hp":
-        summary.push(`气血 ${formatDelta(c.delta)}`)
-        break
-      case "mp":
-        summary.push(`内力 ${formatDelta(c.delta)}`)
-        break
-      case "attack":
-        summary.push(`攻击 ${formatDelta(c.delta)}`)
-        break
-      case "speed":
-        summary.push(`身法 ${formatDelta(c.delta)}`)
-        break
-      case "exp":
-        summary.push(`经验 ${formatDelta(c.delta)}`)
-        break
-      case "item":
-        summary.push(`${(c.count ?? 1) >= 0 ? "获得" : "失去"}道具 ×${Math.abs(c.count ?? 1)}`)
-        break
-      case "skill":
-        summary.push("习得武功")
-        break
-      case "relation":
-        summary.push(`关系 ${formatDelta(c.delta)}`)
-        break
-      default:
-        break
-    }
-  }
-
-  return Array.from(new Set(summary))
-}
 
 export function EventScreen({ player, event, nodeId, initialResult, onResolve }: Props) {
   // 进入节点：onEnter 幂等结算。initialResult 模式不进入节点（只显示结果）
@@ -208,9 +44,31 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
   )
   const currentPage = pages[Math.min(pageIndex, pages.length - 1)] ?? []
   const isReadingFinished = pageIndex >= pages.length - 1
+  const showChoices = phase === "choosing" && !!node && isReadingFinished
+  const canTapScript = !isReadingFinished || phase === "autoNext"
+  const isLetterPresentation = event.presentation === "letter" && phase !== "result"
+  const letterMeta = getLetterMeta(event, node?.title)
+  const letterIntro = phase === "result" ? "" : node?.letterIntro?.trim() ?? ""
+  const letterSignature = phase === "result" ? "" : node?.letterSignature?.trim() ?? ""
+  const mergedLetterText = mergeLetterPageText(currentPage)
 
   function advancePage() {
     setPageIndex((prev) => Math.min(prev + 1, pages.length - 1))
+  }
+
+  function handleScriptTap() {
+    if (!isReadingFinished) {
+      advancePage()
+      return
+    }
+    if (phase === "autoNext") handleAutoNext()
+  }
+
+  function handleScriptKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (!canTapScript) return
+    if (event.key !== "Enter" && event.key !== " ") return
+    event.preventDefault()
+    handleScriptTap()
   }
 
   function handleChoose(choiceId: string) {
@@ -248,12 +106,36 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
       </header>
 
       <section className="event-hero stat-panel">
-        <div className="event-tag">见闻</div>
+        <div className="event-tag">{getEventTag(event, node?.title)}</div>
         <h1 className="event-title">{node?.title ?? "事后"}</h1>
       </section>
 
-      <section className="stat-panel event-script-panel">
-        {currentPage.map((segment, index) => (
+      <section
+        className={`stat-panel event-script-panel${canTapScript ? " is-tappable" : ""}${isLetterPresentation ? ` is-letter ${letterMeta.className}` : ""}`}
+        onClick={canTapScript ? handleScriptTap : undefined}
+        onKeyDown={handleScriptKeyDown}
+        role={canTapScript ? "button" : undefined}
+        tabIndex={canTapScript ? 0 : undefined}
+      >
+        {isLetterPresentation ? (
+          <>
+            {letterIntro && (
+              <div className="event-narration-box">
+                <div className="event-intro">{letterIntro}</div>
+              </div>
+            )}
+            <div className={`event-letter-paper ${letterMeta.className}`}>
+              <div className={`event-letter-seal ${letterMeta.className}`}>{letterMeta.seal}</div>
+              <div className={`event-letter-sheet ${letterMeta.className}`}>
+                <div className="event-letter-heading">{node?.title ?? "书信"}</div>
+                <div className="event-letter-body">{mergedLetterText}</div>
+                {letterSignature && isReadingFinished && (
+                  <div className="event-letter-signature">{letterSignature}</div>
+                )}
+              </div>
+            </div>
+          </>
+        ) : currentPage.map((segment, index) => (
           segment.type === "dialogue" ? (
             <div key={`dialogue-${index}-${segment.speaker ?? "anon"}`} className="event-dialogue-box">
               <div className="event-portrait-frame">{(segment.speaker ?? "人").slice(0, 1)}</div>
@@ -269,17 +151,23 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
           )
         ))}
 
-        {pages.length > 1 && (
-          <div className="event-page-indicator">{pageIndex + 1} / {pages.length}</div>
+        {(pages.length > 1 || canTapScript) && (
+          <div className="event-script-meta">
+            {pages.length > 1 && (
+              <div className="event-page-indicator">第 {pageIndex + 1} 页 / 共 {pages.length} 页</div>
+            )}
+
+            {canTapScript && (
+              <div className="event-tap-hint">{isReadingFinished && phase === "autoNext" ? "轻触继续" : "轻触翻页"}</div>
+            )}
+          </div>
         )}
       </section>
 
-      {phase === "choosing" && node && (
+      {showChoices && node && (
         <section className="stat-panel">
-          <h2>你的选择</h2>
-          {!isReadingFinished ? (
-            <button className="menu-btn primary" onClick={advancePage}>继续阅读</button>
-          ) : hasNoVisibleChoices ? (
+          <h2>可选行动</h2>
+          {hasNoVisibleChoices ? (
             <>
               <div className="event-result-text">此时此地，你已没有可作出的选择。</div>
               <button className="menu-btn primary" onClick={() => onResolve({ player: entered!.player, transition: { type: "end" }, consumedDay: false })}>
@@ -299,16 +187,12 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
         </section>
       )}
 
-      {phase === "autoNext" && (
-        <section className="stat-panel">
-          <button className="menu-btn primary" onClick={isReadingFinished ? handleAutoNext : advancePage}>{isReadingFinished ? "继续" : "继续阅读"}</button>
-        </section>
-      )}
-
       {phase === "result" && (
         <section className="stat-panel">
           {resultMeta.length > 0 && (
-            <div className="event-result-meta">{resultMeta.join(" · ")}</div>
+            <div className="event-result-meta">
+              {resultMeta.map((item) => <span key={item} className="event-effect-chip">{item}</span>)}
+            </div>
           )}
           <button className="menu-btn primary" onClick={handleContinue}>继续</button>
         </section>

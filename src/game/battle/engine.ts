@@ -28,6 +28,7 @@ const STATUS_NAMES: Record<StatusKind, string> = {
   "buff-atk": "攻击强化",
   "buff-def": "防御强化",
   "buff-spd": "身法提升",
+  "buff-chase": "追击势",
   "heal": "回春",
   "stun": "眩晕",
   "shield": "护盾",
@@ -58,6 +59,11 @@ export function effectiveStats(unit: Combatant) {
 function getShield(unit: Combatant): number {
   const shield = unit.statuses.find((s) => s.kind === "shield")
   return shield ? shield.potency : 0
+}
+
+function getChaseBonus(unit: Combatant): number {
+  const chase = unit.statuses.find((s) => s.kind === "buff-chase")
+  return chase ? chase.potency : 0
 }
 
 // 对一个单位施加伤害（考虑护盾）
@@ -94,6 +100,10 @@ function applyStatus(unit: Combatant, effect: SkillEffect | undefined): { unit: 
     u.statuses.push(newStatus)
   }
   return { unit: u, applied: true, name: STATUS_NAMES[effect.kind] }
+}
+
+function removeStatus(unit: Combatant, kind: StatusKind): Combatant {
+  return { ...unit, statuses: unit.statuses.filter((status) => status.kind !== kind) }
 }
 
 // 回合开始时结算所有状态
@@ -479,16 +489,21 @@ export function performAction(
   // 攻击类：对每个目标结算伤害/状态
   for (const target of targets) {
     const skill = command.skill
-    const r = resolveExternalAttack(spentActor, target, skill)
+    const actingUnit = findCombatant(nextState, actor.uid) ?? spentActor
+    const r = resolveExternalAttack(actingUnit, target, skill)
     results.push({ ...r, targetUid: target.uid })
     if (r.isDodge) {
       logs.push({ text: `${targetLabel(target, !isPlayer)}身法灵动，闪开了${you}的${skill.name}！`, type: "dodge" })
       continue
     }
-    const dd = dealDamage(target, r.damage)
+    const chaseBonus = getChaseBonus(actingUnit)
+    const dd = dealDamage(target, r.damage + chaseBonus)
     nextState = replaceUnit(nextState, dd.unit)
+    if (chaseBonus > 0) {
+      nextState = replaceUnit(nextState, removeStatus(actingUnit, "buff-chase"))
+    }
     logs.push({
-      text: `${you}施展${skill.name}，${r.isCrit ? "暴击！" : ""}对${targetLabel(target, !isPlayer)}造成${dd.logged}点伤害${dd.absorbed > 0 ? `（护盾抵消${dd.absorbed}）` : ""}`,
+      text: `${you}施展${skill.name}，${r.isCrit ? "暴击！" : ""}对${targetLabel(target, !isPlayer)}造成${dd.logged}点伤害${chaseBonus > 0 ? `（追击势追加${chaseBonus}）` : ""}${dd.absorbed > 0 ? `（护盾抵消${dd.absorbed}）` : ""}`,
       type: r.isCrit ? "crit" : isPlayer ? "player" : "enemy",
     })
     // 附带状态
@@ -518,6 +533,70 @@ function applyStatusToUnit(unit: Combatant, effect: SkillEffect | undefined) {
   else u.statuses.push(ns)
   return { unit: u, applied: true as const, name: STATUS_NAMES[effect.kind] }
 }
+
+export function applyStatusToCombatant(state: BattleState, uid: string, effect: SkillEffect): {
+  state: BattleState
+  applied: boolean
+  name: string
+  unit?: Combatant
+} {
+  const unit = findCombatant(state, uid)
+  if (!unit) return { state, applied: false, name: "" }
+  const nextUnit = structuredClone(unit)
+  const existing = nextUnit.statuses.findIndex((s) => s.kind === effect.kind)
+  const nextStatus: StatusEffect = {
+    kind: effect.kind,
+    name: STATUS_NAMES[effect.kind],
+    duration: effect.duration,
+    potency: effect.potency,
+  }
+  if (existing >= 0) {
+    const current = nextUnit.statuses[existing]
+    if (effect.kind === "shield" || effect.kind === "buff-atk" || effect.kind === "buff-def" || effect.kind === "buff-spd" || effect.kind === "buff-chase") {
+      nextUnit.statuses[existing] = {
+        ...nextStatus,
+        duration: Math.max(current.duration, effect.duration),
+        potency: current.potency + effect.potency,
+      }
+    } else {
+      nextUnit.statuses[existing] = {
+        ...nextStatus,
+        duration: Math.max(current.duration, effect.duration),
+        potency: Math.max(current.potency, effect.potency),
+      }
+    }
+  } else {
+    nextUnit.statuses.push(nextStatus)
+  }
+  return { state: replaceUnit(state, nextUnit), applied: true, name: nextStatus.name, unit: nextUnit }
+}
+
+export function healCombatant(state: BattleState, uid: string, amount: number): {
+  state: BattleState
+  healed: number
+  unit?: Combatant
+} {
+  const unit = findCombatant(state, uid)
+  if (!unit || amount <= 0) return { state, healed: 0, unit }
+  const healed = Math.min(amount, Math.max(0, unit.hpMax - unit.hp))
+  if (healed <= 0) return { state, healed: 0, unit }
+  const healedUnit: Combatant = { ...unit, hp: unit.hp + healed }
+  return { state: replaceUnit(state, healedUnit), healed, unit: healedUnit }
+}
+
+export function restoreMpCombatant(state: BattleState, uid: string, amount: number): {
+  state: BattleState
+  restored: number
+  unit?: Combatant
+} {
+  const unit = findCombatant(state, uid)
+  if (!unit || amount <= 0) return { state, restored: 0, unit }
+  const restored = Math.min(amount, Math.max(0, unit.mpMax - unit.mp))
+  if (restored <= 0) return { state, restored: 0, unit }
+  const restoredUnit: Combatant = { ...unit, mp: unit.mp + restored }
+  return { state: replaceUnit(state, restoredUnit), restored, unit: restoredUnit }
+}
+
 // 第二/第三人称的目标称谓：isPlayerSide=true 表示该目标是玩家阵营
 function targetLabel(c: Combatant, isPlayerSide: boolean): string {
   return isPlayerSide ? `你方${c.name}` : c.name

@@ -183,7 +183,7 @@ export const NPCS: Npc[] = [
     dialogueVariants: [
       { when: { kind: "npcHasTag", npcId: "yangkang", tag: "杨康已黑化" }, text: "杨康双眼赤红，五指成爪：\"你逼我的……这一切都是你们逼我的！\"他浑身散发着九阴白骨爪的阴寒之气，已全然不顾后果。" },
       { when: { kind: "npcHasTag", npcId: "yangkang", tag: "杨康遁走" }, text: "杨康远遁的身影在雨中若隐若现。他回头看了你一眼——那目光里有不甘，也有说不清的复杂情绪。" },
-      { when: { kind: "npcRelationType", npcId: "yangkang", eq: "朋友" }, text: "杨康犹豫片刻，压低声音：\"你救了我……我杨康不是不识好歹的人。但大金与宋的恩怨，你不懂。\"他目光闪烁，似在权衡。" },
+      { when: { kind: "npcRelationType", npcId: "yangkang", eq: "朋友" }, text: "杨康看了看四周，这才开口：\"你救了我……我杨康不是不识好歹的人。但大金与宋的恩怨，你不懂。\"他说完便不再多提。" },
       { when: { kind: "relation", npcId: "yangkang", gte: 10 }, text: "杨康微微点头，语气稍缓：\"你倒不像那些迂腐之辈。本王爷……倒可以与你多聊几句。\"" },
     ],
     // 杨康不可入队

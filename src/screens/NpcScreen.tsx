@@ -5,6 +5,7 @@ import { getRelationLevel } from "../game/relations"
 import { getNpcState } from "../game/story/state"
 import { getNpcDialogue, canRecruit } from "../game/npc"
 import { applyConsequences } from "../game/story/consequences"
+import { setNpcPartyActive } from "../game/party"
 import { NPCS, npcToEnemy, type Npc } from "../data/npcs"
 import { getSkillById } from "../data/skills"
 import { getLocationById } from "../data/map"
@@ -127,9 +128,10 @@ export function NpcScreen({ player, onUpdate, onChallenge, onBack }: Props) {
     const r = applyConsequences(player, player.world, [
       { kind: "npcRecruit", npcId: npc.id, recruited: true },
     ])
-    savePlayer(r.player)
-    onUpdate(r.player)
-    alert(npc.recruitDialogue || `${npc.name}已加入你的队伍！`)
+    const updated = setNpcPartyActive(r.player, npc.id, true)
+    savePlayer(updated)
+    onUpdate(updated)
+    alert(`${npc.recruitDialogue || `${npc.name}已加入你的队伍！`}\n\n已编入出战队列。可在“个人属性”里调整队伍站位。`)
   }
 
   return (

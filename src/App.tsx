@@ -2,14 +2,18 @@ import { useState } from "react"
 import type { Player, Enemy } from "./types"
 import type { Transition, StoryEvent } from "./data/events"
 import { savePlayer } from "./game/player"
-import { applyConsequences } from "./game/story/consequences"
-import { getNpcState } from "./game/story/state"
-import { pollWorldEvent } from "./game/story/worldScheduler"
 import { getLocationById } from "./data/map"
-import { NPCS, type Npc } from "./data/npcs"
-import { getStoryEventByLocation, getStoryEventById, getAdventureEnemy } from "./data/events"
-import { resolveBranch, pickRandom, resolveBattleOutcome } from "./game/story/engine"
+import { getStoryEventByLocation, getStoryEventById } from "./game/story/query"
 import { getEnemyById } from "./data/enemies"
+import { applyPartySupportToPlayer, getPartyBondBonuses, getPartySupportBonuses, getPartySupportTotals, getBattleSupportOpeningLines } from "./game/party"
+import {
+  getPendingWorldEvents,
+  dequeuePendingWorldEvent,
+  getRecruitedTeammates,
+  normalizeMainPlayer,
+  resolveBattleFlow,
+  resolveStoryFlow,
+} from "./game/appFlow"
 import { TitleScreen } from "./screens/TitleScreen"
 import { MainScreen } from "./screens/MainScreen"
 import { BattleScreen } from "./screens/BattleScreen"
@@ -38,33 +42,33 @@ function App() {
   // NPC 切磋时的 npcId，战后结算关系后果
   const [challengeNpcId, setChallengeNpcId] = useState<string | null>(null)
 
-  // 已入队且角色为"队友"的 NPC，参战时传入 BattleScreen
-  function getRecruitedTeammates(p: Player): Npc[] {
-    return NPCS.filter(npc =>
-      npc.roles.includes("队友") &&
-      getNpcState(p.world, npc.id).recruited &&
-      getNpcState(p.world, npc.id).alive !== false
-    )
-  }
-
   function returnToMain(nextPlayer: Player) {
-    const polled = pollWorldEvent(nextPlayer, nextPlayer.world)
-    savePlayer(polled.player)
-    setPlayer(polled.player)
-
-    if (polled.event) {
-      setStoryEvent(polled.event)
-      setStoryNodeId(polled.event.entryNode)
-      setStoryInitialResult(undefined)
-      setLocationId(null)
-      setScreen("event")
-      return
-    }
-
+    const finalPlayer = normalizeMainPlayer(nextPlayer)
+    savePlayer(finalPlayer)
+    setPlayer(finalPlayer)
     setStoryEvent(null)
     setStoryInitialResult(undefined)
     setLocationId(null)
     setScreen("main")
+  }
+
+  function handleOpenPendingWorldEvent(eventId: string) {
+    if (!player) return
+    const pendingEvent = getStoryEventById(eventId)
+    const clearedPlayer = dequeuePendingWorldEvent(player, eventId)
+    savePlayer(clearedPlayer)
+    setPlayer(clearedPlayer)
+
+    if (!pendingEvent) {
+      returnToMain(clearedPlayer)
+      return
+    }
+
+    setStoryEvent(pendingEvent)
+    setStoryNodeId(pendingEvent.entryNode)
+    setStoryInitialResult(undefined)
+    setLocationId(null)
+    setScreen("event")
   }
 
   function handleSelectPlayer(p: Player) { returnToMain(p) }
@@ -86,82 +90,57 @@ function App() {
 
   // 剧情选项 / 战后结果 → 按 transition 路由（引擎驱动，App 只编排）
   function handleStoryResolve(r: { player: Player; transition: Transition; consumedDay: boolean }) {
-    let p = r.player
-    if (r.consumedDay) p = { ...p, day: p.day + 1 }
-    // 先解析 branch（纯路由），再解析 random（带随机），循环处理嵌套
-    let t = resolveBranch(p, p.world, r.transition)
-    while (t.type === "random") t = resolveBranch(p, p.world, pickRandom(t.cases))
-    // 一次性剧情节点 end 时标记完成，下次不再触发
-    if (t.type === "end" && storyEvent?.once && !p.world.completedEvents.includes(storyEvent.id)) {
-      p = { ...p, world: { ...p.world, completedEvents: [...p.world.completedEvents, storyEvent.id] } }
-    }
-    savePlayer(p); setPlayer(p)
-    switch (t.type) {
-      case "end":
-        returnToMain(p)
-        break
-      case "goto":
+    const result = resolveStoryFlow({
+      player: r.player,
+      transition: r.transition,
+      consumedDay: r.consumedDay,
+      currentStoryEvent: storyEvent,
+      locationId,
+    })
+    savePlayer(result.player)
+    setPlayer(result.player)
+
+    switch (result.command.type) {
+      case "return-main":
+        returnToMain(result.player)
+        return
+      case "goto-node":
         setStoryInitialResult(undefined)
-        setStoryNodeId(t.nodeId)             // EventScreen remount 到新节点
-        break
-      case "battle": {
-        setPendingBattleTransition(t)
-        const loc = locationId ? getLocationById(locationId) : undefined
-        setEnemies([getAdventureEnemy(p, t.enemyId, t.useLocationPool ? loc?.enemyPool : undefined)])
+        setStoryNodeId(result.command.nodeId)
+        return
+      case "start-battle":
+        setPendingBattleTransition(result.command.transition)
+        setEnemies(result.command.enemies)
         setScreen("battle")
-        break
-      }
-      case "gotoEvent": {
-        const ev = getStoryEventById(t.eventId)
-        if (ev) { setStoryEvent(ev); setStoryNodeId(ev.entryNode); setStoryInitialResult(undefined) }
-        else { returnToMain(p) }
-        break
-      }
-      case "gameOver":
-        // 阶段4 接多结局系统；当前简化为回主菜单
-        returnToMain(p)
-        break
-      default: // branch/random 理论上已解析完
-        returnToMain(p)
+        return
+      case "goto-event":
+        setStoryEvent(result.command.event)
+        setStoryNodeId(result.command.event.entryNode)
+        setStoryInitialResult(undefined)
+        return
     }
   }
 
   // 战斗结束：剧情战斗按 onWin/onLose/onFlee 衔接收尾；非剧情战斗直接回主菜单
   function handleBattleEnd(result: { player: Player; outcome: "won" | "lost" | "fled" }) {
-    if (!pendingBattleTransition) {
-      // NPC 切磋：结算关系后果
-      let finalPlayer = result.outcome === "won" ? { ...result.player, day: result.player.day + 1 } : result.player
-      if (challengeNpcId) {
-        const delta = result.outcome === "won" ? 5 : result.outcome === "lost" ? -3 : 0
-        if (delta !== 0) {
-          const cs: import("./data/story/schema").Consequence[] = [
-            { kind: "relation", npcId: challengeNpcId, delta },
-            ...(result.outcome === "won" ? [{ kind: "reputation" as const, delta: 2 }] : []),
-          ]
-          const r = applyConsequences(finalPlayer, finalPlayer.world, cs)
-          finalPlayer = r.player
-        }
-        setChallengeNpcId(null)
-      }
-      setEnemies([])
-      returnToMain(finalPlayer)
-      return
-    }
-    const bt = pendingBattleTransition
+    const flow = resolveBattleFlow({
+      player: result.player,
+      outcome: result.outcome,
+      pendingBattleTransition,
+      challengeNpcId,
+    })
     setPendingBattleTransition(null)
+    setChallengeNpcId(null)
     setEnemies([])
+    savePlayer(flow.player)
+    setPlayer(flow.player)
 
-    // 致命战斗战败 → 结局
-    if (result.outcome === "lost" && bt.type === "battle" && bt.lethal) {
-      setStoryInitialResult({ text: "你力战不敌，命丧于此……这一遭，江湖路竟走到了尽头。", transition: { type: "gameOver" } })
-      setScreen("event")
+    if (flow.command.type === "return-main") {
+      returnToMain(flow.player)
       return
     }
 
-    const ot = resolveBattleOutcome(result.player, result.player.world, bt, result.outcome)
-    if (!ot) { returnToMain(result.player); return }
-    savePlayer(ot.player); setPlayer(ot.player)
-    setStoryInitialResult({ text: ot.text, transition: ot.then })
+    setStoryInitialResult({ text: flow.command.text, transition: flow.command.transition })
     setScreen("event")
   }
 
@@ -186,11 +165,17 @@ function App() {
     savePlayer(advanced); setPlayer(advanced)
   }
 
+  const activePartyBonuses = player ? getPartySupportBonuses(player) : []
+  const activePartyBondBonuses = player ? getPartyBondBonuses(player) : []
+  const activePartyTotals = player ? getPartySupportTotals(player) : { attack: 0, defense: 0, speed: 0 }
+  const battleSupportOpeningLines = player ? getBattleSupportOpeningLines(player) : []
+  const battlePlayer = player ? applyPartySupportToPlayer(player) : null
+
   return (
     <div className="app">
       {screen === "title" && <TitleScreen onSelectPlayer={handleSelectPlayer} />}
       {screen === "main" && player && (
-        <MainScreen player={player} onUpdate={handleUpdate} onAdventure={handleAdventure}
+        <MainScreen player={player} pendingWorldEvents={getPendingWorldEvents(player)} onOpenPendingWorldEvent={handleOpenPendingWorldEvent} onUpdate={handleUpdate} onAdventure={handleAdventure}
           onSect={() => setScreen("sect")} onCharacter={() => setScreen("character")} onShop={() => setScreen("shop")}
           onNpc={() => setScreen("npc")} onDebug={() => setScreen("debug")}
         />
@@ -205,7 +190,7 @@ function App() {
       {screen === "map" && player && <MapScreen player={player} onSelect={handleSelectLocation} onBack={() => returnToMain(player)} />}
       {screen === "debug" && player && <DebugScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} onTestBattle={handleTestBattle} />}
       {screen === "npc" && player && <NpcScreen player={player} onUpdate={handleUpdate} onChallenge={handleChallengeNpc} onBack={() => returnToMain(player)} />}
-      {screen === "battle" && player && enemies.length > 0 && <BattleScreen player={player} enemies={enemies} teammates={getRecruitedTeammates(player)} onEnd={handleBattleEnd} />}
+      {screen === "battle" && player && battlePlayer && enemies.length > 0 && <BattleScreen player={player} battlePlayer={battlePlayer} enemies={enemies} teammates={getRecruitedTeammates(player)} partySupportBonuses={activePartyBonuses} partyBondBonuses={activePartyBondBonuses} partySupportTotals={activePartyTotals} openingSupportLines={battleSupportOpeningLines} onEnd={handleBattleEnd} />}
       {screen === "sect" && player && <SectScreen player={player} onLearn={handleLearn} onBack={() => returnToMain(player)} />}
       {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}
       {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}

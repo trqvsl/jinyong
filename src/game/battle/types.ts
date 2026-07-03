@@ -17,6 +17,7 @@ export type StatusKind =
   | "buff-atk"
   | "buff-def"
   | "buff-spd"
+  | "buff-chase"
   | "heal"
   | "stun"
   | "shield"

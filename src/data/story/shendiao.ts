@@ -11,15 +11,27 @@ export const SHENDIAO_STORY: StoryEvent[] = [
   // ===== 1. 牛家村·风雪惊变（起点） =====
   {
     id: "shendiao-niujia",
-    entryNode: "main",
+    entryNode: "arrival",
     locationId: "niujia",
     weight: 6,
     once: true,
     nodes: {
+      arrival: {
+        id: "arrival",
+        title: "牛家村·风雪惊变",
+        text: "牛家村雪夜，村西一户农舍灯火通明。屋里两名壮汉正与一位道人对饮，那道人目光如电，坐在席间却像一柄收入鞘中的剑。",
+        autoNext: { type: "goto", nodeId: "alarm" },
+      },
+      alarm: {
+        id: "alarm",
+        title: "牛家村·风雪惊变",
+        text: "村口忽然亮起一串火把，马蹄和甲叶声一齐压进风里。",
+        autoNext: { type: "goto", nodeId: "main" },
+      },
       main: {
         id: "main",
         title: "牛家村·风雪惊变",
-        text: "你踏雪夜宿牛家村。一户农舍灯火通明，两名壮汉正与一位道人对饮，那道人目光如电、杀气内敛，绝非寻常之辈。你尚未来得及细看，村外火把连绵——一队官军已围住村子，冷喝\"奉命缉拿钦犯\"。风雪里，一场血战似已无可避免。",
+        text: "官军转眼围住村子。领头军官勒马停在雪地里。领头军官：\"奉命缉拿钦犯！\"",
         choices: [
           {
             id: "defend", text: "挺身力战", description: "护那道人，与官军周旋，不论出身，先救人再说。",
@@ -29,7 +41,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             transition: {
               type: "battle", enemyId: "guanjun",
               onWin: {
-                text: "官军被你与丘处机联手杀退。丘处机长剑入鞘，深揖道：\"阁下仗义出手，武艺胆识皆是不凡，丘某佩服。\"他见你根骨奇佳，传你两式全真剑法的御敌要诀，又赠碎银作盘缠：\"日后江湖重逢，再共谋一醉。\"经此一役，你在牛家村一带声名鹊起。",
+                text: "官军被你与丘处机联手杀退。丘处机收剑抱拳：\"阁下仗义出手，丘某记下了。\"他传你两式全真剑法的用劲关节，又赠碎银作盘缠。牛家村这一战，很快在附近传开了。",
                 consequences: [
                   { kind: "karma", delta: 5 },
                   { kind: "reputation", delta: 5 },
@@ -83,7 +95,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
               { kind: "arcBeat", arcId: "shendiao", beat: "niujia", result: "skipped" },
             ],
             consumeDay: true,
-            resultText: "你伏于梁上，看那道人长剑如虹，官军竟一时近不得身。全真剑法的招式变化被你尽收眼底，似有所悟。待双方两败俱伤各自散去，你才悄然离开——只是这一夜袖手，心中难免留下几分愧疚。",
+            resultText: "你伏于梁上，看那道人长剑如虹，官军竟一时近不得身。全真剑法的招式变化被你尽收眼底，似有所悟。待双方两败俱伤各自散去，你才悄然离开，牛家村的火光仍映在雪地上。",
             transition: { type: "goto", nodeId: "aftermath" },
           },
         ],
@@ -100,7 +112,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
   // ===== 2. 大漠·少年射雕 =====
   {
     id: "shendiao-damos",
-    entryNode: "main",
+    entryNode: "approach",
     locationId: "damos",
     weight: 5,
     once: true,
@@ -119,7 +131,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
               { kind: "relation", npcId: "guojing", delta: 12 },
             ],
             consumeDay: true,
-            resultText: "你上前点拨那少年运气发力的门道。他虽憨厚，却如获至宝，连连道谢。七位师父见你出手不凡，亦拱手相谢。少年名叫郭靖——你心头一动，这名字似在牛家村那个风雪夜听过。",
+            resultText: "你上前点拨那少年运气发力的门道。他虽憨厚，却如获至宝，连连道谢。七位师父见你出手不凡，亦拱手相谢。少年自报名叫郭靖，这名字和牛家村雪夜里听过的旧事隐约对上了。",
             transition: { type: "goto", nodeId: "drill" },
           },
           {
@@ -142,7 +154,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
               { kind: "npcRelationType", npcId: "guojing", relationType: "朋友" },
             ],
             consumeDay: true,
-            resultText: "你与郭靖对饮马奶酒，他说起大漠的辽阔与江南的故乡，眼中满是向往。临别时他紧紧握住你的手：\"后会有期！\"话音落下，连一旁的酒碗都被他拍得轻轻一震。",
+            resultText: "你与郭靖对饮马奶酒，他说起大漠和江南的旧事。临别时他握住你的手：\"后会有期！\"",
             transition: { type: "goto", nodeId: "drill" },
           },
         ],
@@ -150,14 +162,14 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       drill: {
         id: "drill",
         title: "大漠·江南七怪",
-        text: "入夜，七位师父围坐篝火。那矮胖女子韩小莹低声叹息：\"这孩子资质虽钝，胜在勤恳，只是……\"话未说完，为首的柯镇恶冷声道：\"既收了他做徒弟，便不谈资质。靖儿，再练！\"郭靖默默起身，又打了一套拳法。篝火噼啪作响，七怪谁也没有离席，只把目光都落在那少年身上。",
+        text: "入夜，七位师父围坐篝火。韩小莹看着郭靖练拳。韩小莹：\"这孩子资质虽钝，胜在勤恳，只是……\"柯镇恶：\"既收了他做徒弟，便不谈资质。靖儿，再练！\"郭靖起身，又打了一套拳法。七怪谁也没有离席。",
         autoNext: { type: "goto", nodeId: "farewell" },
         onEnter: [{ kind: "reputation", delta: 1 }],
       },
       farewell: {
         id: "farewell",
         title: "大漠·惜别",
-        text: "数日后，你辞别郭靖继续南行。他追出三里地，塞给你一包干粮：\"江湖路远，兄弟保重！\"说完便挥着手往回跑，跑出老远还回头喊了一声。风从草原尽头吹来，把马奶酒和篝火的气味一并留在了身后。",
+        text: "数日后，你辞别郭靖继续南行。他追出三里地，塞给你一包干粮。郭靖：\"江湖路远，兄弟保重！\"说完便挥着手往回跑。",
         autoNext: { type: "end" },
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "damos", result: "done" },
@@ -217,7 +229,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       reveal: {
         id: "reveal",
         title: "真相·桃花岛上小东邪",
-        text: "夜深，小乞丐忽然摘下头上破帽，抖落煤灰——一头青丝如瀑泻下，竟是个绝色少女！她咯咯笑道：\"我叫黄蓉，桃花岛黄药师之女。你这人若有趣，改日来岛上找我爹下棋。\"郭靖目瞪口呆，半晌都没把嘴合上。她却把破帽在指尖一转，笑得越发得意。",
+        text: "夜深，小乞丐摘下破帽，抖了抖满头煤灰，帽下露出一头长发，原来竟是个少女。黄蓉：\"我叫黄蓉，桃花岛黄药师之女。你这人若有趣，改日来岛上找我爹下棋。\"郭靖站在原地，半天没回过神。",
         autoNext: { type: "end" },
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "meet-rong", result: "done" },
@@ -260,7 +272,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
               { kind: "reputation", delta: 1 },
             ],
             consumeDay: true,
-            resultText: "你藏身暗处，只见老叫花吃完烧鸡后忽然拍了郭靖后背一掌——一股浑厚内力透体而过！你看得心惊，这分明是以内力替他打通经脉的高深手法。",
+            resultText: "你藏身暗处，只见老叫花吃完烧鸡后抬手拍了郭靖后背一掌。郭靖肩背一震，呼吸随即长了许多，额上的汗也慢慢落了下去。",
             transition: { type: "goto", nodeId: "feast" },
           },
           {
@@ -323,10 +335,22 @@ export const SHENDIAO_STORY: StoryEvent[] = [
     once: true,
     condition: { kind: "arcBeat", arcId: "shendiao", beat: "qigong" },
     nodes: {
+      approach: {
+        id: "approach",
+        title: "赵王府·夜探藏经",
+        text: "夜里潜到赵王府外，高墙深院一层层压在黑暗里，檐下灯火却还亮着。院中不时有人提灯巡过，甲叶声贴着墙根一路传远。",
+        autoNext: { type: "goto", nodeId: "alarm" },
+      },
+      alarm: {
+        id: "alarm",
+        title: "赵王府·夜探藏经",
+        text: "更深处忽然传来一阵凄厉怪笑，声音尖得像要把夜色划开。黄蓉提过，赵王府里藏着桃花岛叛徒梅超风的踪迹。",
+        autoNext: { type: "goto", nodeId: "main" },
+      },
       main: {
         id: "main",
         title: "赵王府·夜探藏经",
-        text: "你打听到赵王府中藏有武穆遗书与九阴真经残卷，遂趁夜潜入。王府重重院落，灯火通明处隐约可见高手巡夜。你屏息潜行，忽闻远处传来凄厉怪笑——似有人正在练那阴毒的九阴白骨爪。黄蓉曾提过：赵王府中有一对阴险夫妻，梅超风与陈玄风，叛出桃花岛后在此藏匿。",
+        text: "王府里的高手还在巡夜，藏经密室多半就在更深的院落里。眼下是继续摸进去，还是先在外院找机会下手，全看这一念。",
         choices: [
           {
             id: "steal", text: "深入盗书", description: "机缘与风险并存，博他一回。",
@@ -405,7 +429,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       escape: {
         id: "escape",
         title: "王府·月下脱身",
-        text: "你翻出王府高墙，消失在夜色中。身后隐约传来杨康的声音，他像是在招呼什么人，院里随即又响起一阵急促脚步。王府的灯火一层层亮起来，夜色里顿时更乱了。",
+        text: "你翻出王府高墙，落进巷口夜色。身后传来杨康的喊声，院里很快又响起一阵急促脚步。王府灯火接连亮起。",
         autoNext: { type: "end" },
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "wangfu", result: "done" },
@@ -432,7 +456,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
           {
             id: "accept-test", text: "应下三关", description: "既来之则安之，闯一闯东邪的试炼。",
             consumeDay: true,
-            resultText: "你抱拳道：\"晚辈愿领教。\"黄药师微微颔首，眼中闪过一丝赞赏。",
+            resultText: "你抱拳应下。黄药师点了点头。",
             transition: { type: "goto", nodeId: "test" },
           },
           {
@@ -454,7 +478,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             transition: {
               type: "battle", enemyId: "huangyaoshi",
               onWin: {
-                text: "你拼尽全力与黄药师过了数招，竟未落下风。他收掌而立，冷冷道：\"功夫倒还过得去。罢了，看在蓉儿份上，不与你计较。\"",
+                text: "你与黄药师连过数招，勉强站稳身形。他收掌站定。黄药师：\"功夫倒还过得去。看在蓉儿份上，不与你计较。\"",
                 consequences: [
                   { kind: "reputation", delta: 8 },
                   { kind: "relation", npcId: "huangyaoshi-npc", delta: 10 },
@@ -462,7 +486,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
                 then: { type: "goto", nodeId: "result" },
               },
               onLose: {
-                text: "黄药师武功远在你之上，数招之间你便被制住。他冷声道：\"不自量力。\"拂袖而去，你被逐出桃花岛。",
+                text: "黄药师武功远在你之上，数招之间你便被制住。黄药师：\"不自量力。\"你被逐出桃花岛。",
                 then: { type: "end" },
               },
               onFlee: {
@@ -476,7 +500,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       test: {
         id: "test",
         title: "桃花·奇门试炼",
-        text: "黄药师引你入阵，四面桃花纷飞，方位不断变幻。他冷声道：\"一炷香内走出此阵，便算你过。\"你凝神观察，发现阵眼随生门变化而转——这便是桃花岛奇门遁甲的奥妙。",
+        text: "黄药师引你入阵，四面桃花遮眼，方位不断变幻。黄药师：\"一炷香内走出此阵，便算你过。\"你凝神观察，阵眼随着生门不断变动。",
         choices: [
           {
             id: "solve-array", text: "推演阵法", description: "静心推算生门方位，以智破阵。",
@@ -495,7 +519,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             transition: {
               type: "battle", enemyId: "huangyaoshi",
               onWin: {
-                text: "你以蛮力破阵而出，虽狼狈却不失气势。黄药师叹道：\"莽夫有莽夫的好处。过关。\"",
+                text: "你以蛮力破阵而出，衣袖上沾满落花。黄药师：\"莽夫有莽夫的好处。过关。\"",
                 consequences: [
                   { kind: "speed", delta: 2 },
                 ],
@@ -523,7 +547,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       result: {
         id: "result",
         title: "桃花岛·翁婿和解",
-        text: "黄药师长叹一声：\"罢了。蓉儿既认了那傻小子，老夫再拦也无用。\"他看了你一眼：\"你既为客，便在此盘桓数日。\"数日间，你观摩了桃花岛的奇门术数与音律武学。临行时黄药师破天荒送至码头，只淡淡道：\"若再来岛上，别像头回那样乱闯。\"",
+        text: "黄药师看着海面站了一会儿。黄药师：\"罢了。蓉儿既认了郭靖，老夫再拦也无用。\"他准你在岛上盘桓数日。临行时，他送你到码头。黄药师：\"若再来岛上，别像头回那样乱闯。\"",
         autoNext: { type: "end" },
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "taohua", result: "done" },
@@ -579,7 +603,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
               { kind: "gold", delta: 100 },
             ],
             consumeDay: true,
-            resultText: "你挡在杨康身前，替他挡开众人的质问。他低声道了声谢，眼中却有算计之色。郭靖远远望着你，眼中满是失望。",
+            resultText: "你挡在杨康身前，替他挡开众人的质问。杨康低声说了句谢。郭靖站在庙门外，没有再开口。",
             transition: { type: "goto", nodeId: "confrontation" },
           },
         ],
@@ -595,7 +619,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             transition: {
               type: "battle", enemyId: "yangkang",
               onWin: {
-                text: "你击落杨康手中铁枪，他踉跄后退。穆念慈哭道：\"康哥，够了……\"杨康眼中闪过一丝复杂神色，随即转身冲入雨幕之中。",
+                text: "你击落杨康手中铁枪，他踉跄后退。穆念慈：\"康哥，够了……\"杨康看了她一眼，转身冲入雨幕。",
                 consequences: [
                   { kind: "npcTag", npcId: "yangkang", tag: "杨康已黑化" },
                 ],
@@ -711,7 +735,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
                 then: { type: "goto", nodeId: "contest" },
               },
               onLose: {
-                text: "欧阳锋蛤蟆功一发，你如遭雷击败退。虽败犹荣——能在五绝面前走上几招，已是江湖中人梦寐以求的经历。洪七公安慰道：\"输给西毒不丢人，俺当年也赢不了他。\"",
+                text: "欧阳锋蛤蟆功一发，你当场败退。洪七公摆了摆手。洪七公：\"输给西毒不丢人。\"",
                 consequences: [
                   { kind: "reputation", delta: 5 },
                   { kind: "exp", delta: 80 },
@@ -781,7 +805,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       "epilogue-hero": {
         id: "epilogue-hero",
         title: "射雕·侠之大者",
-        text: "华山论剑落幕。你行侠仗义、扶危济困的声名已传遍江湖。郭靖握住你的手：\"兄弟，你我虽非同姓，却胜似手足。靖愿与你共守襄阳、抗击鞑虏！\"黄蓉在旁盈盈一笑，洪七公大笑远去，黄药师拂袖归岛。你立于华山之巅，俯瞰万里河山——这一遭穿越，终是不负此行。",
+        text: "华山论剑落幕。你行侠仗义、扶危济困的声名已传遍江湖。郭靖握住你的手：\"兄弟，你我虽非同姓，却胜似手足。\"黄蓉在旁盈盈一笑，洪七公大笑远去，黄药师拂袖归岛。峰顶的风从众人衣袖间穿过去，云海还在脚下缓缓翻涌。",
         autoNext: { type: "end" },
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "huashan", result: "won" },
@@ -796,7 +820,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       "epilogue-outcast": {
         id: "epilogue-outcast",
         title: "射雕·独步江湖",
-        text: "华山论剑落幕，众人散去。你独行下山，欧阳锋忽然出现在路旁：\"嘿嘿，小子，你跟那帮伪君子不是一路人。老夫看好你。\"他递来一枚蛇形令牌——持此可入白驼山修炼。你回望华山之巅的余晖，心中冷笑：这江湖，不过是另一个名利场罢了。",
+        text: "华山论剑落幕，众人散去。你独行下山，欧阳锋忽然出现在路旁：\"嘿嘿，小子，你跟那帮伪君子不是一路人。老夫看好你。\"他递来一枚蛇形令牌——持此可入白驼山修炼。山道尽头天光将暗，华山主峰在身后只剩一线冷金。",
         autoNext: { type: "end" },
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "huashan", result: "done" },
@@ -810,7 +834,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       "epilogue-wanderer": {
         id: "epilogue-wanderer",
         title: "射雕·江湖路远",
-        text: "华山论剑落幕。你既未与郭靖同守襄阳，也未随欧阳锋入白驼山。你只是背起行囊，继续走你自己的江湖路。身后传来黄蓉的声音：\"喂——下次再见面，记得请我吃饭！\"你没有回头，嘴角却微微上扬。这个世界的故事远未结束，而你的旅途，才刚刚开始。",
+        text: "华山论剑落幕。你既未与郭靖同路，也未接欧阳锋那枚令牌。你背起行囊沿山道往下走，身后忽然传来黄蓉的声音：\"喂——下次再见面，记得请我吃饭！\"风把她的话吹得断断续续，山路前头仍长得望不到尽头。",
         autoNext: { type: "end" },
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "huashan", result: "done" },
@@ -834,14 +858,14 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       main: {
         id: "main",
         title: "牛家村·故园残雪",
-        text: "你再回牛家村时，雪早已化尽，只剩几堵焦黑的残墙。村口老妪坐在断井边，絮絮叨叨说起那一夜官军围村、道人杀敌、村民逃散的旧事。你立在风里，竟觉得这里像一根扎在江湖里的刺，提醒人有些动荡看似过去了，痕迹却一直还在。",
+        text: "你再回牛家村时，雪早已化尽，只剩几堵焦黑的残墙。村口老妪坐在断井边，絮絮叨叨说起那一夜官军围村、道人杀敌、村民逃散的旧事。风一阵阵从残墙缺口穿过去，断井边的草伏下又立起，灰黑砖缝里到处还留着火烧过的痕。",
         choices: [
           {
             id: "offer-incense",
             text: "替故人上香",
             description: "在残屋前点一炷清香，替旧人旧事收一收魂。",
             consumeDay: true,
-            resultText: "你在残垣前燃起线香，默默行了一礼。老妪见你神情肃然，叹道：\"这世上若多几分记挂旧情的人，江湖也不至如此凉薄。\"",
+            resultText: "你在残垣前燃起线香，行了一礼。老妪看了你一眼：\"还记得这村子的人，不多了。\"",
             consequences: [
               { kind: "karma", delta: 2 },
               { kind: "reputation", delta: 2 },
@@ -854,7 +878,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             text: "翻检残垣",
             description: "看看火场废墟里是否还藏着什么旧物。",
             consumeDay: true,
-            resultText: "你翻开焦木烂瓦，在灰烬里摸出一枚烧黑的铜锁和几页残纸，像是谁匆忙间来不及带走的旧物。纸上的字大半模糊，却仍能辨出\"忠义\"二字。",
+            resultText: "你翻开焦木烂瓦，在灰烬里摸出一枚烧黑的铜锁和几页残纸。纸上的字大半模糊，只剩\"忠义\"二字还能辨认。",
             consequences: [
               { kind: "aptitude", delta: 1 },
               { kind: "item", id: "field-ration", count: 1 },
@@ -886,7 +910,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             text: "上前宽慰",
             description: "陪她说几句心里话，让她不至一个人扛下所有。",
             consumeDay: true,
-            resultText: "你陪穆念慈在庙前坐了许久。她说起杨铁心，说起杨康，说起那些本不该走到这一步的旧缘。说到最后，她只轻声道：\"有些人走错了路，可活着的人总还得继续走。\"",
+            resultText: "你陪穆念慈在庙前坐了一阵。她说起杨铁心，也说起杨康。末了，穆念慈：\"活着的人，总还得继续走。\"",
             consequences: [
               { kind: "karma", delta: 3 },
               { kind: "reputation", delta: 2 },
@@ -916,6 +940,8 @@ export const SHENDIAO_STORY: StoryEvent[] = [
   {
     id: "shendiao-damos-eagle",
     entryNode: "main",
+    presentation: "letter",
+    letterStyle: "note",
     locationId: "damos",
     weight: 3,
     once: true,
@@ -924,14 +950,16 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       main: {
         id: "main",
         title: "大漠·白雕传讯",
-        text: "你在草原上歇马时，头顶忽有白影掠过。那只郭靖曾射下又亲手放飞的白雕竟落在你身旁，爪上还系着一截细细的皮绳。雕目炯炯，似在认你。它低低鸣了两声，像是奉命而来。",
+        letterIntro: "你在草原上歇马时，头顶掠过一道白影。那只白雕落到你身旁，爪上系着一截皮绳。",
+        text: "兄弟，若来大漠，记得喝热马奶。",
+        letterSignature: "郭靖",
         choices: [
           {
             id: "untie-letter",
-            text: "解下皮绳",
+            text: "把字条收好",
             description: "看看白雕到底替谁送来什么消息。",
             consumeDay: true,
-            resultText: "你从皮绳里取出一张皱巴巴的小纸片，上面是郭靖歪歪扭扭的字：\"兄弟，若来大漠，记得喝热马奶。\"短短一句，朴拙得叫人想笑，却也叫人心头一暖。",
+            resultText: "你把字条折好收起，纸角上还沾着一点干掉的沙土。",
             consequences: [
               { kind: "relation", npcId: "guojing", delta: 6 },
               { kind: "hp", delta: 20 },
@@ -944,7 +972,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             text: "喂它些肉干",
             description: "不拆绳结，先喂饱这位远道来的使者。",
             consumeDay: true,
-            resultText: "你掰开肉干喂给白雕。它吃完后振翅绕你一圈，这才落下，让你取走爪上皮绳。上头系着的是一枚草原护符，粗糙，却显然出自郭靖之手。",
+            resultText: "你掰开肉干喂给白雕。它吃完后绕着你飞了一圈，这才落下，让你取走爪上皮绳。上头还系着一枚草原护符。",
             consequences: [
               { kind: "relation", npcId: "guojing", delta: 4 },
               { kind: "item", id: "field-ration", count: 2 },
@@ -1012,7 +1040,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       main: {
         id: "main",
         title: "大漠·七怪试手",
-        text: "柯镇恶等人听郭靖提起你，忽然起了兴致，非要轮流和你过几招看看成色。韩小莹轻笑，朱聪掂着铁算盘，柯镇恶则拄杖立在风里，冷冷道：\"能得靖儿推崇，想来不差。来，让老夫等人瞧瞧。\"",
+        text: "柯镇恶等人听郭靖提起你，便要轮流和你过几招。朱聪掂了掂铁算盘，韩小莹站在一旁看着。柯镇恶拄杖立在风里。柯镇恶：\"能得靖儿推崇，想来不差。来，让老夫等人瞧瞧。\"",
         choices: [
           {
             id: "accept",
@@ -1056,7 +1084,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       main: {
         id: "main",
         title: "临安·丐帮小宴",
-        text: "你在临安桥洞下闻到一股熟悉香气，掀帘一看，几个叫花子正围着陶锅笑闹，黄蓉坐在当中指挥火候。见你来了，她眼珠一转：\"来得正好，今天这锅鱼羹缺个会夸人的。\"不远处，洪七公装作不经意地咳了两声，显然也是冲着这口吃的。",
+        text: "你在临安桥洞下闻到一股熟悉香气，掀帘一看，几个叫花子正围着陶锅忙活，黄蓉坐在当中看火候。见你来了，她抬头看你一眼。黄蓉：\"来得正好，今天这锅鱼羹缺个会夸人的。\"不远处，洪七公也守在锅边。",
         choices: [
           {
             id: "praise-cooking",
@@ -1076,7 +1104,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             text: "听丐帮消息",
             description: "借着这顿饭，听听临安近来的风吹草动。",
             consumeDay: true,
-            resultText: "你坐在锅边听丐帮弟子七嘴八舌，临安城里的豪门旧闻、王府新动静、江湖怪客南来的消息，被他们说得清清楚楚。洪七公瞥你一眼，似乎对你这份耐心颇为满意。",
+            resultText: "你坐在锅边听丐帮弟子报消息。临安城里的豪门旧闻、王府的新动静、江湖怪客南来的传闻，被他们一条条说了出来。洪七公看了你一眼，没说什么。",
             consequences: [
               { kind: "aptitude", delta: 1 },
               { kind: "reputation", delta: 2 },
@@ -1101,14 +1129,14 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       main: {
         id: "main",
         title: "临安·武穆遗迹",
-        text: "你顺着旧线索来到临安城外一处废祠，墙上斑驳碑文依稀还能看见\"尽忠报国\"四字。香火早断，只有风从破窗灌进来，把地上的灰尘吹得细细打旋。你忽然想起赵王府那一夜，那些争夺兵书、借刀杀人的人，未必有谁真正懂得这四字有多重。",
+        text: "你顺着旧线索来到临安城外一处废祠，墙上斑驳碑文依稀还能看见\"尽忠报国\"四字。香火早断，只有风从破窗灌进来，把地上的灰尘吹得细细打旋。祠里静得很，残碑、旧灰和破窗外漏进来的天光并排落在墙根下。",
         choices: [
           {
             id: "copy-inscription",
             text: "誊抄残碑",
             description: "把尚能辨认的文字抄下，留作自勉。",
             consumeDay: true,
-            resultText: "你对着残碑一字一字誊抄，虽有不少字句已残破难辨，但那份凛然之意却像刻进了心里。走出废祠时，你竟觉得自己的脚步也稳了几分。",
+            resultText: "你对着残碑一字一字誊抄，虽有不少字句已残破难辨，纸上的墨痕却渐渐写满了整页。收笔时窗外风声仍紧，手里的纸却被你按得平平整整。",
             consequences: [
               { kind: "reputation", delta: 3 },
               { kind: "karma", delta: 2 },
@@ -1145,14 +1173,14 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       main: {
         id: "main",
         title: "临安·湖心夜话",
-        text: "黄蓉夜里约你泛舟西湖。月色把湖面铺成一层薄银，她撑着小船，忽然也不说笑了，只看着远处灯火。\"靖哥哥总说，侠义就是该做的便去做。可江湖哪有那么简单？\"她轻轻晃了晃船桨，水纹一圈圈散开，像心事也跟着浮出湖面。",
+        text: "黄蓉夜里约你泛舟西湖。小船离岸后，她看着远处灯火，半天没再说笑。黄蓉：\"靖哥哥总说，侠义就是该做的便去做。可江湖哪有那么简单？\"船桨一晃，湖面便散开一圈圈水纹。",
         choices: [
           {
             id: "speak-frankly",
             text: "坦白作答",
             description: "把你心里真正的想法告诉她。",
             consumeDay: true,
-            resultText: "你与黄蓉在湖上说到很晚，说侠义，也说各自见过的人和事。她听完后轻轻一笑：\"原来你也不是只会逞强。\"说完便把船桨一拨，小舟在月光里又往湖心荡出去一截。",
+            resultText: "你与黄蓉在湖上说了很久，说侠义，也说一路见过的人和事。听完后，黄蓉：\"原来你也不是只会逞强。\"她把船桨一拨，小舟又往湖心荡出去一截。",
             consequences: [
               { kind: "relation", npcId: "huangrong", delta: 8 },
               { kind: "npcRelationType", npcId: "huangrong", relationType: "朋友" },
@@ -1188,14 +1216,14 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       main: {
         id: "main",
         title: "桃花岛·海潮听箫",
-        text: "夜里海潮拍岸，你循着箫声走到礁石边。黄药师背海而立，一支玉箫在月下泛着冷光，箫声时而清绝，时而凄迷。你不敢出声，只觉那乐音里藏着桃花岛主一生的孤高、悔恨与不甘。曲终之后，他也不回头，只淡淡问：\"可听懂了几分？\"",
+        text: "夜里海潮拍岸，你循着箫声走到礁石边。黄药师背海而立，箫声在潮声里起落。曲终之后，他没有回头。黄药师：\"可听懂了几分？\"",
         choices: [
           {
             id: "answer-heart",
             text: "说出感受",
             description: "把你从箫声中听见的孤意说给他听。",
             consumeDay: true,
-            resultText: "你斟酌着说出曲中所藏的郁结。黄药师沉默良久，忽然轻叹一声：\"你倒不是木头。\"他随手折下一截桃枝抛给你：\"留着吧。江湖上若还能有人听懂老夫的箫，也不算太坏。\"",
+            resultText: "你把自己听出来的意思说给黄药师。黄药师沉默了一阵。黄药师：\"你倒不是木头。\"他折下一截桃枝抛给你：\"留着吧。\"",
             consequences: [
               { kind: "relation", npcId: "huangyaoshi-npc", delta: 6 },
               { kind: "aptitude", delta: 2 },
@@ -1317,7 +1345,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       main: {
         id: "main",
         title: "华山·石壁遗刻",
-        text: "你在思过崖侧面的石壁上发现一片浅浅旧刻，像是昔年高手以指力留下的几行心法。字迹已经风化过半，只剩只言片语：\"大道至简\"、\"先守后发\"、\"心静则明\"。山崖绝壁之间，连这些残缺字痕都透着一股过尽千帆后的平淡。",
+        text: "你在思过崖侧面的石壁上发现一片浅浅旧刻，石上留着几行指力刻下的心法。字迹已经风化过半，只剩\"大道至简\"、\"先守后发\"、\"心静则明\"几句还能看清。",
         choices: [
           {
             id: "trace-words",

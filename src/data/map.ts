@@ -62,7 +62,7 @@ export const LOCATIONS: Location[] = [
     name: "华山",
     region: "中原",
     description: "五岳之首，华山论剑之地，绝顶高手论武所在。",
-    arrival: "华山险峻，苍松迎客。你攀登而上，山风猎猎，仿佛能听见当年群雄论剑的余响。",
+    arrival: "华山险峻，苍松夹道。你沿山道登高，峰顶云气翻涌，四周风声不断。",
     coordinates: { x: 50, y: 45 },
     events: ["shendiao-huashan", "shendiao-huashan-snow", "shendiao-huashan-stone", "huashan-cliff"],
     enemyPool: ["emingke", "xiejiaoshi"],
