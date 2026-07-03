@@ -69,7 +69,7 @@ export const WORLD_EVENTS: WorldEvent[] = [
               id: "read-letter",
               text: "拆信细读",
               description: "收下全真门下这份善意与谢礼。",
-              resultText: "你将书信反复读了几遍，把其中口诀默记于心。全真门下这一封来信，不但让你感到江湖并非冷漠，更让你对自身所行之路多了几分笃定。",
+              resultText: "你将书信反复读了几遍，把其中口诀默记于心，又把随信送来的薄礼一并收起。那名全真弟子打个稽首便飘然下阶，门前只余一缕松烟味，久久未散。",
               consequences: [
                 { kind: "relation", npcId: "qiuchuji", delta: 3 },
                 { kind: "reputation", delta: 2 },
@@ -143,7 +143,7 @@ export const WORLD_EVENTS: WorldEvent[] = [
               id: "accept-medicine",
               text: "收下这份心意",
               description: "把药和纸条都妥帖收好。",
-              resultText: "你把纸条反复看了几遍，忍不住笑了一下。江湖上愿意惦记别人伤势的人本就不多，更何况是郭靖这种笨拙却真心的惦记。你将药收入怀中，只觉得连心口都暖了些。",
+              resultText: "你把纸条折好收入怀中，又把两瓶金创药塞进包袱最顺手的位置。粗布包上还沾着一点风沙，像是有人赶了老远的路，只为把东西安安稳稳挂到你门前。",
               consequences: [
                 { kind: "relation", npcId: "guojing", delta: 4 },
                 { kind: "item", id: "small-hp-pill", count: 2 },
@@ -179,7 +179,7 @@ export const WORLD_EVENTS: WorldEvent[] = [
               id: "burn-it",
               text: "先收着再说",
               description: "不急着应，也不急着拒，先把这张密帖留作后手。",
-              resultText: "你把密帖收入袖中，指尖还残留着一点淡淡的药香。无论这份邀约是试探还是拉拢，至少说明西毒已经注意到了你。江湖路上，往往被谁看见，本身就是一件事。",
+              resultText: "你把密帖收入袖中，纸角擦过手背，药香里还混着一点淡淡蛇腥。院墙外忽有一声极轻的瓦响，等你推窗去看，长巷里只剩一截晃动的灯影。",
               consequences: [
                 { kind: "flag", name: "world.baituo.invited", value: true },
                 { kind: "reputation", delta: 2 },
