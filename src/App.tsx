@@ -2,17 +2,19 @@ import { useState } from "react"
 import type { Player, Enemy } from "./types"
 import type { Transition, StoryEvent } from "./data/events"
 import { savePlayer } from "./game/player"
-import { getLocationById } from "./data/map"
-import { getStoryEventByLocation, getStoryEventById } from "./game/story/query"
 import { getEnemyById } from "./data/enemies"
 import { applyPartySupportToPlayer, getPartyBondBonuses, getPartySupportBonuses, getPartySupportTotals, getBattleSupportOpeningLines } from "./game/party"
 import {
+  createBattleEntryCommand,
+  createMainViewCommand,
   getPendingWorldEvents,
-  dequeuePendingWorldEvent,
   getRecruitedTeammates,
   normalizeMainPlayer,
+  openLocationStory,
+  openPendingWorldEvent,
   resolveBattleFlow,
   resolveStoryFlow,
+  type AppViewCommand,
 } from "./game/appFlow"
 import { TitleScreen } from "./screens/TitleScreen"
 import { MainScreen } from "./screens/MainScreen"
@@ -42,33 +44,60 @@ function App() {
   // NPC 切磋时的 npcId，战后结算关系后果
   const [challengeNpcId, setChallengeNpcId] = useState<string | null>(null)
 
+  function applyViewCommand(command: AppViewCommand) {
+    switch (command.type) {
+      case "show-main":
+        setStoryEvent(null)
+        setStoryInitialResult(undefined)
+        setLocationId(null)
+        setPendingBattleTransition(null)
+        setChallengeNpcId(null)
+        setEnemies([])
+        setScreen("main")
+        return
+      case "show-event-entry":
+        setStoryEvent(command.event)
+        setStoryNodeId(command.nodeId)
+        setStoryInitialResult(undefined)
+        setLocationId(command.locationId)
+        setPendingBattleTransition(null)
+        setChallengeNpcId(null)
+        setEnemies([])
+        setScreen("event")
+        return
+      case "show-event-result":
+        setStoryInitialResult({ text: command.text, transition: command.transition })
+        setPendingBattleTransition(null)
+        setChallengeNpcId(null)
+        setEnemies([])
+        setScreen("event")
+        return
+      case "show-battle":
+        setPendingBattleTransition(command.pendingBattleTransition)
+        setChallengeNpcId(command.challengeNpcId)
+        setEnemies(command.enemies)
+        setScreen("battle")
+        return
+    }
+  }
+
   function returnToMain(nextPlayer: Player) {
     const finalPlayer = normalizeMainPlayer(nextPlayer)
     savePlayer(finalPlayer)
     setPlayer(finalPlayer)
-    setStoryEvent(null)
-    setStoryInitialResult(undefined)
-    setLocationId(null)
-    setScreen("main")
+    applyViewCommand(createMainViewCommand())
   }
 
   function handleOpenPendingWorldEvent(eventId: string) {
     if (!player) return
-    const pendingEvent = getStoryEventById(eventId)
-    const clearedPlayer = dequeuePendingWorldEvent(player, eventId)
-    savePlayer(clearedPlayer)
-    setPlayer(clearedPlayer)
-
-    if (!pendingEvent) {
-      returnToMain(clearedPlayer)
+    const result = openPendingWorldEvent({ player, eventId })
+    savePlayer(result.player)
+    setPlayer(result.player)
+    if (result.command.type === "show-main") {
+      returnToMain(result.player)
       return
     }
-
-    setStoryEvent(pendingEvent)
-    setStoryNodeId(pendingEvent.entryNode)
-    setStoryInitialResult(undefined)
-    setLocationId(null)
-    setScreen("event")
+    applyViewCommand(result.command)
   }
 
   function handleSelectPlayer(p: Player) { returnToMain(p) }
@@ -78,14 +107,9 @@ function App() {
   // 地图选地点 → 触发该地点剧情事件
   function handleSelectLocation(locId: string) {
     if (!player) return
-    const loc = getLocationById(locId)
-    if (!loc) return
-    setLocationId(locId)
-    const ev = getStoryEventByLocation(player, loc.events)
-    setStoryEvent(ev)
-    setStoryNodeId(ev.entryNode)
-    setStoryInitialResult(undefined)
-    setScreen("event")
+    const command = openLocationStory({ player, locationId: locId })
+    if (!command) return
+    applyViewCommand(command)
   }
 
   // 剧情选项 / 战后结果 → 按 transition 路由（引擎驱动，App 只编排）
@@ -100,25 +124,18 @@ function App() {
     savePlayer(result.player)
     setPlayer(result.player)
 
-    switch (result.command.type) {
-      case "return-main":
-        returnToMain(result.player)
-        return
-      case "goto-node":
-        setStoryInitialResult(undefined)
-        setStoryNodeId(result.command.nodeId)
-        return
-      case "start-battle":
-        setPendingBattleTransition(result.command.transition)
-        setEnemies(result.command.enemies)
-        setScreen("battle")
-        return
-      case "goto-event":
-        setStoryEvent(result.command.event)
-        setStoryNodeId(result.command.event.entryNode)
-        setStoryInitialResult(undefined)
-        return
+    if (result.command.type === "goto-node") {
+      setStoryInitialResult(undefined)
+      setStoryNodeId(result.command.nodeId)
+      return
     }
+
+    if (result.command.type === "show-main") {
+      returnToMain(result.player)
+      return
+    }
+
+    applyViewCommand(result.command)
   }
 
   // 战斗结束：剧情战斗按 onWin/onLose/onFlee 衔接收尾；非剧情战斗直接回主菜单
@@ -129,35 +146,26 @@ function App() {
       pendingBattleTransition,
       challengeNpcId,
     })
-    setPendingBattleTransition(null)
-    setChallengeNpcId(null)
-    setEnemies([])
     savePlayer(flow.player)
     setPlayer(flow.player)
 
-    if (flow.command.type === "return-main") {
+    if (flow.command.type === "show-main") {
       returnToMain(flow.player)
       return
     }
 
-    setStoryInitialResult({ text: flow.command.text, transition: flow.command.transition })
-    setScreen("event")
+    applyViewCommand(flow.command)
   }
 
   // NPC 切磋：把 NPC 转 Enemy 进战斗（非剧情，战后回主菜单+结算关系）
   function handleChallengeNpc(enemy: Enemy, npcId?: string) {
     if (!player) return
-    setPendingBattleTransition(null)
-    setChallengeNpcId(npcId ?? null)
-    setEnemies([enemy])
-    setScreen("battle")
+    applyViewCommand(createBattleEntryCommand({ enemies: [enemy], challengeNpcId: npcId ?? null }))
   }
   // 调试屏：指定敌人直接进战斗（非剧情）
   function handleTestBattle(enemyIds: string[]) {
     if (!player) return
-    setPendingBattleTransition(null)
-    setEnemies(enemyIds.map((id) => getEnemyById(id)))
-    setScreen("battle")
+    applyViewCommand(createBattleEntryCommand({ enemies: enemyIds.map((id) => getEnemyById(id)) }))
   }
 
   function handleLearn(p: Player) {

@@ -41,6 +41,7 @@ export interface WorldFactionState {
 
 export interface WorldArcState {
   beats: Record<string, BeatResult>
+  ending?: string
 }
 
 export interface WorldPartyState {
@@ -57,7 +58,7 @@ export interface WorldState {
   party: WorldPartyState
   pendingWorldEvents: string[]      // 待查看的江湖回响/消息事件 id（按进入主界面顺序排队）
   triggeredEvents: string[]        // 已触发过的涌现事件 id（防重复）
-  seenNodes: string[]              // 已结算过 onEnter 的节点 id（防重复结算）
+  seenNodes: string[]              // 已结算过 onEnter 的事件作用域节点键（`${eventId}:${nodeId}`）
   completedEvents: string[]        // 已完成的 once 事件 id（一次性剧情节点防重复触发）
 }
 
@@ -88,8 +89,9 @@ export type Consequence =
   | { kind: "npcTag"; npcId: string; tag: string; add?: boolean }   // 默认 add=true，false=移除
   | { kind: "factionAttitude"; factionId: string; delta?: number; set?: number }
   | { kind: "factionPower"; factionId: string; delta?: number; set?: number }
-  // ④ 主线进度 + 标记
+  // ④ 主线进度 / 卷结局 / 兜底标记
   | { kind: "arcBeat"; arcId: string; beat: string; result: BeatResult }
+  | { kind: "arcEnding"; arcId: string; ending: string }
   | { kind: "flag"; name: string; value: boolean | number | string }
 
 // ============================================================
@@ -152,7 +154,7 @@ export interface StoryNode {
   speaker?: string
   letterIntro?: string
   letterSignature?: string
-  onEnter?: Consequence[]          // 进入节点时结算（幂等，由 seenNodes 守护）
+  onEnter?: Consequence[]          // 进入节点时结算（幂等，由事件作用域 seenNodes 守护）
   choices?: Choice[]               // 有 = 选择节点
   autoNext?: Transition            // 无 choice 时展示后自动流转（可用 branch 条件分流）
   // 约定：choices 与 autoNext 至少有其一；都无 = 终点节点（等价 end）

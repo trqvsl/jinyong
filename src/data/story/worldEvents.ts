@@ -36,7 +36,6 @@ export const WORLD_EVENTS: WorldEvent[] = [
                 { kind: "reputation", delta: 3 },
                 { kind: "mp", delta: 20 },
                 { kind: "item", id: "field-ration", count: 2 },
-                { kind: "flag", name: "world.hongqigong.guided", value: true },
               ],
               transition: { type: "end" },
             },
@@ -78,7 +77,6 @@ export const WORLD_EVENTS: WorldEvent[] = [
                 { kind: "reputation", delta: 2 },
                 { kind: "gold", delta: 20 },
                 { kind: "item", id: "small-mp-pill", count: 1 },
-                { kind: "flag", name: "world.quanzhen.acknowledged", value: true },
               ],
               transition: { type: "end" },
             },
@@ -114,7 +112,6 @@ export const WORLD_EVENTS: WorldEvent[] = [
               consequences: [
                 { kind: "relation", npcId: "huangrong", delta: 5 },
                 { kind: "hp", delta: 15 },
-                { kind: "flag", name: "world.huangrong.visited", value: true },
               ],
               transition: { type: "end" },
             },
@@ -192,7 +189,6 @@ export const WORLD_EVENTS: WorldEvent[] = [
               description: "不急着应，也不急着拒，先把这张密帖留作后手。",
               resultText: "你把密帖收入袖中，先留作后手。",
               consequences: [
-                { kind: "flag", name: "world.baituo.invited", value: true },
                 { kind: "reputation", delta: 2 },
               ],
               transition: { type: "end" },

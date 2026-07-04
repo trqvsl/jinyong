@@ -92,6 +92,11 @@ export function applyConsequences(
         w.arcs[c.arcId].beats[c.beat] = c.result
         break
       }
+      case "arcEnding": {
+        if (!w.arcs[c.arcId]) w.arcs[c.arcId] = { beats: {} }
+        w.arcs[c.arcId].ending = c.ending
+        break
+      }
       case "flag": w.flags = { ...w.flags, [c.name]: c.value }; break
     }
   }

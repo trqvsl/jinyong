@@ -4,10 +4,10 @@
 import type { Player } from "../types"
 import type { WorldState } from "../data/story/schema"
 import type { Npc } from "../data/npcs"
-import type { Combatant } from "./battle/types"
+import type { Combatant } from "./battle"
+import { enemyToCombatant } from "./battle"
 import { checkCondition } from "./story/conditions"
 import { getNpcState } from "./story/state"
-import { enemyToCombatant } from "./battle/adapter"
 import { npcToEnemy } from "../data/npcs"
 
 /**

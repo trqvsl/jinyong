@@ -7,19 +7,19 @@ import { applyConsequences } from "./story/consequences"
 import { getActivePartyNpcs, normalizePlayerParty } from "./party"
 import { resolveBranch, pickRandom, resolveBattleOutcome } from "./story/engine"
 import { pollWorldEvent } from "./story/worldScheduler"
-import { getAdventureEnemy, getStoryEventById } from "./story/query"
+import { getAdventureEnemy, getStoryEventById, getStoryEventByLocation } from "./story/query"
 
-type BattleTransition = Extract<Transition, { type: "battle" }>
+export type AppViewCommand =
+  | { type: "show-main" }
+  | { type: "show-event-entry"; event: StoryEvent; nodeId: string; locationId: string | null }
+  | { type: "show-event-result"; text: string; transition: Transition }
+  | { type: "show-battle"; enemies: Enemy[]; pendingBattleTransition: Transition | null; challengeNpcId: string | null }
 
 export type StoryFlowCommand =
-  | { type: "return-main" }
   | { type: "goto-node"; nodeId: string }
-  | { type: "start-battle"; enemies: Enemy[]; transition: BattleTransition }
-  | { type: "goto-event"; event: StoryEvent }
+  | AppViewCommand
 
-export type BattleFlowCommand =
-  | { type: "return-main" }
-  | { type: "show-event-result"; text: string; transition: Transition }
+export type BattleFlowCommand = Extract<AppViewCommand, { type: "show-main" | "show-event-result" }>
 
 export function getPendingWorldEventIds(player: Player): string[] {
   return player.world.pendingWorldEvents ?? []
@@ -46,6 +46,55 @@ export function getPendingWorldEvents(player: Player): StoryEvent[] {
 
 export function getRecruitedTeammates(player: Player): Npc[] {
   return getActivePartyNpcs(player)
+}
+
+export function createMainViewCommand(): Extract<AppViewCommand, { type: "show-main" }> {
+  return { type: "show-main" }
+}
+
+export function createStoryEntryCommand(args: {
+  event: StoryEvent
+  locationId?: string | null
+}): Extract<AppViewCommand, { type: "show-event-entry" }> {
+  return {
+    type: "show-event-entry",
+    event: args.event,
+    nodeId: args.event.entryNode,
+    locationId: args.locationId ?? null,
+  }
+}
+
+export function openPendingWorldEvent(args: {
+  player: Player
+  eventId: string
+}): { player: Player; command: AppViewCommand } {
+  const event = getStoryEventById(args.eventId)
+  const player = dequeuePendingWorldEvent(args.player, args.eventId)
+  return event
+    ? { player, command: createStoryEntryCommand({ event }) }
+    : { player, command: createMainViewCommand() }
+}
+
+export function openLocationStory(args: {
+  player: Player
+  locationId: string
+}): AppViewCommand | null {
+  const location = getLocationById(args.locationId)
+  if (!location) return null
+  return createStoryEntryCommand({ event: getStoryEventByLocation(args.player, location.events), locationId: args.locationId })
+}
+
+export function createBattleEntryCommand(args: {
+  enemies: Enemy[]
+  pendingBattleTransition?: Transition | null
+  challengeNpcId?: string | null
+}): Extract<AppViewCommand, { type: "show-battle" }> {
+  return {
+    type: "show-battle",
+    enemies: args.enemies,
+    pendingBattleTransition: args.pendingBattleTransition ?? null,
+    challengeNpcId: args.challengeNpcId ?? null,
+  }
 }
 
 export function normalizeMainPlayer(player: Player): Player {
@@ -80,30 +129,29 @@ export function resolveStoryFlow(args: {
 
   switch (transition.type) {
     case "end":
-      return { player, command: { type: "return-main" } }
+      return { player, command: createMainViewCommand() }
     case "goto":
       return { player, command: { type: "goto-node", nodeId: transition.nodeId } }
     case "battle": {
       const location = args.locationId ? getLocationById(args.locationId) : undefined
       return {
         player,
-        command: {
-          type: "start-battle",
+        command: createBattleEntryCommand({
           enemies: [getAdventureEnemy(player, transition.enemyId, transition.useLocationPool ? location?.enemyPool : undefined)],
-          transition,
-        },
+          pendingBattleTransition: transition,
+        }),
       }
     }
     case "gotoEvent": {
       const event = getStoryEventById(transition.eventId)
       return event
-        ? { player, command: { type: "goto-event", event } }
-        : { player, command: { type: "return-main" } }
+        ? { player, command: createStoryEntryCommand({ event }) }
+        : { player, command: createMainViewCommand() }
     }
     case "gameOver":
-      return { player, command: { type: "return-main" } }
+      return { player, command: createMainViewCommand() }
     default:
-      return { player, command: { type: "return-main" } }
+      return { player, command: createMainViewCommand() }
   }
 }
 
@@ -125,7 +173,7 @@ export function resolveBattleFlow(args: {
         finalPlayer = applyConsequences(finalPlayer, finalPlayer.world, consequences).player
       }
     }
-    return { player: finalPlayer, command: { type: "return-main" } }
+    return { player: finalPlayer, command: createMainViewCommand() }
   }
 
   if (args.outcome === "lost" && args.pendingBattleTransition.type === "battle" && args.pendingBattleTransition.lethal) {
@@ -140,7 +188,7 @@ export function resolveBattleFlow(args: {
   }
 
   const outcomeResult = resolveBattleOutcome(args.player, args.player.world, args.pendingBattleTransition, args.outcome)
-  if (!outcomeResult) return { player: args.player, command: { type: "return-main" } }
+  if (!outcomeResult) return { player: args.player, command: createMainViewCommand() }
 
   return {
     player: outcomeResult.player,

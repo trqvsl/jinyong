@@ -112,7 +112,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
   // ===== 2. 大漠·少年射雕 =====
   {
     id: "shendiao-damos",
-    entryNode: "approach",
+    entryNode: "main",
     locationId: "damos",
     weight: 5,
     once: true,
@@ -233,7 +233,6 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         autoNext: { type: "end" },
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "meet-rong", result: "done" },
-          { kind: "flag", name: "shendiao.rong.revealed", value: true },
           { kind: "aptitude", delta: 1 },
         ],
       },
@@ -433,7 +432,6 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         autoNext: { type: "end" },
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "wangfu", result: "done" },
-          { kind: "flag", name: "shendiao.wangfu.infiltrated", value: true },
         ],
       },
     },
@@ -813,8 +811,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
           { kind: "relation", npcId: "guojing", delta: 10 },
           { kind: "npcRelationType", npcId: "guojing", relationType: "知己" },
           { kind: "npcRecruit", npcId: "guojing", recruited: true },
-          { kind: "flag", name: "shendiao.complete", value: true },
-          { kind: "flag", name: "shendiao.ending", value: "hero" },
+          { kind: "arcEnding", arcId: "shendiao", ending: "hero" },
         ],
       },
       "epilogue-outcast": {
@@ -827,8 +824,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
           { kind: "reputation", delta: 5 },
           { kind: "relation", npcId: "ouyangfeng-npc", delta: 15 },
           { kind: "relation", npcId: "guojing", delta: -10 },
-          { kind: "flag", name: "shendiao.complete", value: true },
-          { kind: "flag", name: "shendiao.ending", value: "outcast" },
+          { kind: "arcEnding", arcId: "shendiao", ending: "outcast" },
         ],
       },
       "epilogue-wanderer": {
@@ -839,8 +835,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         onEnter: [
           { kind: "arcBeat", arcId: "shendiao", beat: "huashan", result: "done" },
           { kind: "reputation", delta: 5 },
-          { kind: "flag", name: "shendiao.complete", value: true },
-          { kind: "flag", name: "shendiao.ending", value: "wanderer" },
+          { kind: "arcEnding", arcId: "shendiao", ending: "wanderer" },
         ],
       },
     },
@@ -869,7 +864,6 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             consequences: [
               { kind: "karma", delta: 2 },
               { kind: "reputation", delta: 2 },
-              { kind: "flag", name: "shendiao.niujia.mourned", value: true },
             ],
             transition: { type: "end" },
           },
@@ -882,7 +876,6 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             consequences: [
               { kind: "aptitude", delta: 1 },
               { kind: "item", id: "field-ration", count: 1 },
-              { kind: "flag", name: "shendiao.niujia.relic", value: true },
             ],
             transition: { type: "end" },
           },
@@ -914,7 +907,6 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             consequences: [
               { kind: "karma", delta: 3 },
               { kind: "reputation", delta: 2 },
-              { kind: "flag", name: "shendiao.munianci.comforted", value: true },
             ],
             transition: { type: "end" },
           },
@@ -963,7 +955,6 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             consequences: [
               { kind: "relation", npcId: "guojing", delta: 6 },
               { kind: "hp", delta: 20 },
-              { kind: "flag", name: "shendiao.damos.letter", value: true },
             ],
             transition: { type: "end" },
           },
@@ -1108,7 +1099,6 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             consequences: [
               { kind: "aptitude", delta: 1 },
               { kind: "reputation", delta: 2 },
-              { kind: "flag", name: "shendiao.linan.beggar-news", value: true },
             ],
             transition: { type: "end" },
           },
@@ -1140,7 +1130,6 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             consequences: [
               { kind: "reputation", delta: 3 },
               { kind: "karma", delta: 2 },
-              { kind: "flag", name: "shendiao.yuefei.copied", value: true },
             ],
             transition: { type: "end" },
           },

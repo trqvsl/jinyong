@@ -1,6 +1,9 @@
 // 剧情引擎单测：consequences / conditions / branch / onEnter 幂等
 // 运行：npx tsx scripts/verify-story.ts
 import type { Player } from "../src/types"
+import { STORY_EVENTS } from "../src/data/events"
+import { STORY_VOLUMES } from "../src/data/story"
+import { WORLD_EVENTS } from "../src/data/story/worldEvents"
 import { createWorld } from "../src/game/story/state"
 import { applyConsequences } from "../src/game/story/consequences"
 import { checkCondition } from "../src/game/story/conditions"
@@ -24,7 +27,174 @@ function check(label: string, cond: boolean, detail = "") {
   else { fail++; console.log(`  ✗ ${label} ${detail}`) }
 }
 
-console.log("\n=== 1. applyConsequences：数值类 + clamp + alignment 同步 ===")
+function warn(label: string, detail = "") {
+  console.log(`  ⚠ ${label}${detail ? ` ${detail}` : ""}`)
+}
+
+const ALL_STORY_EVENTS: StoryEvent[] = [
+  ...STORY_EVENTS,
+  ...STORY_VOLUMES,
+  ...WORLD_EVENTS.map((worldEvent) => worldEvent.event),
+]
+
+function walkTransition(
+  transition: Transition | undefined,
+  visit: (transition: Transition) => void,
+) {
+  if (!transition) return
+  visit(transition)
+  switch (transition.type) {
+    case "branch":
+      transition.cases.forEach((item) => walkTransition(item.then, visit))
+      walkTransition(transition.else, visit)
+      return
+    case "random":
+      transition.cases.forEach((item) => walkTransition(item.then, visit))
+      return
+    case "battle":
+      walkTransition(transition.onWin?.then, visit)
+      walkTransition(transition.onLose?.then, visit)
+      walkTransition(transition.onFlee?.then, visit)
+      return
+    default:
+      return
+  }
+}
+
+function collectStaticStoryWarnings(events: StoryEvent[]) {
+  const warningMessages: string[] = []
+  const eventIdsByNodeId = new Map<string, Set<string>>()
+
+  for (const event of events) {
+    const seenNodeIds = new Set<string>()
+    for (const node of Object.values(event.nodes)) {
+      if (seenNodeIds.has(node.id)) continue
+      seenNodeIds.add(node.id)
+      const bucket = eventIdsByNodeId.get(node.id) ?? new Set<string>()
+      bucket.add(event.id)
+      eventIdsByNodeId.set(node.id, bucket)
+    }
+  }
+
+  for (const [nodeId, eventIds] of eventIdsByNodeId.entries()) {
+    if (eventIds.size > 1) {
+      warningMessages.push(`nodeId \`${nodeId}\` 被多个事件复用：${Array.from(eventIds).sort().join(", ")}`)
+    }
+  }
+
+  return warningMessages.sort()
+}
+
+function collectFlagWarnings(events: StoryEvent[]) {
+  const writes = new Map<string, Set<string>>()
+  const reads = new Map<string, Set<string>>()
+
+  const track = (bucket: Map<string, Set<string>>, flagName: string, source: string) => {
+    const owners = bucket.get(flagName) ?? new Set<string>()
+    owners.add(source)
+    bucket.set(flagName, owners)
+  }
+
+  const walkCondition = (cond: any, source: string) => {
+    if (!cond) return
+    switch (cond.kind) {
+      case "flag":
+        track(reads, cond.name, source)
+        return
+      case "and":
+      case "or":
+        cond.items.forEach((item: any) => walkCondition(item, source))
+        return
+      case "not":
+        walkCondition(cond.item, source)
+        return
+      default:
+        return
+    }
+  }
+
+  const walkConsequences = (cs: any[] | undefined, source: string) => {
+    for (const c of cs ?? []) {
+      if (c.kind === "flag") track(writes, c.name, source)
+    }
+  }
+
+  for (const event of events) {
+    walkCondition((event as any).condition, `${event.id}.condition`)
+    for (const node of Object.values(event.nodes)) {
+      walkConsequences((node as any).onEnter, `${event.id}.${node.id}.onEnter`)
+      for (const choice of node.choices ?? []) {
+        walkCondition((choice as any).condition, `${event.id}.${node.id}.${choice.id}.condition`)
+        walkConsequences((choice as any).consequences, `${event.id}.${node.id}.${choice.id}.consequences`)
+      }
+    }
+  }
+
+  const warningMessages: string[] = []
+  for (const [flagName, sources] of writes.entries()) {
+    if (!reads.has(flagName)) {
+      warningMessages.push(`flag \`${flagName}\` 仅写入未读取：${Array.from(sources).sort().join(", ")}`)
+    }
+  }
+
+  for (const [flagName, sources] of reads.entries()) {
+    if (!writes.has(flagName)) {
+      warningMessages.push(`flag \`${flagName}\` 仅读取未写入：${Array.from(sources).sort().join(", ")}`)
+    }
+  }
+
+  warningMessages.push(`当前剧情数据 flag 写入 ${writes.size} 个，flag 条件读取 ${reads.size} 个`)
+  return warningMessages.sort()
+}
+
+console.log("\n=== 1. 剧情静态结构校验 ===")
+{
+  const allEventIds = new Set(ALL_STORY_EVENTS.map((event) => event.id))
+  check("事件 id 全局唯一", allEventIds.size === ALL_STORY_EVENTS.length, `total=${ALL_STORY_EVENTS.length}, unique=${allEventIds.size}`)
+
+  for (const event of ALL_STORY_EVENTS) {
+    check(`entryNode 存在：${event.id}`, event.entryNode in event.nodes, `entryNode=${event.entryNode}`)
+
+    const seenNodeIds = new Set<string>()
+    for (const [nodeKey, node] of Object.entries(event.nodes)) {
+      check(`节点 key 与 node.id 一致：${event.id}.${nodeKey}`, node.id === nodeKey, `node.id=${node.id}`)
+      check(`同一事件内 node.id 不重复：${event.id}.${node.id}`, !seenNodeIds.has(node.id), `node.id=${node.id}`)
+      seenNodeIds.add(node.id)
+
+      walkTransition(node.autoNext, (transition) => {
+        if (transition.type === "goto") {
+          check(`goto 目标存在：${event.id}.${node.id} -> ${transition.nodeId}`, transition.nodeId in event.nodes, `nodeId=${transition.nodeId}`)
+        }
+        if (transition.type === "gotoEvent") {
+          check(`gotoEvent 目标存在：${event.id}.${node.id} -> ${transition.eventId}`, allEventIds.has(transition.eventId), `eventId=${transition.eventId}`)
+        }
+      })
+
+      for (const choice of node.choices ?? []) {
+        walkTransition(choice.transition, (transition) => {
+          if (transition.type === "goto") {
+            check(`goto 目标存在：${event.id}.${node.id}.${choice.id} -> ${transition.nodeId}`, transition.nodeId in event.nodes, `nodeId=${transition.nodeId}`)
+          }
+          if (transition.type === "gotoEvent") {
+            check(`gotoEvent 目标存在：${event.id}.${node.id}.${choice.id} -> ${transition.eventId}`, allEventIds.has(transition.eventId), `eventId=${transition.eventId}`)
+          }
+        })
+      }
+    }
+  }
+
+  const warnings = collectStaticStoryWarnings(ALL_STORY_EVENTS)
+  if (warnings.length === 0) warn("未发现跨事件重复 nodeId")
+  else {
+    warn(`发现 ${warnings.length} 条跨事件重复 nodeId 警告`)
+    warnings.forEach((message) => warn(message))
+  }
+
+  const flagWarnings = collectFlagWarnings(ALL_STORY_EVENTS)
+  flagWarnings.forEach((message) => warn(message))
+}
+
+console.log("\n=== 2. applyConsequences：数值类 + clamp + alignment 同步 ===")
 {
   const r = applyConsequences(mkPlayer(), createWorld(), [
     { kind: "karma", delta: 40 },        // 0 → 40
@@ -43,7 +213,7 @@ console.log("\n=== 1. applyConsequences：数值类 + clamp + alignment 同步 =
   check("karma≤-30 → alignment 派生为邪", r.player.alignment === "邪")
 }
 
-console.log("\n=== 2. item / skill / relation ===")
+console.log("\n=== 3. item / skill / relation ===")
 {
   const r = applyConsequences(mkPlayer(), createWorld(), [
     { kind: "item", id: "small-hp-pill", count: 2 },
@@ -58,7 +228,7 @@ console.log("\n=== 2. item / skill / relation ===")
   check("relation clamp 到 100", r.player.relations["qiuchuji"] === 100, `rel=${r.player.relations["qiuchuji"]}`)
 }
 
-console.log("\n=== 3. NPC 命运 / 阵营 / arcBeat / flag ===")
+console.log("\n=== 4. NPC 命运 / 阵营 / arcBeat / flag ===")
 {
   const r = applyConsequences(mkPlayer(), createWorld(), [
     { kind: "npcAlive", npcId: "yangkang", alive: false },
@@ -82,7 +252,7 @@ console.log("\n=== 3. NPC 命运 / 阵营 / arcBeat / flag ===")
   check("不污染入参 world", createWorld().npcs["yangkang"] === undefined)
 }
 
-console.log("\n=== 4. checkCondition：默认值 + 区间 + 组合 ===")
+console.log("\n=== 5. checkCondition：默认值 + 区间 + 组合 ===")
 {
   const p = mkPlayer({ karma: 25, reputation: 10 })
   const w = createWorld()
@@ -115,7 +285,7 @@ console.log("\n=== 4. checkCondition：默认值 + 区间 + 组合 ===")
   check("npcRelationType 不匹配（朋友）", !checkCondition(r.player, r.world, { kind: "npcRelationType", npcId: "hongqigong", eq: "朋友" }))
 }
 
-console.log("\n=== 5. resolveBranch：条件分叉 + 嵌套 + else ===")
+console.log("\n=== 6. resolveBranch：条件分叉 + 嵌套 + else ===")
 {
   const p = mkPlayer({ karma: 40 })
   const w = createWorld()
@@ -132,7 +302,7 @@ console.log("\n=== 5. resolveBranch：条件分叉 + 嵌套 + else ===")
   check("嵌套 branch 递归解析", (resolveBranch(p, w, tn) as any).nodeId === "good")
 }
 
-console.log("\n=== 6. enterNode onEnter 幂等 + resolveChoice ===")
+console.log("\n=== 7. enterNode onEnter 幂等 + resolveChoice ===")
 {
   const event: StoryEvent = {
     id: "t", entryNode: "n1",
@@ -152,6 +322,30 @@ console.log("\n=== 6. enterNode onEnter 幂等 + resolveChoice ===")
   const rc = resolveChoice(e2.player, e2.world, event, "n1", "c1")!
   check("resolveChoice 结算选项后果（gold+5）", rc.player.gold === 15, `gold=${rc.player.gold}`)
   check("resolveChoice 返回流转", rc.transition.type === "end")
+}
+
+console.log("\n=== 8. seenNodes 按事件作用域去重，而不是按裸 nodeId ===")
+{
+  const firstEvent: StoryEvent = {
+    id: "event-a", entryNode: "main",
+    nodes: {
+      main: { id: "main", text: "甲事件", onEnter: [{ kind: "gold", delta: 10 }] },
+    },
+  }
+  const secondEvent: StoryEvent = {
+    id: "event-b", entryNode: "main",
+    nodes: {
+      main: { id: "main", text: "乙事件", onEnter: [{ kind: "gold", delta: 20 }] },
+    },
+  }
+  const p = mkPlayer({ gold: 0 })
+  const firstEnter = enterNode(p, p.world, firstEvent, "main")!
+  check("第一个事件首次进入执行 onEnter（gold+10）", firstEnter.player.gold === 10, `gold=${firstEnter.player.gold}`)
+  const secondEnter = enterNode(firstEnter.player, firstEnter.world, secondEvent, "main")!
+  check("不同事件复用同名 node 时仍各自执行 onEnter（再+20）", secondEnter.player.gold === 30, `gold=${secondEnter.player.gold}`)
+  const repeatSecondEnter = enterNode(secondEnter.player, secondEnter.world, secondEvent, "main")!
+  check("同一事件二次进入仍保持幂等", repeatSecondEnter.player.gold === 30, `gold=${repeatSecondEnter.player.gold}`)
+  check("seenNodes 记录的是事件作用域键", repeatSecondEnter.world.seenNodes.includes("event-a:main") && repeatSecondEnter.world.seenNodes.includes("event-b:main"), `seenNodes=${repeatSecondEnter.world.seenNodes.join(",")}`)
 }
 
 console.log(`\n========================================`)

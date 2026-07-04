@@ -16,17 +16,64 @@ export {
   tickStatuses,
   isStunned,
   resolveExternalAttack,
+  performPlayerSkill,
+  performEnemySkill,
+  enemyChooseSkill,
   checkBattleEnd,
+  findCombatant,
+  sideDefeated,
+  checkBattleEndBySide,
+  advanceAtb,
+  nextActor,
+  previewTurnOrder,
+  applyAtbConsume,
+  resolveTargets,
+  performAction,
+  applyStatusToCombatant,
+  healCombatant,
+  restoreMpCombatant,
+  tickUnitStatuses,
+  enemyDecideAction,
 } from "./engine"
 
 // 适配层：Player↔Combatant 转换 + 成长结算
 export {
+  toBattleSkill,
   playerToCombatant,
   enemyToCombatant,
+  playersToSide,
+  enemiesToSide,
+  createBattleState,
+  syncPlayersFromState,
   computeAttackForSkill,
   combatantBackToPlayer,
   applyVictoryGrowth,
 } from "./adapter"
 
+// flow 层：战斗应用编排（连接 engine / adapter 与 screen）
+export {
+  createBattleSupportRuntimeState,
+  applySupportMechanicEffect,
+  applyTriggeredSupport,
+  advanceBattleToNextActor,
+  cleanupSupportStatuses,
+  finalizeBattleResult,
+} from "./flow"
+
 // 类型
-export type { Combatant, BattleSkill, BattleLogEntry, ActionResult, StatusEffect, StatusKind } from "./types"
+export type {
+  DamageType,
+  SkillCategory,
+  StatusKind,
+  StatusEffect,
+  SkillEffect,
+  BattleSkill,
+  SkillTargeting,
+  Side,
+  Combatant,
+  BattleState,
+  ActionCommand,
+  TurnOrderEntry,
+  BattleLogEntry,
+  ActionResult,
+} from "./types"

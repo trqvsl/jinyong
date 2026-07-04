@@ -7,21 +7,26 @@ import type { WorldState, StoryEvent, StoryNode, Choice, Transition, Outcome } f
 import { applyConsequences } from "./consequences"
 import { checkCondition } from "./conditions"
 
+function getSeenNodeKey(eventId: string, nodeId: string): string {
+  return `${eventId}:${nodeId}`
+}
+
 // 进入节点：结算 onEnter（仅首次，由 seenNodes 守护幂等），返回节点 + 新状态
 export function enterNode(
   player: Player, world: WorldState, event: StoryEvent, nodeId: string
 ): { node: StoryNode; player: Player; world: WorldState } | null {
   const node = event.nodes[nodeId]
   if (!node) return null
+  const seenNodeKey = getSeenNodeKey(event.id, nodeId)
   let p = player
   let w = world
-  if (!w.seenNodes.includes(nodeId)) {
+  if (!w.seenNodes.includes(seenNodeKey)) {
     if (node.onEnter && node.onEnter.length > 0) {
       const r = applyConsequences(p, w, node.onEnter)
       p = r.player
       w = r.world
     }
-    w = { ...w, seenNodes: [...w.seenNodes, nodeId] }
+    w = { ...w, seenNodes: [...w.seenNodes, seenNodeKey] }
   }
   return { node, player: p, world: w }
 }

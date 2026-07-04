@@ -20,14 +20,14 @@ App.tsx        ← 路由编排，不含业务逻辑
 ## 关键类型与数据流
 
 - `Player`（`src/types/index.ts`）：战斗属性 + 八大根基 `roots` + `karma`/`world`/`relations`/`inventory`
-- `WorldState`（`src/data/story/schema.ts`）：npcs（含 relationType 语义关系）/factions/arcs/flags/triggeredEvents/seenNodes/completedEvents
+- `WorldState`（`src/data/story/schema.ts`）：npcs（含 relationType 语义关系）/factions/arcs/flags/party/pendingWorldEvents/triggeredEvents/seenNodes/completedEvents
 - **世界状态挂 `player.world`**，`applyConsequences` 会同步 `p.world = w`（必须，否则 arcBeat 丢失）
 - `karma` → 自动派生 `alignment`（≥30 正，≤-30 邪）
 - 根基属性经 `src/game/attributes.ts` 推导战斗属性
 
 ## 剧情引擎（声明式）
 
-- **Consequence**（写入）：18 种，数值用 delta/set，NPC 命运用 npcAlive/npcTag/npcRelationType/arcBeat
+- **Consequence**（写入）：当前以 `src/data/story/schema.ts` 为准，包含数值 delta/set、NPC 命运、语义关系、arcBeat、arcEnding、flag 等多种声明式写入
 - **Condition**（查询）：15 种 + and/or/not，missing key 有默认值（npc alive=true, recruited=false, faction attitude=0, relationType=初识）
 - **Transition**（流转）：end / goto / branch / random / battle / gotoEvent / gameOver
 - **StoryNode**：`choices?`（选择）或 `autoNext`（纯叙事自动流转）或无（终点）
@@ -63,11 +63,16 @@ arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua
 
 ## 开发命令
 
+### package.json 中的真实 scripts
 - `npm run dev` — 启动开发服务器 http://localhost:5173/
 - `npm run build` — tsc + vite build
-- `npx tsx scripts/verify-story.ts` — 剧情引擎 38 项验证
-- `npx tsx scripts/verify-battle.ts` — 战斗引擎 13 项验证
-- `npx tsx scripts/verify-fixes.ts` — 修复回归 7 项验证
+- `npm run lint` — 运行 oxlint
+- `npm run preview` — 预览构建结果
+
+### 手动验证命令（不在 package.json scripts 中）
+- `npx tsx scripts/verify-story.ts` — 剧情引擎 + 静态结构 / flag 使用验证
+- `npx tsx scripts/verify-battle.ts` — 战斗引擎验证
+- `npx tsx scripts/verify-fixes.ts` — 修复回归验证
 
 ## 常见坑
 
@@ -82,22 +87,28 @@ arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua
 
 ### 改剧情 / 加事件
 - `射雕主线脚本.md` — 自然语言脚本，先改这里达成共识
-- `src/data/story/shendiao.ts` — 射雕剧情数据（8 个 StoryEvent）
-- `src/data/events.ts` — 通用剧情事件 + 类型导出 + 查询函数
-- `src/data/story/schema.ts` — Consequence/Condition/Transition/StoryNode 等类型定义
+- `src/data/story/shendiao.ts` — 射雕剧情数据（主线 8 节点 + 同卷支线 / 余波事件）
+- `src/data/story/worldEvents.ts` — 世界回响 / 江湖消息数据
+- `src/data/events.ts` — 通用奇遇事件
+- `src/data/story/schema.ts` — Consequence/Condition/Transition/StoryNode/WorldState 等类型定义
 - `src/data/story/index.ts` — 剧情卷聚合（加新作品改这里）
 - `src/data/map.ts` — 地点定义 + 事件绑定（events 数组）
 - `src/game/story/consequences.ts` — 后果解释器（加新 Consequence 种类改这里）
 - `src/game/story/conditions.ts` — 条件解释器（加新 Condition 种类改这里）
-- `src/game/story/engine.ts` — 节点流转/结算逻辑
-- `src/game/story/state.ts` — WorldState 初始化/迁移/默认值
-- `src/screens/EventScreen.tsx` — 事件界面（choosing/autoNext/result 三阶段）
-- `src/App.tsx` — 路由编排（handleStoryResolve 处理 transition 分流）
+- `src/game/story/engine.ts` — 节点流转 / 选项结算 / battle outcome 解释
+- `src/game/story/query.ts` — 地点事件查询（地点优先 + 通用事件兜底）
+- `src/game/story/worldScheduler.ts` — 世界回响调度器
+- `src/game/story/state.ts` — WorldState 初始化 / 迁移 / 默认值
+- `src/game/appFlow.ts` — 剧情 / 战斗 / 主界面回流编排
+- `src/screens/EventScreen.tsx` — 事件界面（choosing/autoNext/result 三阶段 + 书信展示）
+- `src/App.tsx` — 根路由编排
 
 ### 改战斗
+- `src/game/battle/index.ts` — battle 模块公共入口（外部优先从这里 import）
 - `src/game/battle/types.ts` — Combatant/ActionResult/Team 等战斗类型
 - `src/game/battle/engine.ts` — 战斗核心逻辑（纯函数）
 - `src/game/battle/adapter.ts` — Player↔Combatant 适配层
+- `src/game/battle/flow.ts` — battle 应用层编排（ATB 推进 / 支援落地 / 战后收尾 helper）
 - `src/screens/BattleScreen.tsx` — 战斗界面 + 动画
 - `src/data/enemies.ts` — 敌人数据 + 随机遇敌逻辑
 - `src/data/skills.ts` — 武功数据（16+门）
@@ -115,6 +126,8 @@ arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua
 - `src/App.css` — 全局样式 + 动画
 
 ### 设计文档（非代码，只读参考）
+- `待做事项.md` — 当前 canonical backlog；继续开发前先看这里确认优先级与已完成项
+- `内容编写 checklist.md` — 剧情 / world event / 书信演出 / 结构字段使用的轻量自检清单
 - `世界观设定.md` — 叙事定位、角色使用方式、写作约定
 - `战斗系统手册.md` — 根基体系、多对多设计
 - `剧情系统设计手册.md` — 因果网络、WorldState、迁移路线

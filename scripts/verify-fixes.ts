@@ -1,7 +1,8 @@
-// 本次修复的针对性回归验证：内功催动、眩晕跳过、飘字 targetUid
+// 本次修复的针对性回归验证：开局默认值、内功催动、眩晕跳过、飘字 targetUid
 // 运行：npx tsx scripts/verify-fixes.ts
 import { type Combatant, type BattleState } from "../src/game/battle/types"
 import { performAction, findCombatant } from "../src/game/battle/engine"
+import { createPlayer } from "../src/game/player"
 
 function mk(uid: string, side: "player" | "enemy", opts: Partial<Combatant> = {}): Combatant {
   return {
@@ -23,7 +24,20 @@ function check(label: string, cond: boolean, detail = "") {
   else { fail++; console.log(`  ✗ ${label} ${detail}`) }
 }
 
-console.log("\n=== 修复验证 1：内功催动（innerPower × innerScale）提升伤害 ===")
+console.log("\n=== 修复验证 1：新建角色默认值回归正式开局 ===")
+{
+  const p = createPlayer("测试")
+  check("初始银两回归 100", p.gold === 100, `gold=${p.gold}`)
+  check("初始属性点回归 0", p.attributePoints === 0, `attributePoints=${p.attributePoints}`)
+  check("初始自带长拳", p.skills.length === 1 && p.skills[0].id === "changquan", `skills=${p.skills.map((s) => s.id).join(",")}`)
+  check("aptitude 与 roots.comprehension 同步", p.aptitude === p.roots.comprehension, `aptitude=${p.aptitude}, comprehension=${p.roots.comprehension}`)
+  check("world 已初始化", !!p.world && Array.isArray(p.world.completedEvents) && Array.isArray(p.world.seenNodes))
+  check("基础根基回归正式区间", p.roots.strength === 6 && p.roots.external === 6 && p.roots.internal === 4 && p.roots.constitution === 6 && p.roots.breath === 5 && p.roots.agility === 6, JSON.stringify(p.roots))
+  check("悟性回归正式随机区间", p.roots.comprehension >= 45 && p.roots.comprehension <= 65, `comprehension=${p.roots.comprehension}`)
+  check("福缘回归正式随机区间", p.roots.luck >= 10 && p.roots.luck <= 20, `luck=${p.roots.luck}`)
+}
+
+console.log("\n=== 修复验证 2：内功催动（innerPower × innerScale）提升伤害 ===")
 {
   const innerSkill = { id: "atk", name: "降龙", category: "外功" as const, damageType: "拳掌" as const, power: 10, mpCost: 0, innerScale: 1.0 }
   const withInner = mk("p1", "player", { innerPower: 20, skills: [innerSkill] }) // 期望多 20 点攻击力
@@ -41,7 +55,7 @@ console.log("\n=== 修复验证 1：内功催动（innerPower × innerScale）�
   check("内功催动显著提升伤害", avgA > avgB + 15, `差值仅 ${avgA - avgB}`)
 }
 
-console.log("\n=== 修复验证 2：眩晕（stun）跳过行动、不扣内力 ===")
+console.log("\n=== 修复验证 3：眩晕（stun）跳过行动、不扣内力 ===")
 {
   const p = mk("p1", "player", { statuses: [{ kind: "stun", name: "眩晕", duration: 1, potency: 0 }] })
   const e = mk("e1", "enemy")
@@ -53,7 +67,7 @@ console.log("\n=== 修复验证 2：眩晕（stun）跳过行动、不扣内力 
   check("敌人未被波及", findCombatant(r.state, "e1")!.hp === 100, `hp: ${findCombatant(r.state, "e1")!.hp}`)
 }
 
-console.log("\n=== 修复验证 3：结算结果带 targetUid（飘字精确定位）===")
+console.log("\n=== 修复验证 4：结算结果带 targetUid（飘字精确定位）===")
 {
   const sweep = { id: "sweep", name: "横扫", category: "外功" as const, power: 20, mpCost: 0, targeting: "all-enemy" as const }
   const p = mk("p1", "player", { skills: [sweep] })

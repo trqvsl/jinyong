@@ -1,19 +1,23 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import type { Player, Enemy, Skill } from "../types"
-import type { Combatant as EngineCombatant, BattleState as EngineBattleState, BattleSkill as EngineBattleSkill, BattleLogEntry as EngineBattleLogEntry } from "../game/battle/types"
+import type {
+  Combatant as EngineCombatant,
+  BattleState as EngineBattleState,
+  BattleSkill as EngineBattleSkill,
+  BattleLogEntry as EngineBattleLogEntry,
+} from "../game/battle"
 import type { PortraitSpec } from "../assets/portraits"
 import type { Npc } from "../data/npcs"
 import { PLAYER_PORTRAIT, ENEMY_PORTRAITS } from "../assets/portraits"
 import { getItemById } from "../data/items"
 import {
-  performAction, advanceAtb, nextActor, checkBattleEndBySide, previewTurnOrder,
-  tickUnitStatuses, enemyDecideAction, findCombatant, isStunned, applyStatusToCombatant, healCombatant, restoreMpCombatant,
-} from "../game/battle/engine"
-import { createBattleState, syncPlayersFromState, applyVictoryGrowth } from "../game/battle/adapter"
+  performAction, enemyDecideAction, findCombatant, isStunned,
+  createBattleState, applyAtbConsume, previewTurnOrder,
+  createBattleSupportRuntimeState, applyTriggeredSupport, advanceBattleToNextActor, finalizeBattleResult,
+} from "../game/battle"
 import { npcToPlayerSideCombatant } from "../game/npc"
 import { fleeChanceOf } from "../game/attributes"
-import { getBattleSupportMechanicRules, getBattleTriggeredSupportEffects, getBattleTriggeredSupportEvents, type BattleSupportMechanicEffect, type PartyBondBonus, type PartySupportBonus, type PartySupportTotals } from "../game/party"
-import type { StatusEffect as EngineStatusEffect, StatusKind as EngineStatusKind } from "../game/battle/types"
+import { getBattleSupportMechanicRules, type PartyBondBonus, type PartySupportBonus, type PartySupportTotals } from "../game/party"
 
 interface FloatText {
   id: number
@@ -74,8 +78,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
   stateRef.current = state
   // 战斗中对背包的修改（用道具扣库存），结束时合并回传给父组件
   const inventoryPatch = useRef<Record<string, number>>({})
-  const triggeredSupportRef = useRef<{ crit: boolean; guard: boolean; victory: boolean }>({ crit: false, guard: false, victory: false })
-  const supportStatusRestoreRef = useRef<Partial<Record<EngineStatusKind, EngineStatusEffect | null>>>({})
+  const supportRuntimeRef = useRef(createBattleSupportRuntimeState())
   const logEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [log])
@@ -110,98 +113,19 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
     }
   }
 
-  function rememberSupportStatusBaseline(curState: EngineBattleState, kind: EngineStatusKind) {
-    if (Object.prototype.hasOwnProperty.call(supportStatusRestoreRef.current, kind)) return
-    const mainPlayer = curState.playerSide[0]
-    supportStatusRestoreRef.current[kind] = mainPlayer?.statuses.find((status) => status.kind === kind) ?? null
-  }
-
-  function cleanupSupportStatuses(curState: EngineBattleState): EngineBattleState {
-    const entries = Object.entries(supportStatusRestoreRef.current) as [EngineStatusKind, EngineStatusEffect | null][]
-    if (entries.length === 0) return curState
-    const mainPlayer = curState.playerSide[0]
-    if (!mainPlayer) return curState
-    const restoredKinds = new Set(entries.map(([kind]) => kind))
-    const restoredStatuses = mainPlayer.statuses.filter((status) => !restoredKinds.has(status.kind))
-    for (const [, previous] of entries) {
-      if (previous) restoredStatuses.push(previous)
-    }
-    return {
-      ...curState,
-      playerSide: curState.playerSide.map((unit, index) => index === 0 ? { ...unit, statuses: restoredStatuses } : unit),
-    }
-  }
-
-  function applySupportMechanicEffect(curState: EngineBattleState, effect: BattleSupportMechanicEffect): { state: EngineBattleState; logs: EngineBattleLogEntry[] } {
-    const mainPlayerUid = curState.playerSide[0]?.uid
-    if (!mainPlayerUid) return { state: curState, logs: [] }
-
-    if (effect.kind === "heal") {
-      const healed = healCombatant(curState, mainPlayerUid, effect.potency)
-      if (healed.healed > 0) {
-        setTimeout(() => addFloat(mainPlayerUid, `+${healed.healed}`, "heal"), 180)
-      }
-      return {
-        state: healed.state,
-        logs: [{ text: effect.text.replace(`${effect.potency}`, `${healed.healed}`), type: "status" }],
-      }
-    }
-
-    if (effect.kind === "restore-mp") {
-      const restored = restoreMpCombatant(curState, mainPlayerUid, effect.potency)
-      if (restored.restored > 0) {
-        setTimeout(() => addFloat(mainPlayerUid, `气+${restored.restored}`, "status"), 180)
-      }
-      return {
-        state: restored.state,
-        logs: [{ text: effect.text.replace(`${effect.potency}`, `${restored.restored}`), type: "status" }],
-      }
-    }
-
-    rememberSupportStatusBaseline(curState, effect.kind)
-    const applied = applyStatusToCombatant(curState, mainPlayerUid, {
-      target: "self",
-      kind: effect.kind,
-      potency: effect.potency,
-      duration: effect.duration ?? 1,
-      applyChance: 1,
-    })
-    if (applied.applied) {
-      const floatText = effect.kind === "shield"
-        ? `护盾+${effect.potency}`
-        : effect.kind === "buff-def"
-          ? `防↑${effect.potency}`
-          : effect.kind === "buff-spd"
-            ? `速↑${effect.potency}`
-          : effect.kind === "buff-chase"
-            ? `追击势`
-            : `攻↑${effect.potency}`
-      setTimeout(() => addFloat(mainPlayerUid, floatText, "status"), 180)
-    }
-    return {
-      state: applied.state,
-      logs: [{ text: effect.text, type: "status" }],
-    }
-  }
-
   function emitTriggeredSupport(curState: EngineBattleState, trigger: "crit" | "guard" | "victory"): { state: EngineBattleState; logs: EngineBattleLogEntry[] } {
-    if (triggeredSupportRef.current[trigger]) return { state: curState, logs: [] }
-    const events = getBattleTriggeredSupportEvents(player, trigger)
-    const effects = getBattleTriggeredSupportEffects(player, trigger)
-    if (events.length === 0 && effects.length === 0) return { state: curState, logs: [] }
-    triggeredSupportRef.current[trigger] = true
-    let nextState = curState
-    const logs: EngineBattleLogEntry[] = events.map((event) => ({ text: event.text, type: "status" }))
-    for (const effect of effects) {
-      const applied = applySupportMechanicEffect(nextState, effect)
-      nextState = applied.state
-      logs.push(...applied.logs)
-    }
-    highlightSupport(
-      Array.from(new Set([...events.flatMap((event) => event.npcIds), ...effects.flatMap((effect) => effect.npcIds)])),
-      Array.from(new Set([...events.flatMap((event) => event.bondIds), ...effects.flatMap((effect) => effect.bondIds)])),
-    )
-    return { state: nextState, logs }
+    const support = applyTriggeredSupport({
+      player,
+      trigger,
+      state: curState,
+      runtime: supportRuntimeRef.current,
+    })
+    supportRuntimeRef.current = support.runtime
+    support.floats.forEach((float) => {
+      setTimeout(() => addFloat(float.uid, float.text, float.kind), 180)
+    })
+    highlightSupport(support.highlightNpcIds, support.highlightBondIds)
+    return { state: support.state, logs: support.logs }
   }
 
   // 玩家点招式按钮（skill 来自 currentActor.skills，是 BattleSkill）
@@ -309,59 +233,36 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
 
   // 一次行动后：消耗该行动者的 ATB，调度下一个能行动的单位
   function afterAction(curState: EngineBattleState, actorUid: string) {
-    const th = curState.atbThreshold || 100
-    const consume = (c: EngineCombatant) => c.uid === actorUid ? { ...c, atb: Math.max(0, c.atb - th) } : c
-    const consumed: EngineBattleState = { ...curState, playerSide: curState.playerSide.map(consume), enemySide: curState.enemySide.map(consume) }
-    scheduleNext(consumed)
+    scheduleNext(applyAtbConsume(curState, actorUid))
   }
 
   // 调度下一个行动者：推进 ATB → 结算其身上状态 → 跳过死亡/眩晕者 → 让其出手。
   // 用 while 连续跳过所有"轮到却无法行动"的单位（中毒致死、被点穴），直到找到能动的或战斗结束。
   // （这也修复了：首动者的持续状态原本不被结算的问题——现在统一在此 tick。）
   function scheduleNext(start: EngineBattleState) {
-    let s = start
-    const pendingLogs: { text: string; type: string }[] = []
-    while (true) {
-      s = advanceAtb(s)
-      const end = checkBattleEndBySide(s)
-      if (end !== "ongoing") { setState(s); if (pendingLogs.length) pushLog(pendingLogs); finishBattle(end, s); return }
+    const step = advanceBattleToNextActor(start)
+    if (step.logs.length) pushLog(step.logs)
+    setState(step.state)
 
-      const actor = nextActor(s)
-      if (!actor) break // 安全兜底：advanceAtb 理论上保证有人达标
-
-      // 结算该行动者身上的状态（中毒掉血/回春/状态消退）
-      const ticked = tickUnitStatuses(s, actor.uid)
-      if (ticked.logs.length) pendingLogs.push(...ticked.logs)
-      const cur = findCombatant(ticked.state, actor.uid)
-
-      // 状态致死：跳过（不消耗 ATB，因为它没行动）
-      if (!cur || cur.hp <= 0) { s = ticked.state; continue }
-
-      // 眩晕（被点穴等）：跳过本轮，消耗 ATB（视作占了一回合）
-      if (isStunned(cur)) {
-        pendingLogs.push({ text: `${cur.name}被点穴封住经脉，动弹不得！`, type: "system" })
-        const th = ticked.state.atbThreshold || 100
-        const stunConsume = (c: EngineCombatant) => c.uid === cur.uid ? { ...c, atb: Math.max(0, c.atb - th) } : c
-        s = { ...ticked.state, playerSide: ticked.state.playerSide.map(stunConsume), enemySide: ticked.state.enemySide.map(stunConsume) }
-        continue
-      }
-
-      // 该单位正常行动
-      if (pendingLogs.length) pushLog(pendingLogs)
-      setState(ticked.state)
-      setCurrentActorUid(cur.uid)
-      if (cur.side === "enemy") {
-        setTimeout(() => doEnemyAction(ticked.state, cur), 700)
-      } else if (cur.uid.startsWith("npc-")) {
-        // NPC 队友：AI 自动操控（复用敌方决策逻辑，目标改为敌方）
-        setTimeout(() => doNpcTeammateAction(ticked.state, cur), 600)
-      } else {
-        setPhase("acting")
-      }
+    if (step.ended !== "ongoing") {
+      finishBattle(step.ended === "won" ? "won" : "lost", step.state)
       return
     }
-    if (pendingLogs.length) pushLog(pendingLogs)
-    setState(s); setPhase("acting")
+
+    if (!step.actor || !step.actorMode) {
+      setPhase("acting")
+      return
+    }
+
+    const actor = step.actor
+    setCurrentActorUid(actor.uid)
+    if (step.actorMode === "enemy") {
+      setTimeout(() => doEnemyAction(step.state, actor), 700)
+    } else if (step.actorMode === "teammate") {
+      setTimeout(() => doNpcTeammateAction(step.state, actor), 600)
+    } else {
+      setPhase("acting")
+    }
   }
 
   function finishBattle(result: "won" | "lost" | "fled", finalState: EngineBattleState) {
@@ -372,32 +273,30 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
       resolvedState = support.state
       finalLogs.push(...support.logs)
     }
-    const syncedCombatPlayer = syncPlayersFromState([combatPlayer], cleanupSupportStatuses(resolvedState))[0]
-    const synced: Player = { ...player, hp: syncedCombatPlayer.hp, mp: syncedCombatPlayer.mp, statuses: syncedCombatPlayer.statuses }
-    // 合并战斗中消耗的道具库存（用道具扣的库存记在 inventoryPatch）
-    const withItems: Player = { ...synced, inventory: { ...synced.inventory, ...inventoryPatch.current } }
+
+    const finalized = finalizeBattleResult({
+      result,
+      finalState: resolvedState,
+      player,
+      combatPlayer,
+      enemies,
+      inventoryPatch: inventoryPatch.current,
+      runtime: supportRuntimeRef.current,
+    })
+
     if (result === "won") {
-      const totalExp = enemies.reduce(function(s: number, e: Enemy){return s+e.expReward},0)
-      const totalGold = enemies.reduce(function(s: number, e: Enemy){return s+e.goldReward},0)
-      const { player: grown, rewards } = applyVictoryGrowth(withItems, totalExp, totalGold)
-      pushLog([
-        ...finalLogs,
-        { text: "得胜！", type: "system" },
-        { text: `获得经验 ${rewards.exp} 点，银两 ${rewards.gold} 两`, type: "system" },
-        ...(rewards.leveledUp ? [{ text: `境界突破！升到 ${grown.level} 级！`, type: "crit" }] : []),
-      ])
+      pushLog([...finalLogs, ...finalized.logs])
       setScreenShake(true)
       setTimeout(() => setScreenShake(false), 500)
       setOutcome("won"); setPhase("ended")
-      onEnd({ player: { ...grown, hp: grown.hp, mp: grown.mp }, outcome: "won", rewards })
+      onEnd({ player: finalized.player, outcome: "won", rewards: finalized.rewards })
     } else if (result === "fled") {
-      // 逃跑成功：保留当前血量脱战（不结算经验/银两）
       setOutcome("fled"); setPhase("ended")
-      onEnd({ player: withItems, outcome: "fled" })
+      onEnd({ player: finalized.player, outcome: "fled" })
     } else {
-      pushLog([{ text: "你被击败了……", type: "system" }])
+      pushLog(finalized.logs)
       setOutcome("lost"); setPhase("ended")
-      onEnd({ player: { ...withItems, hp: Math.max(1, Math.round(withItems.hpMax * 0.3)) }, outcome: "lost" })
+      onEnd({ player: finalized.player, outcome: "lost" })
     }
   }
 

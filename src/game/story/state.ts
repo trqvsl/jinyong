@@ -77,6 +77,8 @@ export function migrateWorld(raw: unknown): WorldState {
   w.seenNodes = (r.seenNodes as string[]) ?? []
   w.completedEvents = (r.completedEvents as string[]) ?? []
 
+  // 旧存档里的 seenNodes 可能仍是裸 nodeId；本轮起只新增 `${eventId}:${nodeId}` 形式的新键，旧值保留兼容即可。
+
   const legacyPending = typeof w.flags.pendingWorldEventId === "string" ? w.flags.pendingWorldEventId : undefined
   if (legacyPending && !w.pendingWorldEvents.includes(legacyPending)) w.pendingWorldEvents.push(legacyPending)
   if (legacyPending) delete w.flags.pendingWorldEventId
@@ -90,6 +92,7 @@ export function migrateWorld(raw: unknown): WorldState {
   // 迁移 v1 → v2：WorldNpcState 新增 relationType（optional，无需数据迁移）
   // 迁移 v2 → v3：pendingWorldEventId 改为 pendingWorldEvents 队列（上方已兼容导入）
   // 迁移 v3 → v4：新增 party 状态（上方已补默认值）
+  // 迁移 v4：WorldArcState 可选增加 ending（兼容旧档时保持 undefined 即可）
   w.version = WORLD_VERSION
   return w
 }

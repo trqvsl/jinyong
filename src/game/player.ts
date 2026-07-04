@@ -9,19 +9,19 @@ import { createWorld, migrateWorld } from "./story/state"
 
 const SAVE_KEY = "jinyong-save"
 
+const STANDARD_STARTING_ROOTS = {
+  strength: 6,
+  external: 6,
+  internal: 4,
+  comprehension: Math.floor(Math.random() * 21) + 45, // 悟性随机 45~65
+  constitution: 6,
+  breath: 5,
+  agility: 6,
+  luck: Math.floor(Math.random() * 11) + 10, // 福缘随机 10~20
+} as const
+
 export function createPlayer(name: string): Player {
-  // 八大根基属性：力量/外功/内功/悟性/身体/吐纳/身法/福缘
-  // 【测试用】初始值调高，方便体验各种玩法；上线前改回低值
-  const roots = {
-    strength: 30,
-    external: 30,
-    internal: 25,
-    comprehension: Math.floor(Math.random() * 60) + 40, // 悟性随机 40~100（原 aptitude）
-    constitution: 30,
-    breath: 25,
-    agility: 30,
-    luck: Math.floor(Math.random() * 30) + 20, // 福缘随机 20~50
-  }
+  const roots = { ...STANDARD_STARTING_ROOTS }
   const derived = deriveStats(roots, 1)
   return {
     name,
@@ -36,10 +36,10 @@ export function createPlayer(name: string): Player {
     defense: derived.defense,
     speed: derived.speed,
     roots,
-    attributePoints: 20, // 【测试用】多给属性点供分配
+    attributePoints: 0,
     mastery: {},
     relations: {},
-    gold: 500, // 【测试用】多给银两
+    gold: 100,
     aptitude: roots.comprehension, // 向后兼容：aptitude 指向悟性
     alignment: "中",
     karma: 0,                       // 善恶值（alignment 由其派生）
