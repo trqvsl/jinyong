@@ -1,7 +1,7 @@
 import type { StoryEvent } from "../data/events"
 import type { Consequence } from "../data/story/schema"
 
-const PAGE_CHAR_LIMIT = 72
+const PAGE_CHAR_LIMIT = 120
 
 export interface ScriptSegment {
   type: "narration" | "dialogue"

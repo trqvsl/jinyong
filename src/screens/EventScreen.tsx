@@ -14,7 +14,7 @@ interface Props {
   player: Player
   event: StoryEvent
   nodeId: string
-  initialResult?: { text: string; transition: Transition }
+  initialResult?: { text: string; transition: Transition; title?: string }
   onResolve: (r: { player: Player; transition: Transition; consumedDay: boolean }) => void
 }
 
@@ -36,7 +36,6 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
   )
   const [resultMeta, setResultMeta] = useState<string[]>([])
   const [pageIndex, setPageIndex] = useState(0)
-
   const activeText = phase === "result" ? resultText : node?.text ?? ""
   const pages = useMemo(
     () => buildScriptPages(activeText, phase === "result" ? undefined : node?.speaker),
@@ -47,10 +46,12 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
   const showChoices = phase === "choosing" && !!node && isReadingFinished
   const canTapScript = !isReadingFinished || phase === "autoNext"
   const isLetterPresentation = event.presentation === "letter" && phase !== "result"
+  const activeTitle = phase === "result" ? initialResult?.title ?? node?.title ?? "事后" : node?.title ?? "事后"
   const letterMeta = getLetterMeta(event, node?.title)
   const letterIntro = phase === "result" ? "" : node?.letterIntro?.trim() ?? ""
   const letterSignature = phase === "result" ? "" : node?.letterSignature?.trim() ?? ""
   const mergedLetterText = mergeLetterPageText(currentPage)
+  const dialogueCount = currentPage.filter((segment) => segment.type === "dialogue").length
 
   function advancePage() {
     setPageIndex((prev) => Math.min(prev + 1, pages.length - 1))
@@ -90,6 +91,30 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
     onResolve({ player: entered.player, transition: node.autoNext, consumedDay: false })
   }
 
+  function getTapHint() {
+    if (phase === "autoNext" && isReadingFinished) return "轻触进入下一段"
+    return "轻触继续看下去"
+  }
+
+  function getContinueLabel() {
+    if (!pending) return "返回江湖"
+    if (!isReadingFinished) return "继续看下去"
+
+    switch (pending.transition.type) {
+      case "battle":
+        return "进入战斗"
+      case "goto":
+      case "gotoEvent":
+        return "进入下一段"
+      case "end":
+        return "返回江湖"
+      case "gameOver":
+        return "迎来结局"
+      default:
+        return "继续"
+    }
+  }
+
   function handleContinue() {
     if (!isReadingFinished) {
       advancePage()
@@ -106,8 +131,8 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
       </header>
 
       <section className="event-hero stat-panel">
-        <div className="event-tag">{getEventTag(event, node?.title)}</div>
-        <h1 className="event-title">{node?.title ?? "事后"}</h1>
+        <div className="event-tag">{getEventTag(event, activeTitle)}</div>
+        <h1 className="event-title">{activeTitle}</h1>
       </section>
 
       <section
@@ -135,21 +160,24 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
               </div>
             </div>
           </>
-        ) : currentPage.map((segment, index) => (
-          segment.type === "dialogue" ? (
-            <div key={`dialogue-${index}-${segment.speaker ?? "anon"}`} className="event-dialogue-box">
-              <div className="event-portrait-frame">{(segment.speaker ?? "人").slice(0, 1)}</div>
-              <div className="event-dialogue-main">
-                <div className="event-dialogue-name">{segment.speaker ?? "人物"}</div>
-                <div className="event-dialogue-text">{segment.text}</div>
+          ) : currentPage.map((segment, index) => (
+            segment.type === "dialogue" ? (
+              <div
+                key={`dialogue-${pageIndex}-${index}-${segment.speaker ?? "anon"}`}
+                className={`event-dialogue-box${dialogueCount > 1 ? ` ${index % 2 === 0 ? "is-left" : "is-right"}` : ""}`}
+              >
+                <div className="event-portrait-frame">{(segment.speaker ?? "人").slice(0, 1)}</div>
+                <div className="event-dialogue-main">
+                  <div className="event-dialogue-name">{segment.speaker ?? "人物"}</div>
+                  <div className="event-dialogue-text">{segment.text}</div>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div key={`narration-${index}`} className="event-narration-box">
-              <div className="event-intro">{segment.text}</div>
-            </div>
-          )
-        ))}
+            ) : (
+              <div key={`narration-${pageIndex}-${index}`} className="event-narration-box">
+                <div className="event-intro">{segment.text}</div>
+              </div>
+            )
+          ))}
 
         {(pages.length > 1 || canTapScript) && (
           <div className="event-script-meta">
@@ -158,7 +186,7 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
             )}
 
             {canTapScript && (
-              <div className="event-tap-hint">{isReadingFinished && phase === "autoNext" ? "轻触继续" : "轻触翻页"}</div>
+              <div className="event-tap-hint">{getTapHint()}</div>
             )}
           </div>
         )}
@@ -171,7 +199,7 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
             <>
               <div className="event-result-text">此时此地，你已没有可作出的选择。</div>
               <button className="menu-btn primary" onClick={() => onResolve({ player: entered!.player, transition: { type: "end" }, consumedDay: false })}>
-                继续
+                返回江湖
               </button>
             </>
           ) : (
@@ -194,7 +222,7 @@ export function EventScreen({ player, event, nodeId, initialResult, onResolve }:
               {resultMeta.map((item) => <span key={item} className="event-effect-chip">{item}</span>)}
             </div>
           )}
-          <button className="menu-btn primary" onClick={handleContinue}>继续</button>
+          <button className="menu-btn primary" onClick={handleContinue}>{getContinueLabel()}</button>
         </section>
       )}
     </div>
