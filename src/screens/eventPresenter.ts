@@ -1,7 +1,7 @@
 import type { StoryEvent } from "../data/events"
 import type { Consequence } from "../data/story/schema"
 
-const PAGE_CHAR_LIMIT = 120
+const PAGE_CHAR_LIMIT = 110
 
 export interface ScriptSegment {
   type: "narration" | "dialogue"
@@ -100,22 +100,13 @@ function splitNarrationChunks(text: string): string[] {
   return chunks.length > 0 ? chunks : [normalized]
 }
 
-function inferSpeaker(context: string, fallbackSpeaker?: string): string | undefined {
-  const compact = context.replace(/\s+/g, "").slice(-40)
-  const verbMatch = compact.match(/([一-龥A-Za-z0-9·]{2,12})(?:[一-龥，、；：]{0,8})?(?:道|说道|笑道|冷笑道|低声道|轻声道|高声道|喝道|问道|答道|叹道|叫道|喃喃道|缓缓道|淡淡道|沉声道|大笑道|开口道|回头道|叹息道|低声叹息道|轻笑道)[:：]?$/)
-  if (verbMatch?.[1]) return verbMatch[1]
-
-  const colonMatch = compact.match(/([一-龥A-Za-z0-9·]{2,12})(?:[一-龥，、；：]{0,10})?(?:叹息|低声叹息|轻笑|冷哼|低声|轻声|高声|沉声|喝问|笑骂|笑吟吟地说|说道|说|笑|问|答|道)?[:：]$/)
-  return colonMatch?.[1] ?? fallbackSpeaker
-}
-
 function extractDialogueCue(context: string, fallbackSpeaker?: string): { narration: string; speaker?: string } {
   const trimmed = context.trim()
   if (!trimmed) return { narration: "", speaker: fallbackSpeaker }
 
   const cuePatterns = [
-    /^(.*?)([一-龥A-Za-z0-9·]{2,12})[:：]\s*$/,
-    /^(.*?)([一-龥A-Za-z0-9·]{2,12})(?:说道|说|问道|问|答道|答|喝道|道)[:：]?\s*$/,
+    /^(.*?)([一-龥A-Za-z0-9·]{2,8})[:：]\s*$/,
+    /^(.*?)([一-龥A-Za-z0-9·]{2,8})(?:说道|说|问道|问|答道|答|喝道|道)[:：]?\s*$/,
   ]
 
   for (const pattern of cuePatterns) {
@@ -128,7 +119,7 @@ function extractDialogueCue(context: string, fallbackSpeaker?: string): { narrat
     }
   }
 
-  return { narration: trimmed, speaker: inferSpeaker(trimmed, fallbackSpeaker) }
+  return { narration: trimmed, speaker: fallbackSpeaker }
 }
 
 function parseStorySegments(text: string, fallbackSpeaker?: string): ScriptSegment[] {
@@ -175,6 +166,13 @@ export function buildScriptPages(text: string, fallbackSpeaker?: string): Script
       }
       currentPage.push({ ...segment, text: chunk })
       currentChars += chunk.length
+
+      // 剧情演出按“一拍一个说话人”推进，避免同页堆成聊天记录。
+      if (segment.type === "dialogue") {
+        pages.push(currentPage)
+        currentPage = []
+        currentChars = 0
+      }
     }
   }
 

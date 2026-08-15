@@ -1,8 +1,9 @@
 import type { Player, Enemy } from "../types"
 import type { Transition, StoryEvent } from "../data/events"
-import type { Consequence } from "../data/story/schema"
+import type { Consequence, StoryCheckpoint, StoryCheckpointPhase } from "../data/story/schema"
 import type { Npc } from "../data/npcs"
 import { getLocationById } from "../data/map"
+import { getEnemyById } from "../data/enemies"
 import { applyConsequences } from "./story/consequences"
 import { getActivePartyNpcs, normalizePlayerParty } from "./party"
 import { resolveBranch, pickRandom, resolveBattleOutcome } from "./story/engine"
@@ -11,9 +12,22 @@ import { getAdventureEnemy, getStoryEventById, getStoryEventByLocation } from ".
 
 export type AppViewCommand =
   | { type: "show-main" }
-  | { type: "show-event-entry"; event: StoryEvent; nodeId: string; locationId: string | null }
+  | {
+      type: "show-event-entry"
+      event: StoryEvent
+      nodeId: string
+      locationId: string | null
+      pageIndex: number
+      initialResult?: { text: string; transition: Transition; title?: string; consumedDay: boolean }
+    }
   | { type: "show-event-result"; text: string; transition: Transition }
-  | { type: "show-battle"; enemies: Enemy[]; pendingBattleTransition: Transition | null; challengeNpcId: string | null }
+  | {
+      type: "show-battle"
+      enemies: Enemy[]
+      pendingBattleTransition: Transition | null
+      challengeNpcId: string | null
+      storyContext?: { event: StoryEvent; nodeId: string; locationId: string | null }
+    }
 
 export type StoryFlowCommand =
   | { type: "goto-node"; nodeId: string }
@@ -52,15 +66,69 @@ export function createMainViewCommand(): Extract<AppViewCommand, { type: "show-m
   return { type: "show-main" }
 }
 
+function getNodePhase(event: StoryEvent, nodeId: string): StoryCheckpointPhase {
+  const node = event.nodes[nodeId]
+  return node && !node.choices && node.autoNext ? "autoNext" : "choosing"
+}
+
+export function setStoryCheckpoint(player: Player, checkpoint: StoryCheckpoint | null): Player {
+  return {
+    ...player,
+    world: {
+      ...player.world,
+      currentStory: checkpoint,
+    },
+  }
+}
+
+function createNodeCheckpoint(args: {
+  event: StoryEvent
+  nodeId: string
+  locationId?: string | null
+  pageIndex?: number
+}): StoryCheckpoint {
+  return {
+    eventId: args.event.id,
+    nodeId: args.nodeId,
+    phase: getNodePhase(args.event, args.nodeId),
+    pageIndex: args.pageIndex ?? 0,
+    locationId: args.locationId ?? null,
+  }
+}
+
 export function createStoryEntryCommand(args: {
   event: StoryEvent
   locationId?: string | null
+  nodeId?: string
+  pageIndex?: number
+  initialResult?: { text: string; transition: Transition; title?: string; consumedDay: boolean }
 }): Extract<AppViewCommand, { type: "show-event-entry" }> {
   return {
     type: "show-event-entry",
     event: args.event,
-    nodeId: args.event.entryNode,
+    nodeId: args.nodeId ?? args.event.entryNode,
     locationId: args.locationId ?? null,
+    pageIndex: args.pageIndex ?? 0,
+    initialResult: args.initialResult,
+  }
+}
+
+function beginStoryEvent(args: {
+  player: Player
+  event: StoryEvent
+  locationId?: string | null
+}): { player: Player; command: Extract<AppViewCommand, { type: "show-event-entry" }> } {
+  const checkpoint = createNodeCheckpoint({
+    event: args.event,
+    nodeId: args.event.entryNode,
+    locationId: args.locationId,
+  })
+  return {
+    player: setStoryCheckpoint(args.player, checkpoint),
+    command: createStoryEntryCommand({
+      event: args.event,
+      locationId: args.locationId,
+    }),
   }
 }
 
@@ -71,29 +139,93 @@ export function openPendingWorldEvent(args: {
   const event = getStoryEventById(args.eventId)
   const player = dequeuePendingWorldEvent(args.player, args.eventId)
   return event
-    ? { player, command: createStoryEntryCommand({ event }) }
-    : { player, command: createMainViewCommand() }
+    ? beginStoryEvent({ player, event })
+    : { player: setStoryCheckpoint(player, null), command: createMainViewCommand() }
 }
 
 export function openLocationStory(args: {
   player: Player
   locationId: string
-}): AppViewCommand | null {
+}): { player: Player; command: AppViewCommand } | null {
   const location = getLocationById(args.locationId)
   if (!location) return null
-  return createStoryEntryCommand({ event: getStoryEventByLocation(args.player, location.events), locationId: args.locationId })
+  return beginStoryEvent({
+    player: args.player,
+    event: getStoryEventByLocation(args.player, location.events),
+    locationId: args.locationId,
+  })
+}
+
+export function restoreStoryCheckpoint(player: Player): { player: Player; command: AppViewCommand | null } {
+  const checkpoint = player.world.currentStory
+  if (!checkpoint) return { player, command: null }
+
+  const event = getStoryEventById(checkpoint.eventId)
+  if (!event || !event.nodes[checkpoint.nodeId]) {
+    return { player: setStoryCheckpoint(player, null), command: null }
+  }
+
+  if (checkpoint.phase === "battle") {
+    if (checkpoint.transition?.type !== "battle") {
+      return { player: setStoryCheckpoint(player, null), command: null }
+    }
+    const enemies = (checkpoint.battleEnemyIds ?? [])
+      .map((enemyId) => getEnemyById(enemyId))
+    if (enemies.length === 0) {
+      const location = checkpoint.locationId ? getLocationById(checkpoint.locationId) : undefined
+      enemies.push(getAdventureEnemy(
+        player,
+        checkpoint.transition.enemyId,
+        checkpoint.transition.useLocationPool ? location?.enemyPool : undefined,
+      ))
+    }
+    return {
+      player,
+      command: createBattleEntryCommand({
+        enemies,
+        pendingBattleTransition: checkpoint.transition,
+        storyContext: {
+          event,
+          nodeId: checkpoint.nodeId,
+          locationId: checkpoint.locationId,
+        },
+      }),
+    }
+  }
+
+  const initialResult = checkpoint.phase === "result" && checkpoint.transition
+    ? {
+        text: checkpoint.resultText ?? "",
+        transition: checkpoint.transition,
+        title: checkpoint.resultTitle ?? event.nodes[checkpoint.nodeId]?.title,
+        consumedDay: checkpoint.consumedDay ?? false,
+      }
+    : undefined
+
+  return {
+    player,
+    command: createStoryEntryCommand({
+      event,
+      nodeId: checkpoint.nodeId,
+      locationId: checkpoint.locationId,
+      pageIndex: checkpoint.pageIndex,
+      initialResult,
+    }),
+  }
 }
 
 export function createBattleEntryCommand(args: {
   enemies: Enemy[]
   pendingBattleTransition?: Transition | null
   challengeNpcId?: string | null
+  storyContext?: { event: StoryEvent; nodeId: string; locationId: string | null }
 }): Extract<AppViewCommand, { type: "show-battle" }> {
   return {
     type: "show-battle",
     enemies: args.enemies,
     pendingBattleTransition: args.pendingBattleTransition ?? null,
     challengeNpcId: args.challengeNpcId ?? null,
+    storyContext: args.storyContext,
   }
 }
 
@@ -102,6 +234,11 @@ export function normalizeMainPlayer(player: Player): Player {
   const validQueue = getPendingWorldEventIds(finalPlayer).filter((eventId) => !!getStoryEventById(eventId))
   if (validQueue.length !== getPendingWorldEventIds(finalPlayer).length) {
     finalPlayer = { ...finalPlayer, world: { ...finalPlayer.world, pendingWorldEvents: validQueue } }
+  }
+
+  const currentStory = finalPlayer.world.currentStory
+  if (currentStory && !getStoryEventById(currentStory.eventId)) {
+    finalPlayer = setStoryCheckpoint(finalPlayer, null)
   }
 
   const polled = pollWorldEvent(finalPlayer, finalPlayer.world)
@@ -129,29 +266,62 @@ export function resolveStoryFlow(args: {
 
   switch (transition.type) {
     case "end":
-      return { player, command: createMainViewCommand() }
-    case "goto":
-      return { player, command: { type: "goto-node", nodeId: transition.nodeId } }
+      return { player: setStoryCheckpoint(player, null), command: createMainViewCommand() }
+    case "goto": {
+      if (!args.currentStoryEvent) {
+        return { player: setStoryCheckpoint(player, null), command: createMainViewCommand() }
+      }
+      const checkpoint = createNodeCheckpoint({
+        event: args.currentStoryEvent,
+        nodeId: transition.nodeId,
+        locationId: args.locationId,
+      })
+      return {
+        player: setStoryCheckpoint(player, checkpoint),
+        command: { type: "goto-node", nodeId: transition.nodeId },
+      }
+    }
     case "battle": {
       const location = args.locationId ? getLocationById(args.locationId) : undefined
+      const enemies = [getAdventureEnemy(player, transition.enemyId, transition.useLocationPool ? location?.enemyPool : undefined)]
+      const currentCheckpoint = player.world.currentStory
+      if (args.currentStoryEvent && currentCheckpoint) {
+        player = setStoryCheckpoint(player, {
+          ...currentCheckpoint,
+          phase: "battle",
+          pageIndex: 0,
+          transition,
+          consumedDay: false,
+          resultText: undefined,
+          resultTitle: undefined,
+          battleEnemyIds: enemies.map((enemy) => enemy.id),
+        })
+      }
       return {
         player,
         command: createBattleEntryCommand({
-          enemies: [getAdventureEnemy(player, transition.enemyId, transition.useLocationPool ? location?.enemyPool : undefined)],
+          enemies,
           pendingBattleTransition: transition,
+          storyContext: args.currentStoryEvent
+            ? {
+                event: args.currentStoryEvent,
+                nodeId: currentCheckpoint?.nodeId ?? args.currentStoryEvent.entryNode,
+                locationId: args.locationId ?? null,
+              }
+            : undefined,
         }),
       }
     }
     case "gotoEvent": {
       const event = getStoryEventById(transition.eventId)
       return event
-        ? { player, command: createStoryEntryCommand({ event }) }
-        : { player, command: createMainViewCommand() }
+        ? beginStoryEvent({ player, event })
+        : { player: setStoryCheckpoint(player, null), command: createMainViewCommand() }
     }
     case "gameOver":
-      return { player, command: createMainViewCommand() }
+      return { player: setStoryCheckpoint(player, null), command: createMainViewCommand() }
     default:
-      return { player, command: createMainViewCommand() }
+      return { player: setStoryCheckpoint(player, null), command: createMainViewCommand() }
   }
 }
 
@@ -177,21 +347,47 @@ export function resolveBattleFlow(args: {
   }
 
   if (args.outcome === "lost" && args.pendingBattleTransition.type === "battle" && args.pendingBattleTransition.lethal) {
+    const text = "你力战不敌，命丧于此……这一遭，江湖路竟走到了尽头。"
+    const transition: Transition = { type: "gameOver" }
+    const checkpoint = args.player.world.currentStory
+    const player = checkpoint
+      ? setStoryCheckpoint(args.player, {
+          ...checkpoint,
+          phase: "result",
+          pageIndex: 0,
+          resultText: text,
+          transition,
+          battleEnemyIds: undefined,
+        })
+      : args.player
     return {
-      player: args.player,
+      player,
       command: {
         type: "show-event-result",
-        text: "你力战不敌，命丧于此……这一遭，江湖路竟走到了尽头。",
-        transition: { type: "gameOver" },
+        text,
+        transition,
       },
     }
   }
 
   const outcomeResult = resolveBattleOutcome(args.player, args.player.world, args.pendingBattleTransition, args.outcome)
-  if (!outcomeResult) return { player: args.player, command: createMainViewCommand() }
+  if (!outcomeResult) return { player: setStoryCheckpoint(args.player, null), command: createMainViewCommand() }
+
+  const currentCheckpoint = outcomeResult.player.world.currentStory
+  const player = currentCheckpoint
+    ? setStoryCheckpoint(outcomeResult.player, {
+        ...currentCheckpoint,
+        phase: "result",
+        pageIndex: 0,
+        resultText: outcomeResult.text,
+        transition: outcomeResult.then,
+        consumedDay: false,
+        battleEnemyIds: undefined,
+      })
+    : outcomeResult.player
 
   return {
-    player: outcomeResult.player,
+    player,
     command: {
       type: "show-event-result",
       text: outcomeResult.text,

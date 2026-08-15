@@ -23,14 +23,13 @@ export const WORLD_EVENTS: WorldEvent[] = [
         main: {
           id: "main",
           title: "江湖回响·北丐寻你",
-          speaker: "洪七公",
-          text: "你刚回客舍，窗外忽然飘来一阵叫花鸡的香气。推门一看，洪七公正盘腿坐在屋檐上啃鸡腿，笑得胡子直抖：\"小子，最近做了几桩漂亮事，连俺老叫花都听见了。江湖上肯扶弱济困的人不多，值得俺专程来一趟。\"他说完随手把半只鸡丢给你，又指点了你几处运劲换气的诀窍。",
+          text: "你刚回客舍，窗外便飘来叫花鸡的香气。洪七公盘腿坐在屋檐上，一手提鸡腿，一手用竹棒敲了敲瓦片。洪七公：\"近来几件事办得还算像样，老叫花路过，顺便看看你功夫有没有长进。先接着！\"半只鸡从檐上落下，他也跟着翻进院里。",
           choices: [
             {
               id: "accept-guidance",
               text: "虚心受教",
               description: "认真记下洪七公点拨的吐纳与发劲诀窍。",
-              resultText: "洪七公边吃边骂你蠢，手下却毫不藏私。短短一炷香，你对内力流转和掌劲运使都多了几分领悟。临走前他拍着你的肩膀大笑：\"继续这么闯，别给俺丐帮丢人！\"",
+              resultText: "洪七公让你连出三掌，第一掌敲肩，第二掌打腕，第三掌才点了点头。洪七公：\"劲到掌心便散了，腰上再送半寸。记住，救人时别把自己也搭进去。\"他拎走剩下的鸡骨头，翻上屋檐便走。",
               consequences: [
                 { kind: "relation", npcId: "hongqigong", delta: 5 },
                 { kind: "reputation", delta: 3 },
@@ -71,12 +70,47 @@ export const WORLD_EVENTS: WorldEvent[] = [
               id: "read-letter",
               text: "收下书信",
               description: "收下全真门下这份善意与谢礼。",
-              resultText: "你将书信反复读了几遍，把其中口诀默记于心，又把随信送来的薄礼一并收起。那名全真弟子打个稽首便离去了。",
+              resultText: "你照着信中三句口诀试运一遍，把换息位置记在随身册页上。那名全真弟子留下礼盒，打个稽首便离开客舍。",
               consequences: [
                 { kind: "relation", npcId: "qiuchuji", delta: 3 },
                 { kind: "reputation", delta: 2 },
                 { kind: "gold", delta: 20 },
                 { kind: "item", id: "small-mp-pill", count: 1 },
+              ],
+              transition: { type: "end" },
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    id: "guojing-southbound-rumor",
+    once: true,
+    trigger: {
+      kind: "and",
+      items: [
+        { kind: "arcBeat", arcId: "shendiao", beat: "damos" },
+        { kind: "relation", npcId: "guojing", gte: 15 },
+      ],
+    },
+    event: {
+      id: "world-guojing-southbound",
+      entryNode: "main",
+      nodes: {
+        main: {
+          id: "main",
+          title: "江湖回响·草原传讯",
+          text: "你刚回住处歇下，门外便有行商送来一句口信，说是北边草原上有个姓郭的年轻人已经辞别师父，正一路南下。行商还从怀里掏出一截粗布包着的肉干，笑说那年轻人千叮万嘱，要替他交到你手上。那肉干风干得极硬，一看便知是草原上的做法。",
+          choices: [
+            {
+              id: "accept-news",
+              text: "收下口信",
+              description: "把这份从草原一路带来的惦记收好。",
+              resultText: "你收下肉干，向行商问清郭靖南下所走的驿道。行商说他七日前已过居庸关，临走还反复叮嘱这包东西一定要送到。",
+              consequences: [
+                { kind: "relation", npcId: "guojing", delta: 4 },
+                { kind: "item", id: "field-ration", count: 2 },
               ],
               transition: { type: "end" },
             },
@@ -107,11 +141,89 @@ export const WORLD_EVENTS: WorldEvent[] = [
             {
               id: "share-snack",
               text: "陪她吃完",
-              description: "夜色正好，索性陪黄蓉把这份点心吃完。",
-              resultText: "你们把食盒里的点心分着吃完，又聊了些临安近来的事。临走前，黄蓉：\"算你还有良心，没有让我白来。\"",
+              description: "让她进屋，边吃边说临安近况。",
+              resultText: "你们分完食盒里的点心，黄蓉又在桌上画出两处新探到的王府暗门。临走前，她把最后一块点心留在盘中。黄蓉：\"这一块给你明早吃，省得又空着肚子出门。\"",
               consequences: [
                 { kind: "relation", npcId: "huangrong", delta: 5 },
                 { kind: "hp", delta: 15 },
+              ],
+              transition: { type: "end" },
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    id: "taohua-island-letter",
+    once: true,
+    trigger: {
+      kind: "and",
+      items: [
+        { kind: "arcBeat", arcId: "shendiao", beat: "wangfu" },
+        { kind: "relation", npcId: "huangrong", gte: 12 },
+      ],
+    },
+    event: {
+      id: "world-taohua-invitation",
+      entryNode: "main",
+      presentation: "letter",
+      letterStyle: "note",
+      nodes: {
+        main: {
+          id: "main",
+          title: "江湖回响·桃花催信",
+          letterIntro: "你回到落脚处时，一只海东青在窗外扑了两下翅膀，留下信便飞走了，案上还散着两瓣被风吹落的桃花。",
+          text: "我爹今日又问了一遍，郭靖何时登岛。你若再不来，我便亲自去临安把你们一道拖来。海上风大，记得雇条稳些的船。",
+          letterSignature: "黄蓉",
+          choices: [
+            {
+              id: "read-and-prepare",
+              text: "收起书信",
+              description: "把这封催人的字条先收好。",
+              resultText: "你把字条收入怀中，又在地图上标出东海渡口。海东青仍停在窗外，啄了两下木框才展翅离开。",
+              consequences: [
+                { kind: "relation", npcId: "huangrong", delta: 3 },
+                { kind: "reputation", delta: 1 },
+              ],
+              transition: { type: "end" },
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    id: "yangkang-rain-message",
+    once: true,
+    trigger: {
+      kind: "and",
+      items: [
+        { kind: "npcHasTag", npcId: "yangkang", tag: "杨康遁走" },
+        { kind: "relation", npcId: "yangkang", gte: 10 },
+      ],
+    },
+    event: {
+      id: "world-yangkang-rain-message",
+      entryNode: "main",
+      presentation: "letter",
+      letterStyle: "secret",
+      nodes: {
+        main: {
+          id: "main",
+          title: "江湖回响·雨夜留字",
+          letterIntro: "你夜里回房时，窗台上不知何时多了一张被雨气打湿边角的短笺，纸上只有寥寥几行字，墨迹却压得很重。",
+          text: "你那日若不伸手，我已死在庙里。可你救得了我一回，未必救得了我这一生。以后若再见，不必替我说话。",
+          letterSignature: "康",
+          choices: [
+            {
+              id: "keep-the-note",
+              text: "把字条收起",
+              description: "先把这句说不清是谢是怨的话收起来。",
+              resultText: "你把短笺晾干后折好收起。窗台外只留下一枚断掉的王府玉扣，边缘已经被刀削去原本的纹样。",
+              consequences: [
+                { kind: "relation", npcId: "yangkang", delta: 3 },
+                { kind: "aptitude", delta: 1 },
               ],
               transition: { type: "end" },
             },

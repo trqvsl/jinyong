@@ -49,6 +49,21 @@ export interface WorldPartyState {
   reserveNpcIds: string[]
 }
 
+export type StoryCheckpointPhase = "choosing" | "autoNext" | "result" | "battle"
+
+export interface StoryCheckpoint {
+  eventId: string
+  nodeId: string
+  phase: StoryCheckpointPhase
+  pageIndex: number
+  locationId: string | null
+  resultText?: string
+  resultTitle?: string
+  transition?: Transition
+  consumedDay?: boolean
+  battleEnemyIds?: string[]
+}
+
 export interface WorldState {
   version: number
   npcs: Record<string, WorldNpcState>
@@ -60,6 +75,7 @@ export interface WorldState {
   triggeredEvents: string[]        // 已触发过的涌现事件 id（防重复）
   seenNodes: string[]              // 已结算过 onEnter 的事件作用域节点键（`${eventId}:${nodeId}`）
   completedEvents: string[]        // 已完成的 once 事件 id（一次性剧情节点防重复触发）
+  currentStory: StoryCheckpoint | null // 当前事件断点；回主界面或事件完成时清空
 }
 
 // ============================================================

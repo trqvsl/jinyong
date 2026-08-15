@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { Player, Enemy } from "./types"
 import type { Transition, StoryEvent } from "./data/events"
+import type { StoryCheckpoint } from "./data/story/schema"
 import { savePlayer } from "./game/player"
 import { getEnemyById } from "./data/enemies"
 import { applyPartySupportToPlayer, getPartyBondBonuses, getPartySupportBonuses, getPartySupportTotals, getBattleSupportOpeningLines } from "./game/party"
@@ -12,8 +13,10 @@ import {
   normalizeMainPlayer,
   openLocationStory,
   openPendingWorldEvent,
+  restoreStoryCheckpoint,
   resolveBattleFlow,
   resolveStoryFlow,
+  setStoryCheckpoint,
   type AppViewCommand,
 } from "./game/appFlow"
 import { TitleScreen } from "./screens/TitleScreen"
@@ -38,7 +41,8 @@ function App() {
   const [locationId, setLocationId] = useState<string | null>(null)
   // 剧情节点流转状态
   const [storyNodeId, setStoryNodeId] = useState<string>("main")
-  const [storyInitialResult, setStoryInitialResult] = useState<{ text: string; transition: Transition } | undefined>(undefined)
+  const [storyInitialPageIndex, setStoryInitialPageIndex] = useState(0)
+  const [storyInitialResult, setStoryInitialResult] = useState<{ text: string; transition: Transition; title?: string; consumedDay: boolean } | undefined>(undefined)
   // 当前战斗对应的 transition（剧情战斗用；调试/NPC切磋为 null）
   const [pendingBattleTransition, setPendingBattleTransition] = useState<Transition | null>(null)
   // NPC 切磋时的 npcId，战后结算关系后果
@@ -49,6 +53,7 @@ function App() {
       case "show-main":
         setStoryEvent(null)
         setStoryInitialResult(undefined)
+        setStoryInitialPageIndex(0)
         setLocationId(null)
         setPendingBattleTransition(null)
         setChallengeNpcId(null)
@@ -58,7 +63,8 @@ function App() {
       case "show-event-entry":
         setStoryEvent(command.event)
         setStoryNodeId(command.nodeId)
-        setStoryInitialResult(undefined)
+        setStoryInitialPageIndex(command.pageIndex)
+        setStoryInitialResult(command.initialResult)
         setLocationId(command.locationId)
         setPendingBattleTransition(null)
         setChallengeNpcId(null)
@@ -66,13 +72,26 @@ function App() {
         setScreen("event")
         return
       case "show-event-result":
-        setStoryInitialResult({ text: command.text, transition: command.transition })
+        setStoryInitialResult({
+          text: command.text,
+          transition: command.transition,
+          title: storyEvent?.nodes[storyNodeId]?.title,
+          consumedDay: false,
+        })
+        setStoryInitialPageIndex(0)
         setPendingBattleTransition(null)
         setChallengeNpcId(null)
         setEnemies([])
         setScreen("event")
         return
       case "show-battle":
+        if (command.storyContext) {
+          setStoryEvent(command.storyContext.event)
+          setStoryNodeId(command.storyContext.nodeId)
+          setStoryInitialResult(undefined)
+          setStoryInitialPageIndex(0)
+          setLocationId(command.storyContext.locationId)
+        }
         setPendingBattleTransition(command.pendingBattleTransition)
         setChallengeNpcId(command.challengeNpcId)
         setEnemies(command.enemies)
@@ -100,16 +119,33 @@ function App() {
     applyViewCommand(result.command)
   }
 
-  function handleSelectPlayer(p: Player) { returnToMain(p) }
+  function handleSelectPlayer(p: Player) {
+    const restored = restoreStoryCheckpoint(p)
+    savePlayer(restored.player)
+    setPlayer(restored.player)
+    if (restored.command) {
+      applyViewCommand(restored.command)
+      return
+    }
+    returnToMain(restored.player)
+  }
   function handleUpdate(p: Player) { savePlayer(p); setPlayer(p) }
   function handleAdventure() { setScreen("map") }
 
   // 地图选地点 → 触发该地点剧情事件
   function handleSelectLocation(locId: string) {
     if (!player) return
-    const command = openLocationStory({ player, locationId: locId })
-    if (!command) return
-    applyViewCommand(command)
+    const result = openLocationStory({ player, locationId: locId })
+    if (!result) return
+    savePlayer(result.player)
+    setPlayer(result.player)
+    applyViewCommand(result.command)
+  }
+
+  function handleStoryCheckpoint(nextPlayer: Player, checkpoint: StoryCheckpoint) {
+    const checkpointed = setStoryCheckpoint(nextPlayer, checkpoint)
+    savePlayer(checkpointed)
+    setPlayer(checkpointed)
   }
 
   // 剧情选项 / 战后结果 → 按 transition 路由（引擎驱动，App 只编排）
@@ -126,6 +162,7 @@ function App() {
 
     if (result.command.type === "goto-node") {
       setStoryInitialResult(undefined)
+      setStoryInitialPageIndex(0)
       setStoryNodeId(result.command.nodeId)
       return
     }
@@ -192,7 +229,10 @@ function App() {
         <EventScreen
           key={`${storyEvent.id}:${storyNodeId}-${storyInitialResult ? "r" : "c"}`}
           player={player} event={storyEvent} nodeId={storyNodeId}
-          initialResult={storyInitialResult} onResolve={handleStoryResolve}
+          initialPageIndex={storyInitialPageIndex}
+          initialResult={storyInitialResult}
+          onCheckpoint={handleStoryCheckpoint}
+          onResolve={handleStoryResolve}
         />
       )}
       {screen === "map" && player && <MapScreen player={player} onSelect={handleSelectLocation} onBack={() => returnToMain(player)} />}

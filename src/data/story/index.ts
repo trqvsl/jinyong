@@ -6,6 +6,16 @@
 
 import type { StoryEvent } from "../events"
 import { SHENDIAO_STORY } from "./shendiao"
+export {
+  SHENDIAO_PROGRESS,
+  STORY_PROGRESS_DEFINITIONS,
+} from "./progress"
+export type {
+  StoryActDefinition,
+  StoryProgressDefinition,
+  StorySystemPriorities,
+  StorySystemPriority,
+} from "./progress"
 
 // 所有剧情卷的汇总（通用随机奇遇仍在 events.ts，不在此处）
 export const STORY_VOLUMES: StoryEvent[] = [

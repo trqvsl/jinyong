@@ -132,6 +132,30 @@ export const ENEMIES: Enemy[] = [
     description: "叛出桃花岛的黑风双煞之一，九阴白骨爪阴毒无比，双目虽盲却能听风辨形。",
   },
   {
+    id: "sangkun-guard",
+    name: "桑昆亲兵",
+    hp: 145, hpMax: 145,
+    mp: 35, mpMax: 35,
+    attack: 22, defense: 15, speed: 17,
+    statuses: [],
+    skills: [getSkillById("changquan")!, getSkillById("tiyun")!],
+    expReward: 90,
+    goldReward: 70,
+    description: "桑昆麾下的草原亲兵，擅长骑战合围与近身缠斗。",
+  },
+  {
+    id: "wangfu-guard",
+    name: "赵王府亲兵",
+    hp: 155, hpMax: 155,
+    mp: 35, mpMax: 35,
+    attack: 23, defense: 16, speed: 16,
+    statuses: [],
+    skills: [getSkillById("changquan")!, getSkillById("tiyun")!],
+    expReward: 95,
+    goldReward: 65,
+    description: "赵王府西院亲兵，熟悉府内巷道，擅长持刀合围与封锁退路。",
+  },
+  {
     id: "yangkang",
     name: "杨康",
     hp: 170, hpMax: 170,
@@ -146,7 +170,7 @@ export const ENEMIES: Enemy[] = [
 ]
 
 // 剧情专用敌人 id：这些敌人只由事件指定出现，不参与随机遇敌池
-const PLOT_ENEMY_IDS = new Set(["guanjun", "meichaofeng", "yangkang"])
+const PLOT_ENEMY_IDS = new Set(["guanjun", "meichaofeng", "sangkun-guard", "wangfu-guard", "yangkang"])
 
 // 按 id 取敌人（剧情事件指定敌人时用）
 export function getEnemyById(id: string): Enemy {

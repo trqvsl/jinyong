@@ -1,4 +1,15 @@
 import { useState, useEffect, useRef, useMemo } from "react"
+import {
+  Backpack,
+  Crosshair,
+  Footprints,
+  HeartPulse,
+  Shield,
+  Sparkles,
+  Swords,
+  Wind,
+  Zap,
+} from "lucide-react"
 import type { Player, Enemy, Skill } from "../types"
 import type {
   Combatant as EngineCombatant,
@@ -10,6 +21,7 @@ import type { PortraitSpec } from "../assets/portraits"
 import type { Npc } from "../data/npcs"
 import { PLAYER_PORTRAIT, ENEMY_PORTRAITS } from "../assets/portraits"
 import { getItemById } from "../data/items"
+import { getSkillById } from "../data/skills"
 import {
   performAction, enemyDecideAction, findCombatant, isStunned,
   createBattleState, applyAtbConsume, previewTurnOrder,
@@ -26,6 +38,16 @@ interface FloatText {
   kind: "damage" | "crit" | "dodge" | "heal" | "poison" | "status"
 }
 
+interface ActionMotion {
+  id: number
+  actorUid: string
+  targetUids: string[]
+  category: EngineBattleSkill["category"]
+  skillId: string
+  side: "player" | "enemy"
+  isCrit: boolean
+}
+
 interface Props {
   player: Player
   battlePlayer?: Player
@@ -39,11 +61,41 @@ interface Props {
 }
 
 let floatId = 0
+let motionId = 0
 
 function uidToPortraitId(uid: string): string {
-  // enemy-{idx}-{id} → id；player-* → 默认
-  const m = uid.match(/^enemy-\d+-(.+)$/)
-  return m ? m[1] : "default"
+  const enemy = uid.match(/^enemy-\d+-(.+)$/)
+  if (enemy) return enemy[1]
+  const npc = uid.match(/^npc-(.+)$/)
+  if (npc) return npc[1]
+  return "default"
+}
+
+function portraitForUnit(unit: EngineCombatant, isMainPlayer = false): PortraitSpec {
+  if (isMainPlayer) return PLAYER_PORTRAIT
+  return ENEMY_PORTRAITS[uidToPortraitId(unit.uid)] ?? ENEMY_PORTRAITS.default
+}
+
+function targetingLabel(skill: EngineBattleSkill): string {
+  switch (skill.targeting) {
+    case "all-enemy": return "敌方全体"
+    case "spread2": return "至多二人"
+    case "random3": return "随机三击"
+    case "self-side": return "我方全体"
+    default:
+      return skill.category === "内功" || skill.category === "轻功" ? "自身" : "单体"
+  }
+}
+
+function SkillGlyph({ category }: { category: EngineBattleSkill["category"] }) {
+  const Icon = category === "外功"
+    ? Swords
+    : category === "内功"
+      ? HeartPulse
+      : category === "轻功"
+        ? Wind
+        : Sparkles
+  return <Icon size={20} aria-hidden="true" />
 }
 
 export function BattleScreen({ player, battlePlayer, enemies, teammates, partySupportBonuses = [], partyBondBonuses = [], partySupportTotals = { attack: 0, defense: 0, speed: 0 }, openingSupportLines = [], onEnd }: Props) {
@@ -69,7 +121,13 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
   const [floats, setFloats] = useState<FloatText[]>([])
   const [shakenUid, setShakenUid] = useState<string | null>(null)
   const [screenShake, setScreenShake] = useState(false)
-  const [skillFlash, setSkillFlash] = useState<{ name: string; isCrit: boolean } | null>(null)
+  const [skillFlash, setSkillFlash] = useState<{
+    name: string
+    isCrit: boolean
+    side: "player" | "enemy"
+    category: EngineBattleSkill["category"]
+  } | null>(null)
+  const [actionMotion, setActionMotion] = useState<ActionMotion | null>(null)
   const [showItems, setShowItems] = useState(false)
   const [supportHighlightNpcIds, setSupportHighlightNpcIds] = useState<string[]>([])
   const [supportHighlightBondIds, setSupportHighlightBondIds] = useState<string[]>([])
@@ -96,10 +154,43 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
     setTimeout(() => setFloats((prev) => prev.filter((f) => f.id !== id)), 1100)
   }
   function triggerShake(uid: string) { setShakenUid(uid); setTimeout(() => setShakenUid(null), 400) }
-  function flashSkill(name: string, isCrit: boolean) {
-    setSkillFlash({ name, isCrit })
+  function flashSkill(
+    name: string,
+    isCrit: boolean,
+    side: "player" | "enemy",
+    category: EngineBattleSkill["category"]
+  ) {
+    setSkillFlash({ name, isCrit, side, category })
     if (isCrit) { setScreenShake(true); setTimeout(() => setScreenShake(false), 450) }
     setTimeout(() => setSkillFlash(null), 650)
+  }
+
+  function triggerActionMotion(
+    actor: EngineCombatant,
+    skill: EngineBattleSkill,
+    results: { targetUid?: string; isCrit?: boolean }[]
+  ) {
+    const id = ++motionId
+    const resultTargets = results.flatMap((result) => result.targetUid ? [result.targetUid] : [])
+    const targetUids = Array.from(new Set(
+      resultTargets.length > 0
+        ? resultTargets
+        : skill.effect?.target === "self" || skill.category === "内功" || skill.category === "轻功"
+          ? [actor.uid]
+          : []
+    ))
+    setActionMotion({
+      id,
+      actorUid: actor.uid,
+      targetUids,
+      category: skill.category,
+      skillId: skill.id,
+      side: actor.side,
+      isCrit: results.some((result) => result.isCrit),
+    })
+    setTimeout(() => {
+      setActionMotion((current) => current?.id === id ? null : current)
+    }, 820)
   }
 
   function highlightSupport(sourceNpcIds: string[], sourceBondIds: string[]) {
@@ -169,9 +260,12 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
       nextState = support.state
       nextLogs.push(...support.logs)
     }
-    setState(nextState)
-    pushLog(nextLogs)
-    flashSkill(skill.name, r.results.some((x) => x.isCrit))
+    triggerActionMotion(actor, skill, r.results)
+    flashSkill(skill.name, r.results.some((x) => x.isCrit), actor.side, skill.category)
+    setTimeout(() => {
+      setState(nextState)
+      pushLog(nextLogs)
+    }, 180)
     attachFloats(r, actor.side === "player" ? "enemy" : "player")
     setTimeout(() => afterAction(nextState, actor.uid), 850)
   }
@@ -206,9 +300,12 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
         nextState = support.state
         nextLogs.push(...support.logs)
       }
-      setState(nextState)
-      pushLog(nextLogs)
-      flashSkill(cmd.skill.name, r.results.some((x) => x.isCrit))
+      triggerActionMotion(cur, cmd.skill, r.results)
+      flashSkill(cmd.skill.name, r.results.some((x) => x.isCrit), cur.side, cmd.skill.category)
+      setTimeout(() => {
+        setState(nextState)
+        pushLog(nextLogs)
+      }, 180)
       attachFloats(r, "player")
       setTimeout(() => afterAction(nextState, actor.uid), 850)
     }, 500)
@@ -223,9 +320,12 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
       const cmd = enemyDecideAction(curState, cur)
       if (!cmd) { afterAction(curState, actor.uid); return }
       const r = performAction(curState, cmd)
-      setState(r.state)
-      pushLog(r.logs)
-      flashSkill(cmd.skill.name, r.results.some((x) => x.isCrit))
+      triggerActionMotion(cur, cmd.skill, r.results)
+      flashSkill(cmd.skill.name, r.results.some((x) => x.isCrit), cur.side, cmd.skill.category)
+      setTimeout(() => {
+        setState(r.state)
+        pushLog(r.logs)
+      }, 180)
       attachFloats(r, "enemy")
       setTimeout(() => afterAction(r.state, actor.uid), 850)
     }, 500)
@@ -315,12 +415,22 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
     // 扣库存（记入 patch，战斗结束时合并回传）
     inventoryPatch.current = { ...inventoryPatch.current, [itemId]: Math.max(0, (inventoryPatch.current[itemId] ?? player.inventory[itemId] ?? 0) - 1) }
     const next: EngineBattleState = { ...stateRef.current, playerSide: stateRef.current.playerSide.map((c, i) => i === 0 ? { ...c, hp: np.hp, mp: np.mp } : c) }
+    setPhase("busy")
     setState(next)
     setShowItems(false)
     pushLog([{ text: `你服用 ${item.name}，${item.effectText}。`, type: "status" }])
-    addFloat(me.uid, item.effectText.includes("气血") ? "回血" : "回气", "heal")
+    const itemMotionSkill: EngineBattleSkill = {
+      id: item.id,
+      name: item.name,
+      category: "内功",
+      power: 0,
+      mpCost: 0,
+    }
+    triggerActionMotion(me, itemMotionSkill, [{ targetUid: me.uid }])
+    flashSkill(item.name, false, "player", "内功")
+    setTimeout(() => addFloat(me.uid, item.effectText.includes("气血") ? "回血" : "回气", "heal"), 180)
     // 使用道具消耗本回合行动权
-    afterAction(next, currentActorUid)
+    setTimeout(() => afterAction(next, currentActorUid), 650)
   }
 
   // 逃跑：成功率由福缘根基推导（fleeChanceOf）；成功则保留当前血量脱战，失败消耗一回合
@@ -336,19 +446,31 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
   }
 
   return (
-    <div className={`battle-screen ${screenShake ? "screen-shake" : ""}`}>
+    <div className={`battle-screen battle-screen-v2 ${screenShake ? "screen-shake" : ""}`}>
       <div className="battle-header-row">
-        <div className="battle-header">第 {player.day} 日 · 闯荡江湖</div>
+        <div className="battle-header">
+          <span className="battle-header-kicker">江湖交锋</span>
+          <strong>第 {player.day} 日 · {enemies.length > 1 ? `以一敌${enemies.length}` : `对阵${enemies[0]?.name ?? "强敌"}`}</strong>
+        </div>
         <div className={`turn-banner phase-${phase}`}>
-          {phase === "ended" ? (outcome === "won" ? "得胜" : outcome === "fled" ? "脱身" : "败北") : currentActor ? `${currentActor.name} 出手` : "交锋中"}
+          <Zap size={16} aria-hidden="true" />
+          <span>{phase === "ended" ? (outcome === "won" ? "得胜" : outcome === "fled" ? "脱身" : "败北") : currentActor ? `${currentActor.name} 出手` : "交锋中"}</span>
         </div>
       </div>
 
-      {skillFlash && <div className={`skill-flash ${skillFlash.isCrit ? "crit" : ""}`}>{skillFlash.name}</div>}
+      {skillFlash && (
+        <div className={`skill-flash skill-flash-v2 ${skillFlash.side} cat-${skillFlash.category} ${skillFlash.isCrit ? "crit" : ""}`}>
+          <span className="skill-flash-kicker">{skillFlash.isCrit ? "会心一击" : skillFlash.side === "player" ? "武学施展" : "敌招来袭"}</span>
+          <strong>{skillFlash.name}</strong>
+        </div>
+      )}
 
       <div className="turn-order-bar">
         {turnOrder.map((entry, i) => (
-          <span key={i} className={`turn-order-chip ${entry.side} ${i === 0 ? "current" : ""}`}>{entry.name}</span>
+          <span key={`${entry.uid}-${i}`} className={`turn-order-chip ${entry.side} ${i === 0 ? "current" : ""}`}>
+            <span className="turn-order-dot" />
+            {entry.name}
+          </span>
         ))}
       </div>
 
@@ -395,23 +517,78 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
         </div>
       )}
 
-      <div className="battle-stage-shell battle-stage-multi">
+      <div className={`battle-stage-shell battle-stage-v2 phase-${phase}`}>
+        <div className="battle-stage-bg-v2" aria-hidden="true" />
+        <div className="battle-stage-mist mist-one" aria-hidden="true" />
+        <div className="battle-stage-mist mist-two" aria-hidden="true" />
+        <div className="battle-side-caption enemy-caption">
+          <span>敌阵</span>
+          <small>{state.enemySide.filter((unit) => unit.hp > 0).length} 人仍可战</small>
+        </div>
         <div className="battle-row enemy-row">
           {state.enemySide.map((c) => (
-            <CombatantCardMini key={c.uid} unit={c} portrait={ENEMY_PORTRAITS[uidToPortraitId(c.uid)] ?? ENEMY_PORTRAITS.default} shaken={shakenUid === c.uid} floats={floats.filter((f) => f.uid === c.uid)} selectable={!!pendingSkill && isPlayerTurn} onSelect={() => handleSelectTarget(c.uid)} highlight={currentActorUid === c.uid} />
+            <BattleFighter
+              key={c.uid}
+              unit={c}
+              portrait={portraitForUnit(c)}
+              shaken={shakenUid === c.uid}
+              floats={floats.filter((f) => f.uid === c.uid)}
+              selectable={!!pendingSkill && isPlayerTurn}
+              onSelect={() => handleSelectTarget(c.uid)}
+              highlight={currentActorUid === c.uid}
+              isAttacking={actionMotion?.actorUid === c.uid}
+              isTargeted={actionMotion?.targetUids.includes(c.uid)}
+              actionCategory={actionMotion?.actorUid === c.uid || actionMotion?.targetUids.includes(c.uid) ? actionMotion?.category : undefined}
+            />
           ))}
         </div>
-        <div className="battle-stage-center"><div className="versus-mark">对 决</div></div>
+        <div className="battle-stage-center">
+          <div className="battle-clash-mark">
+            <Swords size={22} aria-hidden="true" />
+            <span>交锋</span>
+          </div>
+        </div>
         <div className="battle-row player-row">
           {state.playerSide.map((c, index) => (
-            <CombatantCardMini key={c.uid} unit={c} portrait={PLAYER_PORTRAIT} shaken={shakenUid === c.uid} floats={floats.filter((f) => f.uid === c.uid)} highlight={currentActorUid === c.uid} supportActive={!!teammates?.[index - 1] && supportHighlightNpcIds.includes(teammates[index - 1].id)} tagText={index === 0 ? "主角" : `随行${index}`} />
+            <BattleFighter
+              key={c.uid}
+              unit={c}
+              portrait={portraitForUnit(c, index === 0)}
+              shaken={shakenUid === c.uid}
+              floats={floats.filter((f) => f.uid === c.uid)}
+              highlight={currentActorUid === c.uid}
+              supportActive={!!teammates?.[index - 1] && supportHighlightNpcIds.includes(teammates[index - 1].id)}
+              tagText={index === 0 ? "主角" : "同伴"}
+              isAttacking={actionMotion?.actorUid === c.uid}
+              isTargeted={actionMotion?.targetUids.includes(c.uid)}
+              actionCategory={actionMotion?.actorUid === c.uid || actionMotion?.targetUids.includes(c.uid) ? actionMotion?.category : undefined}
+            />
           ))}
         </div>
+        <div className="battle-side-caption player-caption">
+          <span>我方</span>
+          <small>{state.playerSide.filter((unit) => unit.hp > 0).length} 人仍可战</small>
+        </div>
+        {actionMotion && (
+          <div
+            key={actionMotion.id}
+            className={`battle-technique-fx side-${actionMotion.side} cat-${actionMotion.category} skill-${actionMotion.skillId} ${actionMotion.isCrit ? "crit" : ""}`}
+            aria-hidden="true"
+          >
+            <span className="technique-trail trail-one" />
+            <span className="technique-trail trail-two" />
+            <span className="technique-core" />
+            <span className="technique-ring" />
+          </div>
+        )}
       </div>
 
       <div className="battle-lower">
         <div className="battle-log-panel">
-          <div className="panel-title">战况</div>
+          <div className="panel-title battle-panel-title">
+            <Crosshair size={16} aria-hidden="true" />
+            <span>战况</span>
+          </div>
           <div className="battle-log">
             {log.map((entry, index) => <div key={index} className={`log-entry log-${entry.type}`}>{entry.text}</div>)}
             <div ref={logEndRef} />
@@ -423,42 +600,77 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
             <div className="action-hint">{outcome === "won" ? "得胜而归" : outcome === "fled" ? "脱身而去" : "败北离场"}</div>
           ) : isPlayerTurn && currentActor && !showItems ? (
             <>
-              <div className="panel-title">{currentActor.name} · 招式</div>
-              <div className="skill-buttons cinematic">
+              <div className="panel-title battle-panel-title command-title">
+                <Swords size={17} aria-hidden="true" />
+                <span>{currentActor.name} · 择招</span>
+                {pendingSkill && <small>请选择敌方目标</small>}
+              </div>
+              <div className="skill-buttons cinematic battle-skill-grid">
                 {currentActor.skills.map((s) => {
                   const disabled = currentActor.mp < s.mpCost
-                  const tg = s.targeting
+                  const definition = getSkillById(s.id)
                   return (
-                    <button key={s.id} className={`skill-btn cat-${s.category} ${disabled ? "disabled" : ""}`} disabled={disabled} onClick={() => handlePlayerSkill(s)}>
-                      <span className="skill-btn-cat">{s.category}</span>
-                      <span className="skill-btn-name">{s.name}</span>
-                      <span className="skill-btn-info">{s.mpCost > 0 ? `内力 ${s.mpCost}` : "无消耗"}{tg && tg !== "single" ? ` · ${tg === "all-enemy" ? "群攻" : tg}` : ""}</span>
+                    <button key={s.id} className={`skill-btn battle-skill-btn cat-${s.category} ${disabled ? "disabled" : ""}`} disabled={disabled} onClick={() => handlePlayerSkill(s)}>
+                      <span className="skill-btn-icon"><SkillGlyph category={s.category} /></span>
+                      <span className="skill-btn-copy">
+                        <span className="skill-btn-cat">{s.category}</span>
+                        <span className="skill-btn-name">{s.name}</span>
+                        <span className="skill-btn-desc">{definition?.description ?? "江湖武学"}</span>
+                      </span>
+                      <span className="skill-btn-info">
+                        <b>{s.mpCost > 0 ? `${s.mpCost} 内力` : "无消耗"}</b>
+                        <small>{targetingLabel(s)}</small>
+                      </span>
                     </button>
                   )
                 })}
               </div>
-              <button className="menu-btn battle-items-btn" onClick={() => setShowItems(true)}>使用道具</button>
-              <button className="menu-btn battle-flee-btn" onClick={handleFlee}>逃跑</button>
+              <div className="battle-tactical-actions">
+                <button className="battle-tactical-btn" onClick={() => setShowItems(true)}>
+                  <Backpack size={18} aria-hidden="true" />
+                  <span>行囊</span>
+                </button>
+                <button className="battle-tactical-btn flee" onClick={handleFlee}>
+                  <Footprints size={18} aria-hidden="true" />
+                  <span>脱身</span>
+                </button>
+              </div>
             </>
           ) : isPlayerTurn && showItems ? (
             <>
-              <div className="panel-title">行囊道具</div>
-              <div className="skill-buttons cinematic">
+              <div className="panel-title battle-panel-title command-title">
+                <Backpack size={17} aria-hidden="true" />
+                <span>行囊道具</span>
+              </div>
+              <div className="skill-buttons cinematic battle-skill-grid item-grid">
                 {ownedItems.length === 0 ? <div className="action-hint waiting">行囊中无可使用道具。</div> : ownedItems.map(([itemId, count]) => {
                   const item = getItemById(itemId)
                   return (
-                    <button key={itemId} className="skill-btn item-btn" disabled={!item?.usable} onClick={() => handleUseItem(itemId)}>
-                      <span className="skill-btn-cat">{item?.category ?? "物品"}</span>
-                      <span className="skill-btn-name">{item?.name ?? itemId} ×{count}</span>
-                      <span className="skill-btn-info">{item?.effectText ?? ""}</span>
+                    <button key={itemId} className="skill-btn battle-skill-btn item-btn" disabled={!item?.usable} onClick={() => handleUseItem(itemId)}>
+                      <span className="skill-btn-icon"><Shield size={20} aria-hidden="true" /></span>
+                      <span className="skill-btn-copy">
+                        <span className="skill-btn-cat">{item?.category ?? "物品"}</span>
+                        <span className="skill-btn-name">{item?.name ?? itemId}</span>
+                        <span className="skill-btn-desc">{item?.description ?? ""}</span>
+                      </span>
+                      <span className="skill-btn-info">
+                        <b>余 {count}</b>
+                        <small>{item?.effectText ?? ""}</small>
+                      </span>
                     </button>
                   )
                 })}
               </div>
-              <button className="menu-btn battle-items-btn" onClick={() => setShowItems(false)}>返回招式</button>
+              <button className="battle-tactical-btn back-to-skills" onClick={() => setShowItems(false)}>
+                <Swords size={18} aria-hidden="true" />
+                <span>返回招式</span>
+              </button>
             </>
           ) : (
-            <div className="action-hint waiting">双方正在拆招换式…</div>
+            <div className="action-hint waiting battle-waiting">
+              <Swords size={28} aria-hidden="true" />
+              <span>双方正在拆招换式</span>
+            </div>
           )}
         </div>
       </div>
@@ -466,8 +678,19 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
   )
 }
 
-function CombatantCardMini({
-  unit, portrait, shaken, floats, highlight, selectable, onSelect, tagText, supportActive,
+function BattleFighter({
+  unit,
+  portrait,
+  shaken,
+  floats,
+  highlight,
+  selectable,
+  onSelect,
+  tagText,
+  supportActive,
+  isAttacking,
+  isTargeted,
+  actionCategory,
 }: {
   unit: EngineCombatant
   portrait: PortraitSpec
@@ -478,26 +701,100 @@ function CombatantCardMini({
   selectable?: boolean
   onSelect?: () => void
   tagText?: string
+  isAttacking?: boolean
+  isTargeted?: boolean
+  actionCategory?: EngineBattleSkill["category"]
 }) {
+  const [imageReady, setImageReady] = useState(false)
+  const hpPercent = unit.hpMax <= 0 ? 0 : Math.max(0, Math.min(100, (unit.hp / unit.hpMax) * 100))
+
   return (
     <div
-      className={`combatant-card-mini ${unit.side} ${shaken ? "shake" : ""} ${highlight ? "active" : ""} ${supportActive ? "support-active" : ""} ${selectable ? "selectable" : ""} ${unit.hp <= 0 ? "down" : ""}`}
+      className={[
+        "battle-fighter",
+        unit.side,
+        `role-${portrait.role}`,
+        shaken ? "shake" : "",
+        highlight ? "active" : "",
+        supportActive ? "support-active" : "",
+        selectable ? "selectable" : "",
+        unit.hp <= 0 ? "down" : "",
+        isAttacking ? "is-attacking" : "",
+        isTargeted ? "is-targeted" : "",
+        actionCategory ? `motion-${actionCategory}` : "",
+      ].filter(Boolean).join(" ")}
       onClick={selectable ? onSelect : undefined}
+      onKeyDown={selectable ? (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onSelect?.()
+        }
+      } : undefined}
+      role={selectable ? "button" : undefined}
+      tabIndex={selectable ? 0 : undefined}
+      aria-label={`${unit.name}，气血 ${unit.hp}/${unit.hpMax}${selectable ? "，选择为目标" : ""}`}
+      style={{
+        ["--fighter-primary" as string]: portrait.palette.primary,
+        ["--fighter-secondary" as string]: portrait.palette.secondary,
+        ["--fighter-glow" as string]: portrait.palette.glow,
+        ["--fighter-hp" as string]: `${hpPercent}%`,
+      }}
     >
-      <div className="combatant-tag-mini">{tagText ?? (unit.side === "player" ? "我方" : "敌方")}</div>
-      <div className="combatant-figure-wrap-mini">
-        <div className="combatant-figure-mini" style={{ ["--figure-primary" as string]: portrait.palette.primary, ["--figure-secondary" as string]: portrait.palette.secondary }}>
-          <div className="figure-emblem">{portrait.emblem}</div>
+      {highlight && (
+        <div className="fighter-turn-marker">
+          <Zap size={13} aria-hidden="true" />
+          <span>行动</span>
         </div>
+      )}
+      {selectable && (
+        <div className="fighter-target-marker">
+          <Crosshair size={16} aria-hidden="true" />
+          <span>选择目标</span>
+        </div>
+      )}
+      <div className="fighter-art">
+        <div className="fighter-aura" aria-hidden="true" />
+        {portrait.image && (
+          <img
+            src={portrait.image}
+            alt=""
+            className={`fighter-portrait ${imageReady ? "ready" : ""}`}
+            onLoad={(event) => {
+              const image = event.currentTarget
+              setImageReady(image.naturalWidth !== image.naturalHeight)
+            }}
+            onError={() => setImageReady(false)}
+          />
+        )}
+        <div className={`fighter-fallback ${imageReady ? "behind-image" : ""}`} aria-hidden="true">
+          <span className="fighter-hair" />
+          <span className="fighter-head" />
+          <span className="fighter-torso" />
+          <span className="fighter-arm arm-front" />
+          <span className="fighter-arm arm-back" />
+          <span className="fighter-leg leg-front" />
+          <span className="fighter-leg leg-back" />
+          <span className="fighter-weapon" />
+          <span className="fighter-sash" />
+        </div>
+        <div className="fighter-ground-shadow" aria-hidden="true" />
         <div className="float-layer">{floats.map((f) => <span key={f.id} className={`float-text float-${f.kind}`}>{f.text}</span>)}</div>
       </div>
-      <div className="combatant-panel-mini">
-        <div className="combatant-name">{unit.name}</div>
-        <MiniBar value={unit.hp} max={unit.hpMax} color="#c0392b" />
-        <MiniBar value={unit.mp} max={unit.mpMax} color="#2980b9" />
-        <div className="combatant-stats-mini"><span>攻{unit.attack}</span><span>速{unit.speed}</span></div>
+      <div className="fighter-hud">
+        <div className="fighter-name-row">
+          <span className="fighter-side-tag">{tagText ?? (unit.side === "player" ? "我方" : "敌方")}</span>
+          <strong>{unit.name}</strong>
+          <small>{portrait.title}</small>
+        </div>
+        <FighterBar label="气血" value={unit.hp} max={unit.hpMax} tone="hp" />
+        <FighterBar label="内力" value={unit.mp} max={unit.mpMax} tone="mp" />
+        <div className="fighter-stat-row">
+          <span>攻 {unit.attack}</span>
+          <span>防 {unit.defense}</span>
+          <span>速 {unit.speed}</span>
+        </div>
         {unit.statuses.length > 0 && (
-          <div className="status-badges-mini">
+          <div className="fighter-statuses">
             {unit.statuses.map((s, i) => <span key={i} className={`status-badge status-${s.kind}`}>{s.name}{s.duration}</span>)}
           </div>
         )}
@@ -506,13 +803,15 @@ function CombatantCardMini({
   )
 }
 
-function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
+function FighterBar({ label, value, max, tone }: { label: string; value: number; max: number; tone: "hp" | "mp" }) {
   const pct = max <= 0 ? 0 : Math.max(0, Math.min(100, (value / max) * 100))
   return (
-    <div className="combat-bar-block">
-      <div className="combat-bar-track cinematic">
-        <div className="combat-bar-fill" style={{ width: `${pct}%`, background: color }} />
+    <div className={`fighter-bar ${tone}`}>
+      <span className="fighter-bar-label">{label}</span>
+      <div className="fighter-bar-track">
+        <div className="fighter-bar-fill" style={{ width: `${pct}%` }} />
       </div>
+      <span className="fighter-bar-value">{value}/{max}</span>
     </div>
   )
 }

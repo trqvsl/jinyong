@@ -178,7 +178,7 @@ export const NPCS: Npc[] = [
       skills: [getSkillById("huagu")!, getSkillById("changquan")!],
       expReward: 160, goldReward: 180,
     },
-    locationId: "linan",
+    locationId: "zhongdu",
     dialogue: "杨康冷笑：\"哼，你这乡野村夫，也配与本王爷说话？\"",
     dialogueVariants: [
       { when: { kind: "npcHasTag", npcId: "yangkang", tag: "杨康已黑化" }, text: "杨康双眼赤红，五指成爪：\"你逼我的……这一切都是你们逼我的！\"他浑身散发着九阴白骨爪的阴寒之气，已全然不顾后果。" },

@@ -4,10 +4,17 @@ import type { Player } from "../src/types"
 import { STORY_EVENTS } from "../src/data/events"
 import { STORY_VOLUMES } from "../src/data/story"
 import { WORLD_EVENTS } from "../src/data/story/worldEvents"
-import { createWorld } from "../src/game/story/state"
+import { createWorld, migrateWorld } from "../src/game/story/state"
 import { applyConsequences } from "../src/game/story/consequences"
 import { checkCondition } from "../src/game/story/conditions"
 import { resolveBranch, enterNode, resolveChoice } from "../src/game/story/engine"
+import { getStoryProgress } from "../src/game/story/query"
+import {
+  openLocationStory,
+  resolveStoryFlow,
+  restoreStoryCheckpoint,
+  setStoryCheckpoint,
+} from "../src/game/appFlow"
 import type { StoryEvent, Transition } from "../src/data/story/schema"
 
 function mkPlayer(over: Partial<Player> = {}): Player {
@@ -119,13 +126,24 @@ function collectFlagWarnings(events: StoryEvent[]) {
     }
   }
 
+  const walkTransitionConditions = (transition: Transition | undefined, source: string) => {
+    walkTransition(transition, (current) => {
+      if (current.type !== "branch") return
+      current.cases.forEach((item, index) => {
+        walkCondition(item.when, `${source}.branch[${index}]`)
+      })
+    })
+  }
+
   for (const event of events) {
     walkCondition((event as any).condition, `${event.id}.condition`)
     for (const node of Object.values(event.nodes)) {
       walkConsequences((node as any).onEnter, `${event.id}.${node.id}.onEnter`)
+      walkTransitionConditions(node.autoNext, `${event.id}.${node.id}.autoNext`)
       for (const choice of node.choices ?? []) {
         walkCondition((choice as any).condition, `${event.id}.${node.id}.${choice.id}.condition`)
         walkConsequences((choice as any).consequences, `${event.id}.${node.id}.${choice.id}.consequences`)
+        walkTransitionConditions(choice.transition, `${event.id}.${node.id}.${choice.id}.transition`)
       }
     }
   }
@@ -346,6 +364,267 @@ console.log("\n=== 8. seenNodes 按事件作用域去重，而不是按裸 nodeI
   const repeatSecondEnter = enterNode(secondEnter.player, secondEnter.world, secondEvent, "main")!
   check("同一事件二次进入仍保持幂等", repeatSecondEnter.player.gold === 30, `gold=${repeatSecondEnter.player.gold}`)
   check("seenNodes 记录的是事件作用域键", repeatSecondEnter.world.seenNodes.includes("event-a:main") && repeatSecondEnter.world.seenNodes.includes("event-b:main"), `seenNodes=${repeatSecondEnter.world.seenNodes.join(",")}`)
+}
+
+console.log("\n=== 9. 八幕进度映射 + 事件断点恢复 ===")
+{
+  const world = createWorld()
+  world.arcs.shendiao = {
+    beats: {
+      niujia: "done",
+      damos: "done",
+      wangfu: "done",
+      taohua: "done",
+    },
+  }
+  const legacyPlayer = mkPlayer({ world })
+  const progress = getStoryProgress(legacyPlayer)
+  check("旧样板桃花岛后映射到第六幕", progress.act.id === "act6-truth", `act=${progress.act.id}`)
+  check("旧样板明确将未实现第五幕记为 skipped", progress.completed === 5, `completed=${progress.completed}`)
+
+  const migrated = migrateWorld({
+    ...world,
+    version: 4,
+    currentStory: {
+      eventId: "shendiao-niujia-opening",
+      nodeId: "main",
+      phase: "choosing",
+      pageIndex: 2,
+      locationId: "niujia",
+    },
+  })
+  check("旧 niujia beat 补写第一幕里程碑", migrated.arcs.shendiao.beats["act1-wind"] === "done")
+  check("旧 taohua beat 补写第四幕里程碑", migrated.arcs.shendiao.beats["act4-taohua"] === "done")
+  check("旧样板缺失第五幕被显式迁移为 skipped", migrated.arcs.shendiao.beats["act5-old-debts"] === "skipped")
+  check("事件断点迁移保留页码", migrated.currentStory?.pageIndex === 2)
+}
+{
+  const player = mkPlayer()
+  const opened = openLocationStory({ player, locationId: "niujia" })!
+  check("打开地点事件立即建立断点", opened.player.world.currentStory?.eventId === "shendiao-niujia-opening")
+  check("入口断点记录地点", opened.player.world.currentStory?.locationId === "niujia")
+
+  const event = STORY_VOLUMES.find((item) => item.id === "shendiao-niujia-opening")!
+  const advanced = resolveStoryFlow({
+    player: opened.player,
+    transition: { type: "goto", nodeId: "wait-righteous" },
+    consumedDay: false,
+    currentStoryEvent: event,
+    locationId: "niujia",
+  })
+  check("goto 后断点更新到目标节点", advanced.player.world.currentStory?.nodeId === "wait-righteous")
+
+  const resultPlayer = setStoryCheckpoint(advanced.player, {
+    eventId: event.id,
+    nodeId: "wait-righteous",
+    phase: "result",
+    pageIndex: 1,
+    locationId: "niujia",
+    resultText: "断点结果",
+    transition: { type: "end" },
+    consumedDay: true,
+  })
+  const restoredResult = restoreStoryCheckpoint(resultPlayer)
+  check("结果页断点可恢复", restoredResult.command?.type === "show-event-entry" && restoredResult.command.initialResult?.text === "断点结果")
+  check("结果页恢复保留 consumeDay", restoredResult.command?.type === "show-event-entry" && restoredResult.command.initialResult?.consumedDay === true)
+
+  const battle = resolveStoryFlow({
+    player: opened.player,
+    transition: { type: "battle", enemyId: "guanjun", onWin: { text: "胜" } },
+    consumedDay: false,
+    currentStoryEvent: event,
+    locationId: "niujia",
+  })
+  check("剧情战开始前写入 battle 断点", battle.player.world.currentStory?.phase === "battle")
+  const restoredBattle = restoreStoryCheckpoint(battle.player)
+  check("剧情战刷新后从战斗开场恢复", restoredBattle.command?.type === "show-battle")
+  check("剧情战恢复同时带回事件上下文", restoredBattle.command?.type === "show-battle" && restoredBattle.command.storyContext?.event.id === event.id)
+
+  const ended = resolveStoryFlow({
+    player: resultPlayer,
+    transition: { type: "end" },
+    consumedDay: true,
+    currentStoryEvent: event,
+    locationId: "niujia",
+  })
+  check("事件结束后清空断点", ended.player.world.currentStory === null)
+  check("结果页 consumeDay 只在继续时结算", ended.player.day === player.day + 1, `day=${ended.player.day}`)
+}
+
+console.log("\n=== 10. 射雕第一幕校正结构 ===")
+{
+  const firstAct = STORY_VOLUMES.find((item) => item.id === "shendiao-niujia-opening")!
+  const requiredNodes = [
+    "riverbank",
+    "qusan-tavern",
+    "qusan-night",
+    "qiu-arrival",
+    "qiu-aftermath",
+    "rescue",
+    "wait-righteous",
+    "raid-righteous",
+    "raid-jin",
+    "close-prepared",
+    "close-evidence",
+  ]
+  check("第一幕从钱塘江边进入", firstAct.entryNode === "riverbank", `entry=${firstAct.entryNode}`)
+  check("第一幕七段骨架节点齐全", requiredNodes.every((nodeId) => nodeId in firstAct.nodes))
+
+  const firstActText = JSON.stringify(firstAct)
+  check("第一幕不再出现丘处机抱婴儿时序错误", !firstActText.includes("丘处机带着孩子") && !firstActText.includes("抱起一名婴儿"))
+  check("第一幕不再把孕期李萍写成抱孩子逃跑", !firstActText.includes("李萍抱着孩子"))
+  check("第一幕同时写入八幕里程碑", firstActText.includes("\"beat\":\"act1-wind\""))
+
+  const damos = STORY_VOLUMES.find((item) => item.id === "shendiao-damos")!
+  check("第二幕入口读取第一幕版本", damos.entryNode === "arrival")
+
+  const jinWorld = createWorld()
+  jinWorld.flags["shendiao.niujia.departure"] = "jin-retinue"
+  const jinRoute = resolveBranch(mkPlayer({ world: jinWorld }), jinWorld, damos.nodes.arrival.autoNext!)
+  check("王府离村版本进入王府旧差", jinRoute.type === "goto" && jinRoute.nodeId === "arrival-jin")
+
+  const lipingWorld = createWorld()
+  lipingWorld.flags["shendiao.niujia.saved_liping"] = true
+  const lipingRoute = resolveBranch(mkPlayer({ world: lipingWorld }), lipingWorld, damos.nodes.arrival.autoNext!)
+  check("援救李萍版本进入北路旧识", lipingRoute.type === "goto" && lipingRoute.nodeId === "arrival-liping")
+}
+
+console.log("\n=== 11. 射雕第二幕重组结构 ===")
+{
+  const damos = STORY_VOLUMES.find((item) => item.id === "shendiao-damos")!
+  const requiredNodes = [
+    "childhood-camp",
+    "jebe-wounded",
+    "jebe-search",
+    "jebe-surrender",
+    "seven-freaks-arrive",
+    "blackwind-omens",
+    "blackwind-night",
+    "blackwind-aftermath",
+    "growth-seasons",
+    "growth-years",
+    "mayu-cliff",
+    "mayu-result",
+    "eagle-shot",
+    "sangkun-plot",
+    "sangkun-siege",
+    "counterattack",
+    "golden-knife",
+    "farewell",
+  ]
+  check("第二幕连续骨架节点齐全", requiredNodes.every((nodeId) => nodeId in damos.nodes))
+  check("第二幕入口标记新流程", JSON.stringify(damos.nodes.arrival.onEnter).includes("shendiao.damos.reworked"))
+  check("第二幕保留郭靖哲别核心选择", damos.nodes["jebe-surrender"].text.includes("不许拿客人的东西"))
+  check("黑风夜保留陈玄风与张阿生结局", damos.nodes["blackwind-aftermath"].text.includes("陈玄风已死") && damos.nodes["blackwind-aftermath"].text.includes("张阿生伤重不治"))
+  check("金刀首功仍归郭靖", damos.nodes["golden-knife"].text.includes("首功记在郭靖名下"))
+
+  const damosText = JSON.stringify(damos)
+  check("第二幕写入八幕里程碑", damosText.includes("\"beat\":\"act2-damos\""))
+  check("第二幕包含桑昆剧情战", damosText.includes("\"enemyId\":\"sangkun-guard\""))
+
+  const compatibilityPlayer = mkPlayer()
+  compatibilityPlayer.world.arcs.shendiao = { beats: { damos: "done" } }
+  compatibilityPlayer.world.flags["shendiao.damos.reworked"] = true
+  compatibilityPlayer.relations.guojing = 30
+  const compatibilityIds = [
+    "shendiao-damos-eagle",
+    "shendiao-damos-feast",
+    "shendiao-seven-freaks",
+    "shendiao-damos-southbound",
+  ]
+  check(
+    "新流程完成后旧大漠支线不重复触发",
+    compatibilityIds.every((eventId) => {
+      const event = STORY_VOLUMES.find((item) => item.id === eventId)!
+      return !checkCondition(compatibilityPlayer, compatibilityPlayer.world, event.condition)
+    }),
+  )
+
+  const zhangjiakou = STORY_VOLUMES.find((item) => item.id === "shendiao-zhangjiakou")!
+  const aheadWorld = createWorld()
+  aheadWorld.flags["shendiao.damos.departure"] = "ahead"
+  const aheadRoute = resolveBranch(mkPlayer({ world: aheadWorld }), aheadWorld, zhangjiakou.nodes.approach.autoNext!)
+  check("提前南下版本在第三幕入口回读", aheadRoute.type === "goto" && aheadRoute.nodeId === "road-ahead")
+}
+
+console.log("\n=== 12. 射雕第三幕双地点重组 ===")
+{
+  const zhangjiakou = STORY_VOLUMES.find((item) => item.id === "shendiao-zhangjiakou")!
+  const zhongdu = STORY_VOLUMES.find((item) => item.id === "shendiao-zhongdu")!
+  const legacyEventIds = [
+    "shendiao-meet-rong",
+    "shendiao-linan-night-stroll",
+    "shendiao-beggar-feast",
+    "shendiao-qigong",
+    "shendiao-linan-wangfu-rumor",
+    "shendiao-wangfu",
+    "shendiao-linan-yangkang-shadow",
+  ]
+
+  check("第三幕拆分张家口与中都事件", zhangjiakou.locationId === "zhangjiakou" && zhongdu.locationId === "zhongdu")
+  check(
+    "张家口包含白驼过境、小叫花与冰河再见",
+    ["baituo-traces", "beggar-table", "gift-bridge", "river-reveal"].every((nodeId) => nodeId in zhangjiakou.nodes),
+  )
+  check(
+    "中都连续骨架节点齐全",
+    [
+      "mu-family",
+      "arena",
+      "wangchuyi-poison",
+      "palace-gates",
+      "iron-prison",
+      "old-courtyard",
+      "reunion",
+      "identity",
+      "escape-crisis",
+      "qiu-verdict",
+      "beggar-chicken",
+      "palm-test",
+      "act-end",
+    ].every((nodeId) => nodeId in zhongdu.nodes),
+  )
+
+  const zhangText = JSON.stringify(zhangjiakou)
+  const zhongduText = JSON.stringify(zhongdu)
+  check("张家口写入旧 meet-rong 兼容 beat", zhangText.includes("\"beat\":\"meet-rong\""))
+  check("中都写入第三幕与旧王府 beat", zhongduText.includes("\"beat\":\"act3-zhongdu\"") && zhongduText.includes("\"beat\":\"wangfu\""))
+  check("比武招亲保留郭靖仗义出手", zhongdu.nodes.arena.text.includes("郭靖") && zhongdu.nodes.arena.text.includes("不该下场欺负人"))
+  check("犁头旧语采用原著认亲口令", zhongdu.nodes.reunion.text.includes("张木儿加一斤半铁"))
+  check("杨康知道身世后仍可拒认", zhongdu.nodes.identity.text.includes("舍掉十八年的父亲、母亲和王府"))
+  check("第三幕包含杨康与王府亲兵剧情战", zhongduText.includes("\"enemyId\":\"yangkang\"") && zhongduText.includes("\"enemyId\":\"wangfu-guard\""))
+
+  const rescueWorld = createWorld()
+  rescueWorld.flags["shendiao.zhongdu.wangchuyi-aid"] = true
+  rescueWorld.flags["shendiao.zhongdu.guards-delayed"] = true
+  rescueWorld.flags["shendiao.zhongdu.escape-route"] = true
+  const rescuePlayer = mkPlayer({ world: rescueWorld })
+  const rescueChoice = zhongdu.nodes["escape-crisis"].choices!.find((choice) => choice.id === "save-both")!
+  check("三项准备齐全时可保下杨铁心与包惜弱", checkCondition(rescuePlayer, rescueWorld, rescueChoice.condition))
+
+  const progressWorld = createWorld()
+  progressWorld.arcs.shendiao = { beats: { damos: "done", "act2-damos": "done" } }
+  const beforeMeet = mkPlayer({ world: progressWorld })
+  check("第二幕后主线推荐张家口", getStoryProgress(beforeMeet).recommendedLocationId === "zhangjiakou")
+  const openedZhangjiakou = openLocationStory({ player: beforeMeet, locationId: "zhangjiakou" })!
+  check("张家口地点优先触发新第三幕入口", openedZhangjiakou.command.type === "show-event-entry" && openedZhangjiakou.command.event.id === "shendiao-zhangjiakou")
+
+  progressWorld.arcs.shendiao.beats["meet-rong"] = "done"
+  const afterMeet = mkPlayer({ world: progressWorld })
+  check("黄蓉初遇后主线推荐切到中都", getStoryProgress(afterMeet).recommendedLocationId === "zhongdu")
+  const openedZhongdu = openLocationStory({ player: afterMeet, locationId: "zhongdu" })!
+  check("中都地点优先触发王府主事件", openedZhongdu.command.type === "show-event-entry" && openedZhongdu.command.event.id === "shendiao-zhongdu")
+
+  const compatibilityPlayer = mkPlayer()
+  compatibilityPlayer.world.arcs.shendiao = { beats: { damos: "done", "meet-rong": "done", qigong: "done" } }
+  compatibilityPlayer.world.flags["shendiao.zhongdu.reworked"] = true
+  check(
+    "新第三幕启用后旧临安主线与桥接不再重复触发",
+    legacyEventIds.every((eventId) => {
+      const event = STORY_VOLUMES.find((item) => item.id === eventId)!
+      return !checkCondition(compatibilityPlayer, compatibilityPlayer.world, event.condition)
+    }),
+  )
 }
 
 console.log(`\n========================================`)

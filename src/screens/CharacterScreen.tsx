@@ -42,6 +42,9 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
   })).filter(g => g.skills.length > 0)
 
   const maxStats = { hpMax: 500, mpMax: 300, attack: 100, defense: 60, speed: 60 }
+  const bagItemEntries = Object.entries(player.inventory).filter(([, count]) => count > 0)
+  const bagCount = Object.values(player.inventory).reduce((sum, count) => sum + count, 0)
+  const topSkills = player.skills.slice(0, 3)
 
   function pct(cur: number, max: number) {
     return Math.min(100, Math.round((cur / max) * 100))
@@ -170,8 +173,117 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
         </div>
       </section>
 
-      <section className="stat-panel">
-        <h2>同行队伍 <span className="panel-count">{activeParty.length}/{MAX_ACTIVE_TEAMMATES}</span></h2>
+      <section className="stat-panel char-focus-panel">
+        <div className="char-focus-head">
+          <div>
+            <h2>当前战备</h2>
+            <p className="hint">先看这三块：现在能打成什么样、手上有哪些主修武功、行囊里有什么能立刻用。</p>
+          </div>
+          {(player.attributePoints ?? 0) > 0 && <span className="panel-count highlight">待分配 {player.attributePoints}</span>}
+        </div>
+        <div className="char-quick-summary-row">
+          <span className="char-tag strong">攻击 {player.attack}</span>
+          <span className="char-tag strong">防御 {player.defense}</span>
+          <span className="char-tag strong">身法 {player.speed}</span>
+          <span className="char-tag strong">武功 {player.skills.length}</span>
+          <span className="char-tag strong">道具 {bagCount}</span>
+        </div>
+        <div className="char-stat-bars">
+          {[
+            { label: "气血", cur: player.hp, max: player.hpMax, limit: maxStats.hpMax, color: "#c0392b" },
+            { label: "内力", cur: player.mp, max: player.mpMax, limit: maxStats.mpMax, color: "#2980b9" },
+            { label: "攻击", cur: player.attack, max: maxStats.attack, limit: maxStats.attack, color: "#e17055" },
+            { label: "防御", cur: player.defense, max: maxStats.defense, limit: maxStats.defense, color: "#0984e3" },
+            { label: "身法", cur: player.speed, max: maxStats.speed, limit: maxStats.speed, color: "#00b894" },
+            { label: "经验", cur: player.exp, max: player.expMax, limit: player.expMax, color: "#27ae60" },
+          ].map(b => (
+            <div key={b.label} className="char-bar-row">
+              <span className="char-bar-label">{b.label}</span>
+              <div className="char-bar-track">
+                <div className="char-bar-fill" style={{ width: pct(b.cur, b.limit) + "%", background: b.color }} />
+              </div>
+              <span className="char-bar-value">{b.cur}/{b.max}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="stat-panel char-focus-panel compact">
+        <div className="char-focus-head compact">
+          <h2>主修武功</h2>
+          <span className="panel-count">先看前 {Math.min(topSkills.length, 3)} 门</span>
+        </div>
+        {topSkills.length === 0 ? <p className="hint">尚未习得任何武功。</p> : (
+          <div className="char-priority-list">
+            {topSkills.map((skill) => (
+              <div key={skill.id} className="char-priority-item">
+                <div className="char-priority-main">
+                  <span className="skill-cat-tag" style={{ background: CAT_COLOR[skill.category] }}>{skill.category}</span>
+                  <span className="char-skill-name">{skill.name}</span>
+                </div>
+                <span className="char-skill-desc">{skill.description}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="stat-panel char-focus-panel compact">
+        <div className="char-focus-head compact">
+          <h2>即用行囊</h2>
+          <span className="panel-count">{bagCount}</span>
+        </div>
+        {bagItemEntries.length === 0 ? <p className="hint">行囊空空，还没有收集到任何道具。</p> : (
+          <div className="char-bag-list">
+            {bagItemEntries.map(([itemId, count]) => {
+              const item = getItemById(itemId)
+              return (
+                <div key={itemId} className="char-skill-item char-bag-row">
+                  <div className="char-bag-info">
+                    <span className="char-skill-name">{item?.name ?? itemId} × {count}</span>
+                    <span className="char-skill-desc">{item?.effectText ?? "未知物品"}</span>
+                  </div>
+                  <button
+                    className="menu-btn char-use-btn"
+                    disabled={!item?.usable || count <= 0}
+                    onClick={() => consumeItem(itemId)}
+                  >
+                    {item?.usable ? "使用" : "留存"}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="stat-panel char-deep-panel">
+        <div className="char-deep-head">
+          <h2>根基属性</h2>
+          <span className="char-deep-note">深入养成</span>
+        </div>
+        <p className="hint">修炼根基，战斗属性由根基推导而来。{(player.attributePoints ?? 0) > 0 ? "点击 + 投入属性点。" : "升级或修炼秘籍可获得属性点。"}</p>
+        <div className="root-attr-grid">
+          {ROOT_ATTRS.map(attr => (
+            <div key={attr.key} className="root-attr-item">
+              <div className="root-attr-head">
+                <span className="root-attr-label">{attr.label}</span>
+                <span className="root-attr-value">{player.roots[attr.key]}</span>
+                {(player.attributePoints ?? 0) > 0 && (
+                  <button className="root-invest-btn" onClick={() => investRoot(attr.key)}>+</button>
+                )}
+              </div>
+              <span className="root-attr-note">{attr.note}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="stat-panel char-deep-panel">
+        <div className="char-deep-head">
+          <h2>同行队伍 <span className="panel-count">{activeParty.length}/{MAX_ACTIVE_TEAMMATES}</span></h2>
+          <span className="char-deep-note">队伍管理</span>
+        </div>
         <p className="hint">已入队人物不会自动全员上阵。这里只管理当前随行出战的队友与候补名单。</p>
         <div className="party-team-bonus-banner">当前随行加成：攻击 +{supportTotals.attack} / 防御 +{supportTotals.defense} / 身法 +{supportTotals.speed}</div>
         {bondBonuses.length > 0 && (
@@ -235,45 +347,11 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
         </div>
       </section>
 
-      <section className="stat-panel">
-        <h2>根基属性 {(player.attributePoints ?? 0) > 0 && <span className="panel-count highlight">待分配 {player.attributePoints}</span>}</h2>
-        <p className="hint">修炼根基，战斗属性由根基推导而来。{(player.attributePoints ?? 0) > 0 ? "点击 + 投入属性点。" : "升级或修炼秘籍可获得属性点。"}</p>
-        <div className="root-attr-grid">
-          {ROOT_ATTRS.map(attr => (
-            <div key={attr.key} className="root-attr-item">
-              <div className="root-attr-head">
-                <span className="root-attr-label">{attr.label}</span>
-                <span className="root-attr-value">{player.roots[attr.key]}</span>
-                {(player.attributePoints ?? 0) > 0 && (
-                  <button className="root-invest-btn" onClick={() => investRoot(attr.key)}>+</button>
-                )}
-              </div>
-              <span className="root-attr-note">{attr.note}</span>
-            </div>
-          ))}
+      <section className="stat-panel char-deep-panel">
+        <div className="char-deep-head">
+          <h2>武功总览 <span className="panel-count">{player.skills.length}</span></h2>
+          <span className="char-deep-note">完整列表</span>
         </div>
-        <div className="char-stat-bars">
-          {[
-            { label: "气血", cur: player.hp, max: player.hpMax, limit: maxStats.hpMax, color: "#c0392b" },
-            { label: "内力", cur: player.mp, max: player.mpMax, limit: maxStats.mpMax, color: "#2980b9" },
-            { label: "攻击", cur: player.attack, max: maxStats.attack, limit: maxStats.attack, color: "#e17055" },
-            { label: "防御", cur: player.defense, max: maxStats.defense, limit: maxStats.defense, color: "#0984e3" },
-            { label: "身法", cur: player.speed, max: maxStats.speed, limit: maxStats.speed, color: "#00b894" },
-            { label: "经验", cur: player.exp, max: player.expMax, limit: player.expMax, color: "#27ae60" },
-          ].map(b => (
-            <div key={b.label} className="char-bar-row">
-              <span className="char-bar-label">{b.label}</span>
-              <div className="char-bar-track">
-                <div className="char-bar-fill" style={{ width: pct(b.cur, b.limit) + "%", background: b.color }} />
-              </div>
-              <span className="char-bar-value">{b.cur}/{b.max}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="stat-panel">
-        <h2>武功谱 <span className="panel-count">{player.skills.length}</span></h2>
         {catGroups.map(group => (
           <div key={group.cat} className="char-skill-group">
             <div className="char-cat-header">
@@ -289,32 +367,6 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
           </div>
         ))}
         {player.skills.length === 0 && <p className="hint">尚未习得任何武功。</p>}
-      </section>
-
-      <section className="stat-panel">
-        <h2>行囊 <span className="panel-count">{Object.values(player.inventory).reduce((sum, count) => sum + count, 0)}</span></h2>
-        {Object.keys(player.inventory).filter((id) => (player.inventory[id] ?? 0) > 0).length === 0 ? <p className="hint">行囊空空，还没有收集到任何道具。</p> : (
-          <div className="char-bag-list">
-            {Object.entries(player.inventory).filter(([, count]) => count > 0).map(([itemId, count]) => {
-              const item = getItemById(itemId)
-              return (
-                <div key={itemId} className="char-skill-item char-bag-row">
-                  <div className="char-bag-info">
-                    <span className="char-skill-name">{item?.name ?? itemId} × {count}</span>
-                    <span className="char-skill-desc">{item?.effectText ?? "未知物品"}</span>
-                  </div>
-                  <button
-                    className="menu-btn char-use-btn"
-                    disabled={!item?.usable || count <= 0}
-                    onClick={() => consumeItem(itemId)}
-                  >
-                    {item?.usable ? "使用" : "留存"}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
       </section>
     </div>
   )

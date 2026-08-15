@@ -20,7 +20,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 ## 关键类型与数据流
 
 - `Player`（`src/types/index.ts`）：战斗属性 + 八大根基 `roots` + `karma`/`world`/`relations`/`inventory`
-- `WorldState`（`src/data/story/schema.ts`）：npcs（含 relationType 语义关系）/factions/arcs/flags/party/pendingWorldEvents/triggeredEvents/seenNodes/completedEvents
+- `WorldState`（`src/data/story/schema.ts`）：npcs（含 relationType 语义关系）/factions/arcs/flags/party/pendingWorldEvents/triggeredEvents/seenNodes/completedEvents/currentStory
 - **世界状态挂 `player.world`**，`applyConsequences` 会同步 `p.world = w`（必须，否则 arcBeat 丢失）
 - `karma` → 自动派生 `alignment`（≥30 正，≤-30 邪）
 - 根基属性经 `src/game/attributes.ts` 推导战斗属性
@@ -49,16 +49,18 @@ App.tsx        ← 路由编排，不含业务逻辑
 - 多对多 CTB 行动顺序，支持群攻（横扫/双击/乱打）
 - 剧情战斗通过 `pendingBattleTransition` 衔接战后流转
 
-## 射雕主线（8 节点因果链）
+## 射雕主线（八幕因果链，逐幕迁移）
 
-详见 `射雕主线脚本.md`（自然语言）↔ `src/data/story/shendiao.ts`（代码），一一对应。
+- 《射雕英雄传二创游戏设定.md》：**射雕卷综合策划蓝图**，负责长期方向、多入口结构、节点版本体系、人物线与远期扩写口径
+- 《射雕主线脚本.md》：**当前实现样板线说明**，负责当前代码里已落地的主线事件自然语言镜像
+- `src/data/story/shendiao.ts`：**实际实现数据**
 
-arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua → yangkang → huashan
+当前前三幕已按八幕结构重组；`niujia / damos / meet-rong / qigong / wangfu` 仍同步写入，作为旧存档与后续旧样板兼容 beat。
 
 ## 存档迁移
 
 - `migratePlayer()`（`src/game/player.ts`）：补 statuses/inventory/roots/karma/world/mastery/relations
-- `migrateWorld()`（`src/game/story/state.ts`）：补 completedEvents/seenNodes + 旧 completedEvents→arcBeat 兼容
+- `migrateWorld()`（`src/game/story/state.ts`）：补全 WorldState 字段 + 旧事件/旧 beat→八幕进度兼容
 - **加新字段必须同步进迁移函数**
 
 ## 开发命令
@@ -86,11 +88,14 @@ arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua
 ## 文件索引（按任务场景分组）
 
 ### 改剧情 / 加事件
-- `射雕主线脚本.md` — 自然语言脚本，先改这里达成共识
-- `src/data/story/shendiao.ts` — 射雕剧情数据（主线 8 节点 + 同卷支线 / 余波事件）
+- `射雕英雄传二创游戏设定.md` — 射雕卷综合策划蓝图；改长期方向、多入口结构、节点版本体系、人物线时优先看这里
+- `射雕主线脚本.md` — 当前实现样板线的自然语言脚本；改当前已落地主线事件时同步这里与代码
+- `src/data/story/shendiao.ts` — 射雕剧情卷聚合、第一二幕、旧样板主线与同卷支线 / 余波事件
+- `src/data/story/shendiaoAct3.ts` — 第三幕“中都照影”双地点连续事件
 - `src/data/story/worldEvents.ts` — 世界回响 / 江湖消息数据
 - `src/data/events.ts` — 通用奇遇事件
 - `src/data/story/schema.ts` — Consequence/Condition/Transition/StoryNode/WorldState 等类型定义
+- `src/data/story/progress.ts` — 剧情卷幕级进度、界面引导与旧 beat 映射元数据
 - `src/data/story/index.ts` — 剧情卷聚合（加新作品改这里）
 - `src/data/map.ts` — 地点定义 + 事件绑定（events 数组）
 - `src/game/story/consequences.ts` — 后果解释器（加新 Consequence 种类改这里）
@@ -136,3 +141,11 @@ arcBeat 串联：niujia → damos → meet-rong → qigong → wangfu → taohua
 
 ### 项目内共享 Skill
 - `.claude/skills/jinyong-story-writer.md` — 金庸 RPG 剧情写作 Skill；用于生成/改写地点支线、主线节点、world events，强调游戏感、人物气质、非剧透、禁止替玩家写内心；文件内已附调用模板，可直接复用
+
+## 文档使用口径（简版）
+
+- 改**长期结构方向 / 多入口设计 / 远期版本体系**：先看并先改《射雕英雄传二创游戏设定.md》
+- 改**当前已实现主线样板 / 现阶段事件文本 / 当前 arcBeat 串联**：同步改《射雕主线脚本.md》与 `src/data/story/shendiao.ts`
+- 改**字段设计 / 条件后果能力 / 迁移与引擎约束**：看《剧情系统设计手册.md》与对应代码
+- 改**具体事件写法 / letter / node id / flag 使用习惯**：看《内容编写 checklist.md》
+- 不要把“长期蓝图”直接当成“当前代码已实现内容”来描述，也不要让“当前实现样板线”反过来限制长期结构设计

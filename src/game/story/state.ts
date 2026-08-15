@@ -3,12 +3,13 @@
 // 引擎与数据都不认识具体 NPC/阵营 id；这里只提供"按 key 取，缺省给默认"的能力。
 // ============================================================
 import type {
-  WorldState, WorldNpcState, WorldFactionState, BeatResult,
+  WorldState, WorldNpcState, WorldFactionState, BeatResult, StoryCheckpoint, StoryCheckpointPhase,
 } from "../../data/story/schema"
 import { ALIGNMENT_THRESHOLDS } from "../../data/story/schema"
+import { STORY_PROGRESS_DEFINITIONS } from "../../data/story/progress"
 import type { Alignment } from "../../types"
 
-export const WORLD_VERSION = 4
+export const WORLD_VERSION = 5
 
 // 空世界：所有 Record 初始为空，字段渐进生长
 export function createWorld(): WorldState {
@@ -23,6 +24,7 @@ export function createWorld(): WorldState {
     triggeredEvents: [],
     seenNodes: [],
     completedEvents: [],
+    currentStory: null,
   }
 }
 
@@ -62,6 +64,46 @@ export function deriveAlignment(karma: number): Alignment {
   return "中"
 }
 
+const STORY_CHECKPOINT_PHASES: StoryCheckpointPhase[] = ["choosing", "autoNext", "result", "battle"]
+
+function migrateStoryCheckpoint(raw: unknown): StoryCheckpoint | null {
+  if (!raw || typeof raw !== "object") return null
+  const value = raw as Record<string, unknown>
+  if (typeof value.eventId !== "string" || typeof value.nodeId !== "string") return null
+  if (!STORY_CHECKPOINT_PHASES.includes(value.phase as StoryCheckpointPhase)) return null
+
+  return {
+    eventId: value.eventId,
+    nodeId: value.nodeId,
+    phase: value.phase as StoryCheckpointPhase,
+    pageIndex: typeof value.pageIndex === "number" && value.pageIndex >= 0 ? Math.floor(value.pageIndex) : 0,
+    locationId: typeof value.locationId === "string" ? value.locationId : null,
+    resultText: typeof value.resultText === "string" ? value.resultText : undefined,
+    resultTitle: typeof value.resultTitle === "string" ? value.resultTitle : undefined,
+    transition: value.transition && typeof value.transition === "object"
+      ? value.transition as StoryCheckpoint["transition"]
+      : undefined,
+    consumedDay: value.consumedDay === true,
+    battleEnemyIds: Array.isArray(value.battleEnemyIds)
+      ? value.battleEnemyIds.filter((id): id is string => typeof id === "string")
+      : undefined,
+  }
+}
+
+function migrateStoryProgress(world: WorldState): void {
+  for (const definition of STORY_PROGRESS_DEFINITIONS) {
+    const arc = world.arcs[definition.arcId]
+    if (!arc) continue
+
+    for (const migration of definition.legacyBeatMigrations) {
+      if (!arc.beats[migration.legacyBeat]) continue
+      for (const target of migration.targets) {
+        if (!arc.beats[target.beat]) arc.beats[target.beat] = target.result
+      }
+    }
+  }
+}
+
 // ---- 旧存档迁移：按 version 升级，补全字段 ----
 export function migrateWorld(raw: unknown): WorldState {
   const w = createWorld()
@@ -69,13 +111,20 @@ export function migrateWorld(raw: unknown): WorldState {
   const r = raw as Record<string, unknown>
   w.npcs = (r.npcs as WorldState["npcs"]) ?? {}
   w.factions = (r.factions as WorldState["factions"]) ?? {}
-  w.arcs = (r.arcs as WorldState["arcs"]) ?? {}
+  const rawArcs = (r.arcs as WorldState["arcs"]) ?? {}
+  w.arcs = Object.fromEntries(
+    Object.entries(rawArcs).map(([arcId, state]) => [
+      arcId,
+      { ...state, beats: { ...(state?.beats ?? {}) } },
+    ]),
+  )
   w.flags = (r.flags as WorldState["flags"]) ?? {}
   w.party = (r.party as WorldState["party"]) ?? { activeNpcIds: [], reserveNpcIds: [] }
   w.pendingWorldEvents = (r.pendingWorldEvents as string[]) ?? []
   w.triggeredEvents = (r.triggeredEvents as string[]) ?? []
   w.seenNodes = (r.seenNodes as string[]) ?? []
   w.completedEvents = (r.completedEvents as string[]) ?? []
+  w.currentStory = migrateStoryCheckpoint(r.currentStory)
 
   // 旧存档里的 seenNodes 可能仍是裸 nodeId；本轮起只新增 `${eventId}:${nodeId}` 形式的新键，旧值保留兼容即可。
 
@@ -89,10 +138,13 @@ export function migrateWorld(raw: unknown): WorldState {
     w.arcs.shendiao.beats.niujia = "won"
   }
 
+  migrateStoryProgress(w)
+
   // 迁移 v1 → v2：WorldNpcState 新增 relationType（optional，无需数据迁移）
   // 迁移 v2 → v3：pendingWorldEventId 改为 pendingWorldEvents 队列（上方已兼容导入）
   // 迁移 v3 → v4：新增 party 状态（上方已补默认值）
   // 迁移 v4：WorldArcState 可选增加 ending（兼容旧档时保持 undefined 即可）
+  // 迁移 v4 → v5：新增 currentStory 事件断点，并补写八幕进度兼容 beat
   w.version = WORLD_VERSION
   return w
 }

@@ -1,5 +1,8 @@
 import type { Player } from "../types"
 
+export type LocationRhythm = "剧情" | "战斗" | "探索"
+export type LocationRisk = "低" | "中" | "高"
+
 // ============================================================
 // 地点式江湖地图
 // 「游历」入口：一张可视化中国地图，地名标在对应坐标，点击前往。
@@ -17,6 +20,10 @@ export interface Location {
   events: string[]               // 该地点专属奇遇事件 id
   enemyPool: string[]            // 该地点的随机敌人池
   npcIds?: string[]              // 常驻该地点的 NPC id（双向参考，用于地图/NPC界面显示）
+  rhythm: LocationRhythm         // 内容节奏（地图出发前预期）
+  risk: LocationRisk             // 基础风险（主线推荐态由界面另行覆盖）
+  contentTag: string             // 内容定位短标签
+  contentPreview: string         // 非推荐状态下的内容预览
   unlock?: (player: Player) => boolean   // 解锁条件
 }
 
@@ -31,6 +38,10 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 76, y: 66 },
     events: ["shendiao-niujia-opening", "shendiao-niujia-arrival", "shendiao-niujia-rescue", "shendiao-niujia-recruit", "shendiao-niujia-raid-righteous", "shendiao-niujia-raid-jin", "shendiao-yangkang", "shendiao-niujia-before-huashan", "shendiao-niujia-snow", "shendiao-munianci"],
     enemyPool: ["xialiubang", "shanzei"],
+    rhythm: "剧情",
+    risk: "低",
+    contentTag: "旧地因果",
+    contentPreview: "既有开局事件，也承接后续回村收束与人物余波。",
   },
   {
     id: "linan",
@@ -41,7 +52,43 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 74, y: 70 },
     events: ["shendiao-meet-rong", "shendiao-linan-night-stroll", "shendiao-qigong", "shendiao-linan-wangfu-rumor", "shendiao-wangfu", "shendiao-linan-yangkang-shadow", "shendiao-beggar-feast", "shendiao-yuefei-wall", "shendiao-linan-nighttalk", "linan-teahouse", "linan-nightmarket"],
     enemyPool: ["xialiubang", "shanzei"],
-    npcIds: ["hongqigong", "yangkang"],
+    npcIds: ["hongqigong"],
+    rhythm: "剧情",
+    risk: "中",
+    contentTag: "江湖风波",
+    contentPreview: "可接江南人物线、王府旧案与多段中期剧情。",
+  },
+
+  // ===== 燕赵 =====
+  {
+    id: "zhangjiakou",
+    name: "张家口",
+    region: "燕赵",
+    description: "塞外入中原的商旅关口，驼队、马市与南北消息都在这里交汇。",
+    arrival: "你沿驿道来到张家口。马市尘土飞扬，酒楼里挤满南下商旅，城外还有白衣骆驼客在暗中打量来往马匹。",
+    coordinates: { x: 58, y: 29 },
+    events: ["shendiao-zhangjiakou"],
+    enemyPool: ["xialiubang", "shanzei"],
+    npcIds: ["guojing", "huangrong"],
+    rhythm: "剧情",
+    risk: "中",
+    contentTag: "南下关口",
+    contentPreview: "承接大漠离场版本、白驼山过境与黄蓉初遇。",
+  },
+  {
+    id: "zhongdu",
+    name: "中都",
+    region: "燕赵",
+    description: "金国都城大兴府，赵王府与江湖群英正把旧案推到台前。",
+    arrival: "你走进中都。城门金兵逐一查验路引，街市深处却已搭起比武擂台，赵王府车马不时从人群外经过。",
+    coordinates: { x: 67, y: 34 },
+    events: ["shendiao-zhongdu"],
+    enemyPool: ["guanjun", "emingke"],
+    npcIds: ["yangkang", "qiuchuji"],
+    rhythm: "剧情",
+    risk: "高",
+    contentTag: "王府旧案",
+    contentPreview: "偏比武招亲、杨家身世、王府群英与多路线救援。",
   },
 
   // ===== 中原 =====
@@ -55,6 +102,10 @@ export const LOCATIONS: Location[] = [
     events: ["shaolin-scripture"],
     enemyPool: ["shanzei", "emingke"],
     npcIds: ["qiuchuji"],
+    rhythm: "探索",
+    risk: "中",
+    contentTag: "修行地",
+    contentPreview: "更偏门派、秘籍与扬名后的武学探索。",
     unlock: (player) => player.reputation >= 5,
   },
   {
@@ -66,6 +117,10 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 50, y: 45 },
     events: ["shendiao-huashan", "shendiao-huashan-snow", "shendiao-huashan-stone", "huashan-cliff"],
     enemyPool: ["emingke", "xiejiaoshi"],
+    rhythm: "战斗",
+    risk: "高",
+    contentTag: "卷末节点",
+    contentPreview: "更接近论剑、卷末收束与高强度阶段事件。",
     unlock: (player) => player.reputation >= 20,
   },
 
@@ -79,6 +134,10 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 40, y: 55 },
     events: ["emei-hermit"],
     enemyPool: ["shanzei", "emingke"],
+    rhythm: "探索",
+    risk: "低",
+    contentTag: "清修地",
+    contentPreview: "适合寻找隐士、剑术见闻与后续门派内容。",
   },
   {
     id: "xingxiu",
@@ -89,6 +148,10 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 33, y: 48 },
     events: ["xingxiu-poison"],
     enemyPool: ["duyaozi", "xiejiaoshi"],
+    rhythm: "战斗",
+    risk: "高",
+    contentTag: "毒沼险地",
+    contentPreview: "偏毒术、邪派遭遇与高风险战斗。",
     unlock: (player) => player.reputation >= 10,
   },
 
@@ -103,6 +166,10 @@ export const LOCATIONS: Location[] = [
     events: ["shendiao-damos", "shendiao-damos-southbound", "shendiao-damos-eagle", "shendiao-damos-feast", "shendiao-seven-freaks", "damos-eagle"],
     enemyPool: ["shanzei", "emingke"],
     npcIds: ["guojing"],
+    rhythm: "剧情",
+    risk: "中",
+    contentTag: "故人线",
+    contentPreview: "偏郭靖前期主线、大漠成长与草原人物铺垫。",
   },
   {
     id: "xiling",
@@ -113,6 +180,10 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 28, y: 32 },
     events: ["xiling-palace"],
     enemyPool: ["emingke", "xiejiaoshi"],
+    rhythm: "探索",
+    risk: "高",
+    contentTag: "塞外远行",
+    contentPreview: "偏后期地图拓展、雪山探索与异域势力。",
     unlock: (player) => player.reputation >= 25,
   },
 
@@ -127,6 +198,10 @@ export const LOCATIONS: Location[] = [
     events: ["baituo-snake"],
     enemyPool: ["duyaozi", "ouyangfeng"],
     npcIds: ["ouyangfeng-npc"],
+    rhythm: "战斗",
+    risk: "高",
+    contentTag: "西毒险地",
+    contentPreview: "偏白驼山、毒术与高风险邪派路线。",
     unlock: (player) => player.reputation >= 15,
   },
   {
@@ -138,6 +213,10 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 22, y: 42 },
     events: ["mingjiao-fire"],
     enemyPool: ["xiejiaoshi", "huangyaoshi"],
+    rhythm: "战斗",
+    risk: "高",
+    contentTag: "西域远行",
+    contentPreview: "偏后期地图拓展、明教势力与西域战斗。",
     unlock: (player) => player.reputation >= 30,
   },
 
@@ -152,6 +231,10 @@ export const LOCATIONS: Location[] = [
     events: ["shendiao-taohua-letter", "shendiao-taohua", "shendiao-taohua-flute", "shendiao-taohua-maze", "taohua-array"],
     enemyPool: ["emingke", "huangyaoshi"],
     npcIds: ["huangrong", "huangyaoshi-npc"],
+    rhythm: "剧情",
+    risk: "中",
+    contentTag: "人物推进",
+    contentPreview: "偏黄蓉、黄药师、桃花岛旧门与五绝相关剧情。",
     unlock: (player) => player.reputation >= 15,
   },
 
@@ -165,6 +248,10 @@ export const LOCATIONS: Location[] = [
     coordinates: { x: 38, y: 75 },
     events: ["dali-temple"],
     enemyPool: ["shanzei", "emingke"],
+    rhythm: "探索",
+    risk: "低",
+    contentTag: "武学源流",
+    contentPreview: "偏大理段氏、一阳指与后续岭南人物内容。",
   },
 ]
 

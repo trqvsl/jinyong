@@ -1,35 +1,81 @@
 import type { Player } from "../types"
 import type { StoryEvent } from "../data/events"
+import {
+  Compass,
+  Dumbbell,
+  FlaskConical,
+  Landmark,
+  Mail,
+  MapPinned,
+  ScrollText,
+  ShoppingBag,
+  UserRound,
+  UsersRound,
+} from "lucide-react"
 import { savePlayer } from "../game/player"
 import { recomputePlayerStats } from "../game/attributes"
-import { getRelationLevel } from "../game/relations"
-import { getActivePartyNpcs, getReservePartyNpcs, getNpcBattleRole, getPartyPower, getPartySupportBonuses, getPartySupportTotals, getPartyBondBonuses, getBattleSupportMechanicRules } from "../game/party"
+import { getStoryProgress, type StoryProgressView } from "../game/story/query"
+import {
+  getActivePartyNpcs,
+  getPartyPower,
+} from "../game/party"
 
 interface Props {
   player: Player; pendingWorldEvents?: StoryEvent[]; onOpenPendingWorldEvent?: (eventId: string) => void; onUpdate: (player: Player) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void; onShop: () => void; onNpc?: () => void; onDebug?: () => void
 }
 
-function getPendingWorldEventLabel(event?: StoryEvent | null): string {
-  if (event?.presentation === "letter") {
-    if (event.letterStyle === "secret") return "密帖送达"
-    if (event.letterStyle === "note") return "字条送达"
-    return "书信送达"
+function getHubMoodText(progress: StoryProgressView, pendingWorldEvents: StoryEvent[]): string {
+  if (pendingWorldEvents.length > 0) {
+    return "灯影摇晃，信匣里压着新近送来的来信与江湖风声。"
   }
-  const title = event?.nodes[event.entryNode]?.title ?? event?.id ?? ""
-  if (title.includes("来信") || title.includes("密帖")) return "书信送达"
-  if (title.includes("敲窗") || title.includes("寻你")) return "有人来访"
-  return "江湖回响"
+  return progress.hubMood
+}
+
+function summarizePendingWorldEvent(pendingWorldEvents: StoryEvent[]) {
+  const firstEvent = pendingWorldEvents[0]
+  if (!firstEvent) {
+    return {
+      badge: "暂无新信",
+      title: "江湖暂时平静",
+      summary: "今晚未见新信与江湖回响，可先继续主线或稍作整备。",
+      buttonLabel: "暂无来信",
+    }
+  }
+
+  const entryNode = firstEvent.nodes[firstEvent.entryNode]
+  const cleanedTitle = (entryNode?.title ?? firstEvent.id).replace(/^江湖回响·/, "")
+  const category = firstEvent.presentation === "letter" ? "书信待阅" : "江湖回响"
+  const rawSummary = (entryNode?.letterIntro?.trim() || entryNode?.text || "有新的消息送到客舍。").replace(/\s+/g, " ")
+  const summary = rawSummary.length > 36 ? `${rawSummary.slice(0, 36)}…` : rawSummary
+
+  return {
+    badge: `${category} · 待看 ${pendingWorldEvents.length}`,
+    title: cleanedTitle,
+    summary,
+    buttonLabel: `查看${cleanedTitle}`,
+  }
+}
+
+function getSystemPriorityBadges(progress: StoryProgressView, pendingWorldEvents: StoryEvent[]) {
+  if (pendingWorldEvents.length > 0) {
+    return {
+      ...progress.priorities,
+      adventure: "次选",
+      letters: "优先",
+    }
+  }
+  return progress.priorities
 }
 
 export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorldEvent, onUpdate, onAdventure, onSect, onCharacter, onShop, onNpc, onDebug }: Props) {
   const activeParty = getActivePartyNpcs(player)
-  const reserveParty = getReservePartyNpcs(player)
   const partyPower = getPartyPower(player)
-  const supportBonuses = getPartySupportBonuses(player)
-  const bondBonuses = getPartyBondBonuses(player)
-  const supportTotals = getPartySupportTotals(player)
-  const supportMechanicRules = getBattleSupportMechanicRules(player)
-  // onDebug 可选；调试入口，正式游玩可隐藏
+  const storyProgress = getStoryProgress(player)
+  const hubMoodText = getHubMoodText(storyProgress, pendingWorldEvents)
+  const pendingWorldEventSummary = summarizePendingWorldEvent(pendingWorldEvents)
+  const systemPriorityBadges = getSystemPriorityBadges(storyProgress, pendingWorldEvents)
+  const firstPendingEvent = pendingWorldEvents[0]
+  const progressPercent = `${Math.max(4, (storyProgress.completed / storyProgress.total) * 100)}%`
   function train() {
     const gain = 1 + Math.floor(player.aptitude / 30)
     const cultivated: Player = {
@@ -44,151 +90,162 @@ export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorld
     }
     const recomputed = recomputePlayerStats(cultivated)
     const updated: Player = { ...recomputed, hp: recomputed.hpMax, mp: recomputed.mpMax }
-    savePlayer(updated); onUpdate(updated)
+    savePlayer(updated)
+    onUpdate(updated)
   }
-  const catCounts = player.skills.reduce((acc, s) => { acc[s.category] = (acc[s.category] || 0) + 1; return acc }, {} as Record<string, number>)
 
   return (
-    <div className="main-screen">
-      <header className="top-bar"><span className="player-name">{player.name}</span><span className="day-info">第 {player.day} 日</span></header>
-      <section className="stat-panel">
-        <h2>江湖名号</h2>
-        <div className="stat-grid">
-          <div>等级 <b>{player.level}</b></div><div>资质 <b>{player.aptitude}</b></div>
-          <div>立场 <b>{player.alignment}</b></div><div>名声 <b>{player.reputation}</b></div>
-          <div>银两 <b>{player.gold}</b></div>
+    <div className="main-screen main-hub-shell">
+      <header className="top-bar main-hub-topbar compact">
+        <div className="main-hub-topbar-block">
+          <span className="main-hub-brand">金庸群侠传</span>
+          <span className="main-hub-topbar-sub">{player.name} · 第 {player.day} 日</span>
         </div>
-        <div className="stat-bars">
-          <Bar label="气血" value={player.hp} max={player.hpMax} color="#c0392b" />
-          <Bar label="内力" value={player.mp} max={player.mpMax} color="#2980b9" />
-          <Bar label="经验" value={player.exp} max={player.expMax} color="#27ae60" />
+        <div className="main-hub-topbar-stats compact">
+          <span className="char-tag">Lv.{player.level}</span>
+          <span className="char-tag">银两 {player.gold}</span>
+          <span className="char-tag">名声 {player.reputation}</span>
         </div>
-      </section>
-      <section className="stat-panel party-summary-panel">
-        <div className="party-summary-head">
-          <h2>随行队伍 <span className="panel-count">出战 {activeParty.length} · 候补 {reserveParty.length}</span></h2>
-          <button className="menu-btn party-summary-manage-btn" onClick={onCharacter}>整队</button>
-        </div>
-        <p className="hint">当前战斗只会带上出战位中的队友。候补不会自动参战。</p>
-        {activeParty.length === 0 ? (
-          <p className="hint">你现在仍是独行江湖。去“江湖人物”中邀约可同行的角色吧。</p>
-        ) : (
-          <>
-            <div className="party-summary-meta">
-              <span className="char-tag">队伍战力 {partyPower}</span>
-              <span className="char-tag">当前阵容 {activeParty.map((npc) => npc.name).join(" / ")}</span>
-              <span className="char-tag">随行加成 攻+{supportTotals.attack} / 防+{supportTotals.defense} / 速+{supportTotals.speed}</span>
-            </div>
-            <div className="party-support-list">
-              {supportBonuses.map((bonus) => (
-                <div key={bonus.npcId} className="party-support-item">
-                  <div className="party-support-name">{bonus.npcName} · {bonus.role}</div>
-                  <div className="party-support-value">攻+{bonus.attack} 防+{bonus.defense} 速+{bonus.speed}</div>
-                </div>
-              ))}
-            </div>
-            {bondBonuses.length > 0 && (
-              <div className="party-bond-list">
-                {bondBonuses.map((bond) => (
-                  <div key={bond.id} className="party-bond-item">
-                    <div className="party-bond-name">{bond.name}</div>
-                    <div className="party-bond-value">攻+{bond.attack} 防+{bond.defense} 速+{bond.speed}</div>
-                    <div className="party-bond-desc">{bond.description}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {supportMechanicRules.length > 0 && (
-              <div className="party-trigger-rule-list">
-                {supportMechanicRules.map((rule) => (
-                  <div key={rule.trigger} className="party-trigger-rule-item">
-                    <div className="party-trigger-rule-head">
-                      <span className="party-trigger-rule-name">{rule.title}</span>
-                      <span className="party-trigger-rule-trigger">{rule.triggerLabel}</span>
-                    </div>
-                    <div className="party-trigger-rule-desc">{rule.summary}</div>
-                    <div className="party-trigger-rule-tags">
-                      {rule.focusTags.map((tag) => <span key={tag} className="party-trigger-rule-tag">{tag}</span>)}
-                    </div>
-                    <div className="party-trigger-rule-source-list compact">
-                      {rule.sourceEntries.map((entry) => (
-                        <div key={entry.key} className={`party-trigger-rule-source-item ${entry.type}`}>
-                          <span className="party-trigger-rule-source-name">{entry.label}</span>
-                          <span className="party-trigger-rule-effects">{entry.details.join(" · ")}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="party-summary-list">
-              {activeParty.map((npc, index) => {
-                const relation = getRelationLevel(player, npc.id, player.world)
-                return (
-                  <div key={npc.id} className="party-summary-card">
-                    <div className="party-summary-card-head">
-                      <span className="party-summary-order">位次 {index + 1}</span>
-                      <span className={`relation-badge rel-${relation.tone}`}>{relation.label}</span>
-                    </div>
-                    <div className="party-summary-name">{npc.title}·{npc.name}</div>
-                    <div className="party-summary-role">{getNpcBattleRole(npc)}</div>
-                    <div className="party-summary-stats">攻 {npc.combat.attack} · 防 {npc.combat.defense} · 速 {npc.combat.speed}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </>
-        )}
-      </section>
-      {pendingWorldEvents.length > 0 && onOpenPendingWorldEvent && (
-        <section className="stat-panel pending-world-event-panel">
-          <div className="pending-world-event-head">
-            <span className="pending-world-event-tag">江湖消息 {pendingWorldEvents.length}</span>
+      </header>
+
+      <section className="main-hub-hero">
+        <div className="main-hub-hero-backdrop" aria-hidden="true" />
+        <div className="main-hub-hero-main">
+          <div className="main-hub-scene-tag"><Compass size={14} /> 江湖据点</div>
+          <h1 className="main-hub-scene-title">{storyProgress.hubName}</h1>
+          <p className="main-hub-scene-copy">{hubMoodText}</p>
+          <div className="main-hub-quest-kicker">射雕卷 · {storyProgress.act.title}</div>
+          <div className="main-hub-quest-progress" aria-label={`射雕卷进度 ${storyProgress.completed}/${storyProgress.total}`}>
+            <span style={{ width: progressPercent }} />
           </div>
-          <div className="pending-world-event-title">大本营里收到了新的动静</div>
-          <p className="pending-world-event-desc">回到落脚处后收到的来信、来访和江湖回响都会先留在这里，不再直接打断流程。</p>
-          <div className="pending-world-event-list">
-            {pendingWorldEvents.map((event) => (
-              <button key={event.id} className="pending-world-event-item" onClick={() => onOpenPendingWorldEvent(event.id)}>
-                <span className="pending-world-event-item-tag">{getPendingWorldEventLabel(event)}</span>
-                <span className="pending-world-event-item-title">{event.nodes[event.entryNode]?.title ?? event.id}</span>
+          <h2 className="main-hub-quest-title">{storyProgress.primaryAction}</h2>
+          <p className="main-hub-quest-copy">{storyProgress.guidance}</p>
+          <div className="main-hub-hero-actions">
+            <button className="main-hub-primary-action" onClick={onAdventure}>
+              <MapPinned size={19} />
+              <span>{storyProgress.primaryAction}</span>
+            </button>
+            {firstPendingEvent && (
+              <button className="main-hub-secondary-action" onClick={() => onOpenPendingWorldEvent?.(firstPendingEvent.id)}>
+                <Mail size={18} />
+                <span>{pendingWorldEventSummary.buttonLabel}</span>
               </button>
-            ))}
+            )}
           </div>
-        </section>
-      )}
-      <section className="stat-panel">
-        <h2>武功绝学 <span className="panel-count">{player.skills.length}</span></h2>
-        {player.skills.length === 0 ? <p className="hint">尚未习得任何武功。</p> : (
-          <>
-            <div className="cat-summary">
-              {(["外功","内功","轻功","奇门"] as const).map(c => (
-                <span key={c} className={`cat-chip cat-${c}`}>{c} {catCounts[c]||0}</span>
-              ))}
+        </div>
+
+        <aside className="main-hub-status-panel" aria-label="角色状态">
+          <div className="main-hub-hero-row slim">
+            <div className="main-hub-avatar">{player.name.slice(0, 1)}</div>
+            <div className="main-hub-hero-meta">
+              <div className="main-hub-hero-name">{player.name}</div>
+              <div className="main-hub-hero-sub">{player.alignment}道 · 资质 {player.aptitude}</div>
             </div>
-            <ul className="skill-list">{player.skills.map(s => (
-              <li key={s.id}><span className={`skill-cat-tag cat-${s.category}`}>{s.category}</span><span className="skill-name">{s.name}</span>{s.power>0 && <span className="skill-power">威力 {s.power}</span>}</li>
-            ))}</ul>
-          </>
-        )}
+          </div>
+          <div className="stat-bars main-hub-bars compact">
+            <Bar label="气血" value={player.hp} max={player.hpMax} color="#b74332" />
+            <Bar label="内力" value={player.mp} max={player.mpMax} color="#3b8c92" />
+            <Bar label="阅历" value={player.exp} max={player.expMax} color="#b9944a" />
+          </div>
+          <div className="main-hub-status-grid">
+            <span><b>{partyPower}</b>战力</span>
+            <span><b>{player.skills.length}</b>武学</span>
+            <span><b>{activeParty.length}</b>同行</span>
+          </div>
+        </aside>
       </section>
-      <section className="stat-panel">
-        <h2>行动</h2>
-        <div className="action-buttons">
-          <button className="menu-btn" onClick={train}>闭关修炼</button>
-          <button className="menu-btn primary" onClick={onAdventure}>江湖游历</button>
-          <button className="menu-btn" onClick={onShop}>江湖商铺</button>
-          <button className="menu-btn" onClick={onSect}>游历门派</button>
-          {onNpc && <button className="menu-btn" onClick={onNpc}>江湖人物</button>}
-          <button className="menu-btn" onClick={onCharacter}>个人属性</button>
-          {onDebug && <button className="menu-btn" onClick={onDebug}>调试炼丹房</button>}
+
+      <section className="main-hub-ledger">
+        <div className={`main-hub-message-card${firstPendingEvent ? " has-pending" : ""}`}>
+          <div className="main-hub-message-head">
+            <span className="main-hub-message-label"><Mail size={15} /> 客舍信匣</span>
+            <span className={`main-hub-message-status${firstPendingEvent ? " pending" : " idle"}`}>{firstPendingEvent ? "待阅" : "平静"}</span>
+          </div>
+          <div className="main-hub-message-title">{pendingWorldEventSummary.title}</div>
+          <p className="main-hub-message-copy">{pendingWorldEventSummary.summary}</p>
+          <button className="main-hub-message-btn" onClick={() => firstPendingEvent && onOpenPendingWorldEvent?.(firstPendingEvent.id)} disabled={!firstPendingEvent}>
+            {pendingWorldEventSummary.buttonLabel}
+          </button>
+        </div>
+
+        <div className="main-hub-quick-actions">
+          <button className="main-hub-quick-action" onClick={onCharacter}>
+            <UserRound size={21} />
+            <span>
+              <b>整顿行装</b>
+              <small>人物、武学与队伍</small>
+            </span>
+          </button>
+          <button className="main-hub-quick-action" onClick={train}>
+            <Dumbbell size={21} />
+            <span>
+              <b>闭关一日</b>
+              <small>外功与内息稳步精进</small>
+            </span>
+          </button>
+          <div className="main-hub-next-note">
+            <ScrollText size={21} />
+            <span>
+              <b>{storyProgress.next}</b>
+              <small>射雕卷 {storyProgress.completed}/{storyProgress.total}</small>
+            </span>
+          </div>
         </div>
       </section>
+
+      <nav className="main-hub-dock" aria-label="江湖功能">
+        <button className="main-hub-dock-btn primary" onClick={onAdventure} title="江湖游历">
+          <MapPinned className="main-hub-dock-icon" size={21} />
+          <span className="main-hub-dock-text">江湖游历</span>
+          <span className="main-hub-dock-hint">{systemPriorityBadges.adventure}</span>
+        </button>
+        <button className="main-hub-dock-btn" onClick={onCharacter} title="人物">
+          <UserRound className="main-hub-dock-icon" size={21} />
+          <span className="main-hub-dock-text">人物</span>
+          <span className="main-hub-dock-hint">{systemPriorityBadges.character}</span>
+        </button>
+        <button className="main-hub-dock-btn" onClick={onShop} title="商铺">
+          <ShoppingBag className="main-hub-dock-icon" size={21} />
+          <span className="main-hub-dock-text">商铺</span>
+          <span className="main-hub-dock-hint">{systemPriorityBadges.shop}</span>
+        </button>
+        <button className="main-hub-dock-btn" onClick={onSect} title="门派">
+          <Landmark className="main-hub-dock-icon" size={21} />
+          <span className="main-hub-dock-text">门派</span>
+          <span className="main-hub-dock-hint">{systemPriorityBadges.sect}</span>
+        </button>
+        {onNpc && (
+          <button className="main-hub-dock-btn" onClick={onNpc} title="江湖人物">
+            <UsersRound className="main-hub-dock-icon" size={21} />
+            <span className="main-hub-dock-text">江湖人物</span>
+            <span className="main-hub-dock-hint">{systemPriorityBadges.npc}</span>
+          </button>
+        )}
+        <button className="main-hub-dock-btn" onClick={train} title="闭关修炼">
+          <Dumbbell className="main-hub-dock-icon" size={21} />
+          <span className="main-hub-dock-text">闭关修炼</span>
+          <span className="main-hub-dock-hint">稳步</span>
+        </button>
+        {onDebug && (
+          <button className="main-hub-dock-btn subtle" onClick={onDebug} title="调试炼丹房">
+            <FlaskConical className="main-hub-dock-icon" size={21} />
+            <span className="main-hub-dock-text">调试炼丹房</span>
+          </button>
+        )}
+      </nav>
     </div>
   )
 }
+
 function Bar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100))
-  return (<div className="bar-row"><span className="bar-label">{label}</span><div className="bar-track"><div className="bar-fill" style={{ width: pct + "%", background: color }} /></div><span className="bar-value">{value}/{max}</span></div>)
+  return (
+    <div className="bar-row">
+      <span className="bar-label">{label}</span>
+      <div className="bar-track">
+        <div className="bar-fill" style={{ width: pct + "%", background: color }} />
+      </div>
+      <span className="bar-value">{value}/{max}</span>
+    </div>
+  )
 }

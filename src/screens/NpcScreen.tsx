@@ -3,12 +3,75 @@ import type { Player, Skill } from "../types"
 import { savePlayer } from "../game/player"
 import { getRelationLevel } from "../game/relations"
 import { getNpcState } from "../game/story/state"
+import { isNpcRelevantToCurrentStory } from "../game/story/query"
 import { getNpcDialogue, canRecruit } from "../game/npc"
 import { applyConsequences } from "../game/story/consequences"
 import { setNpcPartyActive } from "../game/party"
 import { NPCS, npcToEnemy, type Npc } from "../data/npcs"
 import { getSkillById } from "../data/skills"
 import { getLocationById } from "../data/map"
+
+function getNpcActionMarkers(player: Player, npc: Npc): string[] {
+  const state = getNpcState(player.world, npc.id)
+  const markers: string[] = []
+
+  if (isNpcRelevantToCurrentStory(player, npc.id)) markers.push("主线相关")
+  if (state.recruited) markers.push("已入队")
+  if (!state.recruited && canRecruit(npc, player, player.world)) markers.push("可招募")
+  if (npc.roles.includes("师父") && npc.teaches && npc.teaches.length > 0) markers.push("可拜师")
+  if (npc.roles.includes("对手") || npc.roles.includes("剧情")) markers.push("可切磋")
+
+  return markers.slice(0, 3)
+}
+
+function getNpcDetailRecommendation(args: {
+  player: Player
+  npc: Npc
+  isRecruited: boolean
+  canRecruitNpc: boolean
+  canTeach: boolean
+  canChallenge: boolean
+}): { title: string; detail: string } {
+  if (args.canRecruitNpc) {
+    return {
+      title: `当前可先邀请 ${args.npc.name}`,
+      detail: "这名人物已经满足入队条件，若想补队伍厚度，先把他邀进队最直接。",
+    }
+  }
+
+  if (args.canTeach) {
+    return {
+      title: `当前可先向 ${args.npc.name} 学艺`,
+      detail: "这名人物能直接提供武学收益，若想立刻提升面板，先看传功最划算。",
+    }
+  }
+
+  if (args.canChallenge) {
+    return {
+      title: `可先与 ${args.npc.name} 切磋`,
+      detail: "这名人物当前更适合作为战斗互动目标，想试手感或刷名声可先过两招。",
+    }
+  }
+
+  if (args.isRecruited) {
+    return {
+      title: `${args.npc.name} 已在队中`,
+      detail: "他已经可以为你提供队伍收益，下一步更适合回人物页调整站位或出战名单。",
+    }
+  }
+
+  if (isNpcRelevantToCurrentStory(args.player, args.npc.id)) {
+    return {
+      title: `${args.npc.name} 当前与主线相关`,
+      detail: "这名人物处在当前剧情链附近，先读对话能更好理解下一步风波。",
+    }
+  }
+
+  return {
+    title: `先听听 ${args.npc.name} 怎么说`,
+    detail: "这名人物暂时更偏情报与风味互动，先看对话，再决定要不要后续深挖。",
+  }
+}
 
 // ============================================================
 // 江湖人物（NPC）界面
@@ -94,11 +157,17 @@ export function NpcScreen({ player, onUpdate, onChallenge, onBack }: Props) {
                 const rel = getRelationLevel(player, npc.id, player.world)
                 const locName = npc.locationId ? getLocationById(npc.locationId)?.name : undefined
                 const isRecruited = getNpcState(player.world, npc.id).recruited
+                const actionMarkers = getNpcActionMarkers(player, npc)
                 return (
                   <button key={npc.id} className="location-card" onClick={() => setSelected(npc)}>
                     <span className="location-name">{npc.title}·{npc.name}</span>
                     <span className="location-desc">{npc.description}</span>
                     <span className="location-region">{npc.work} · {npc.alignment}道{locName ? ` · ${locName}` : ""}</span>
+                    {actionMarkers.length > 0 && (
+                      <div className="npc-marker-row">
+                        {actionMarkers.map((marker) => <span key={marker} className="npc-marker-chip">{marker}</span>)}
+                      </div>
+                    )}
                     {isRecruited
                       ? <span className="relation-badge rel-friend">已入队</span>
                       : <span className={`relation-badge rel-${rel.tone}`}>{rel.label}</span>
@@ -119,10 +188,18 @@ export function NpcScreen({ player, onUpdate, onChallenge, onBack }: Props) {
   const isDead = npcState.alive === false
   const isRecruited = npcState.recruited
   const canChallenge = !isDead && (npc.roles.includes("对手") || npc.roles.includes("剧情"))
-  const canTeach = !isDead && npc.roles.includes("师父") && npc.teaches && npc.teaches.length > 0
+  const canTeach = !isDead && npc.roles.includes("师父") && !!npc.teaches?.length
   const canRecruitNpc = !isDead && !isRecruited && canRecruit(npc, player, player.world)
   const npcRel = getRelationLevel(player, npc.id, player.world)
   const locName = npc.locationId ? getLocationById(npc.locationId)?.name : undefined
+  const detailRecommendation = getNpcDetailRecommendation({
+    player,
+    npc,
+    isRecruited,
+    canRecruitNpc,
+    canTeach,
+    canChallenge,
+  })
 
   function handleRecruit() {
     const r = applyConsequences(player, player.world, [
@@ -163,6 +240,12 @@ export function NpcScreen({ player, onUpdate, onChallenge, onBack }: Props) {
           </div>
         </div>
         <p className="char-skill-desc" style={{ marginTop: 8, color: "#b8a98a" }}>{npc.description}</p>
+      </section>
+
+      <section className="stat-panel npc-recommend-panel">
+        <div className="npc-recommend-label">当前建议</div>
+        <div className="npc-recommend-title">{detailRecommendation.title}</div>
+        <p className="npc-recommend-copy">{detailRecommendation.detail}</p>
       </section>
 
       {!isDead && (npc.dialogue || npc.dialogueVariants) && (
