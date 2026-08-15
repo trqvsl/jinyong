@@ -27,6 +27,7 @@ export function enterNode(
       w = r.world
     }
     w = { ...w, seenNodes: [...w.seenNodes, seenNodeKey] }
+    p = { ...p, world: w }
   }
   return { node, player: p, world: w }
 }
