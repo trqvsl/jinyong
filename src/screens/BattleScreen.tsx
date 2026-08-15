@@ -59,7 +59,11 @@ interface Props {
   partyBondBonuses?: PartyBondBonus[]
   partySupportTotals?: PartySupportTotals
   openingSupportLines?: string[]
-  onEnd: (result: { player: Player; outcome: "won" | "lost" | "fled"; rewards?: { exp: number; gold: number; leveledUp: boolean } }) => void
+  onEnd: (result: {
+    player: Player
+    outcome: "won" | "lost" | "fled"
+    rewards?: { exp: number; gold: number; leveledUp: boolean; levelsGained: number }
+  }) => void
 }
 
 let floatId = 0
@@ -147,6 +151,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
   stateRef.current = state
   // 战斗中对背包的修改（用道具扣库存），结束时合并回传给父组件
   const inventoryPatch = useRef<Record<string, number>>({})
+  const skillUsesRef = useRef<Record<string, number>>({})
   const supportRuntimeRef = useRef(createBattleSupportRuntimeState())
   const logEndRef = useRef<HTMLDivElement>(null)
 
@@ -264,6 +269,12 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
   function resolvePlayerAction(actor: EngineCombatant, skill: EngineBattleSkill, targetUids: string[]) {
     setPhase("busy")
     const r = performAction(stateRef.current, { actorUid: actor.uid, skill, targetUids })
+    if (actor.uid === stateRef.current.playerSide[0]?.uid) {
+      skillUsesRef.current = {
+        ...skillUsesRef.current,
+        [skill.id]: (skillUsesRef.current[skill.id] ?? 0) + 1,
+      }
+    }
     let nextState = r.state
     const nextLogs = [...r.logs]
     if (actor.uid === stateRef.current.playerSide[0]?.uid && r.results.some((x) => x.isCrit)) {
@@ -400,6 +411,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
       enemies,
       inventoryPatch: inventoryPatch.current,
       runtime: supportRuntimeRef.current,
+      skillUses: skillUsesRef.current,
     })
 
     if (result === "won") {
@@ -409,6 +421,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
       setOutcome("won"); setPhase("ended")
       onEnd({ player: finalized.player, outcome: "won", rewards: finalized.rewards })
     } else if (result === "fled") {
+      pushLog(finalized.logs)
       setOutcome("fled"); setPhase("ended")
       onEnd({ player: finalized.player, outcome: "fled" })
     } else {

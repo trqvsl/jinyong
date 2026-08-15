@@ -9,6 +9,7 @@ import type { Player } from "../../types"
 import type { WorldState, Consequence } from "../../data/story/schema"
 import { deriveAlignment, ensureNpc, ensureFaction, ensureArc } from "./state"
 import { getSkillById } from "../../data/skills"
+import { applyExperience } from "../progression"
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
@@ -41,7 +42,7 @@ export function applyConsequences(
       case "reputation": p.reputation = applyNum(p.reputation, c); break
       case "karma": p.karma = clamp(applyNum(p.karma, c), -100, 100); karmaChanged = true; break
       case "gold": p.gold = Math.max(0, applyNum(p.gold, c)); break
-      case "exp": p.exp = Math.max(0, p.exp + (c.delta ?? 0)); break
+      case "exp": p = applyExperience(p, c.delta ?? 0).player; break
       case "hp": p.hp = clamp(p.hp + (c.delta ?? 0), 0, p.hpMax); break
       case "mp": p.mp = clamp(p.mp + (c.delta ?? 0), 0, p.mpMax); break
       case "aptitude": {
@@ -60,7 +61,10 @@ export function applyConsequences(
       case "skill": {
         if (!p.skills.some((s) => s.id === c.id)) {
           const sk = getSkillById(c.id)
-          if (sk) p.skills = [...p.skills, sk]
+          if (sk) {
+            p.skills = [...p.skills, sk]
+            p.mastery = { ...p.mastery, [c.id]: 0 }
+          }
         }
         break
       }

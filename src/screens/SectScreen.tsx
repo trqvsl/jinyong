@@ -100,6 +100,7 @@ export function SectScreen({ player, onLearn, onBack }: Props) {
       ...player,
       gold: player.gold - cost,
       skills: [...player.skills, skill],
+      mastery: { ...player.mastery, [skill.id]: 0 },
     }
     onLearn(updated, skill)
   }

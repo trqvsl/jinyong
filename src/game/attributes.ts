@@ -72,11 +72,6 @@ export function fleeChanceOf(roots: RootAttributes, base = 0.5): number {
   return Math.min(0.95, base + roots.luck * 0.003)
 }
 
-// 熟练度成长倍率 = 1 + 悟性/200
-export function masteryGrowthRate(comprehension: number): number {
-  return 1 + comprehension / 200
-}
-
 // 由根基属性完整推导出"面板战斗属性"（不含装备、状态）
 export function deriveStats(roots: RootAttributes, level: number) {
   return {

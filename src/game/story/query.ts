@@ -27,6 +27,12 @@ export interface StoryProgressView {
   recommendedLocationId: string
   relatedNpcIds: string[]
   priorities: StorySystemPriorities
+  guidanceSource: {
+    kind: "act" | "override" | "complete"
+    id: string
+    after?: string
+    before?: string
+  }
 }
 
 function notCompleted(player: Player, event: StoryEvent): boolean {
@@ -89,8 +95,12 @@ export function getStoryProgress(player: Player, volumeId = "shendiao"): StoryPr
   let hubMood = act.hubMood
   let recommendedLocationId = act.recommendedLocationId
   let relatedNpcIds = act.relatedNpcIds
+  let guidanceSource: StoryProgressView["guidanceSource"] = {
+    kind: "act",
+    id: act.id,
+  }
 
-  for (const override of definition.legacyGuidance) {
+  for (const [index, override] of definition.legacyGuidance.entries()) {
     const afterReached = override.afterBeat
       ? !!getRawBeatResult(player, definition, override.afterBeat)
       : override.afterVariant
@@ -109,6 +119,20 @@ export function getStoryProgress(player: Player, volumeId = "shendiao"): StoryPr
     hubName = override.hubName ?? hubName
     hubMood = override.hubMood ?? hubMood
     relatedNpcIds = override.relatedNpcIds ?? relatedNpcIds
+    guidanceSource = {
+      kind: "override",
+      id: `${definition.id}:guidance:${index}`,
+      after: override.afterBeat
+        ? `beat:${override.afterBeat}`
+        : override.afterVariant
+          ? `variant:${override.afterVariant.key}=${override.afterVariant.value}`
+          : undefined,
+      before: override.beforeBeat
+        ? `beat:${override.beforeBeat}`
+        : override.beforeVariant
+          ? `variant:${override.beforeVariant.key}=${override.beforeVariant.value}`
+          : undefined,
+    }
   }
 
   if (isComplete) {
@@ -118,6 +142,10 @@ export function getStoryProgress(player: Player, volumeId = "shendiao"): StoryPr
     hubName = definition.complete.hubName
     hubMood = definition.complete.hubMood
     relatedNpcIds = definition.complete.relatedNpcIds
+    guidanceSource = {
+      kind: "complete",
+      id: `${definition.id}:complete`,
+    }
   }
 
   return {
@@ -135,6 +163,7 @@ export function getStoryProgress(player: Player, volumeId = "shendiao"): StoryPr
     recommendedLocationId,
     relatedNpcIds,
     priorities: act.priorities,
+    guidanceSource,
   }
 }
 

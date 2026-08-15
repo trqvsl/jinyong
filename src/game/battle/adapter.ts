@@ -9,19 +9,27 @@
 
 import type { Player, Enemy, Skill } from "../../types"
 import type { Combatant, BattleSkill, BattleState, BattleObjectiveConfig } from "./types"
-import { recomputePlayerStats, effectiveAttack, critRateOf, dodgeRateOf, luckDodgeBonus } from "../attributes"
+import { effectiveAttack, critRateOf, dodgeRateOf, luckDodgeBonus } from "../attributes"
+import { applyExperience, applyMasteryToSkill, getSkillMastery } from "../progression"
 import { createBattleObjective } from "./engine"
 
 // 把全局 Skill 转成引擎需要的 BattleSkill（字段是兼容子集）
-export function toBattleSkill(skill: Skill): BattleSkill {
+export function toBattleSkill(skill: Skill, mastery = 0): BattleSkill {
+  const modifiers = applyMasteryToSkill(skill, mastery)
   return {
     id: skill.id,
     name: skill.name,
     category: skill.category,
     damageType: skill.damageType,
-    power: skill.power,
+    power: modifiers.power,
     mpCost: skill.mpCost,
-    effect: skill.effect,
+    effect: skill.effect
+      ? {
+          ...skill.effect,
+          potency: modifiers.effectPotency,
+          applyChance: modifiers.effectApplyChance,
+        }
+      : undefined,
     targeting: (skill as any).targeting,
     innerScale: skill.innerScale,
   }
@@ -46,7 +54,9 @@ export function playerToCombatant(player: Player): Combatant {
     dodgeRate: dodgeRateOf(player.roots) + luckDodgeBonus(player.roots), // 闪避率（身法+福缘）
     innerPower: player.roots.internal,                               // 内功催动基础，engine 按 skill.innerScale 叠加
     statuses: player.statuses.map((s) => ({ ...s })),
-    skills: player.skills.map(toBattleSkill),
+    skills: player.skills.map((skill) =>
+      toBattleSkill(skill, getSkillMastery(player, skill.id))
+    ),
   }
 }
 
@@ -123,26 +133,20 @@ export function combatantBackToPlayer(player: Player, combatant: Combatant): Pla
 // 战斗胜利后的成长结算（升级）——与存档耦合，从引擎移到这里。
 export function applyVictoryGrowth(player: Player, enemyExp: number, enemyGold: number): {
   player: Player
-  rewards: { exp: number; gold: number; leveledUp: boolean }
+  rewards: { exp: number; gold: number; leveledUp: boolean; levelsGained: number }
 } {
-  const p: Player = {
+  const rewarded: Player = {
     ...player,
-    exp: player.exp + enemyExp,
     gold: player.gold + enemyGold,
   }
-  let leveledUp = false
-  while (p.exp >= p.expMax) {
-    p.exp -= p.expMax
-    p.level += 1
-    leveledUp = true
-    p.attributePoints = (p.attributePoints ?? 0) + 5
-    p.expMax = Math.round(p.expMax * 1.3)
+  const growth = applyExperience(rewarded, enemyExp)
+  return {
+    player: growth.player,
+    rewards: {
+      exp: enemyExp,
+      gold: enemyGold,
+      leveledUp: growth.levelsGained > 0,
+      levelsGained: growth.levelsGained,
+    },
   }
-  let final = p
-  if (leveledUp) {
-    final = recomputePlayerStats(p)
-    final.hp = final.hpMax
-    final.mp = final.mpMax
-  }
-  return { player: final, rewards: { exp: enemyExp, gold: enemyGold, leveledUp } }
 }

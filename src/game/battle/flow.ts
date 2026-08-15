@@ -19,6 +19,7 @@ import {
   tickUnitStatuses,
 } from "./engine"
 import { applyVictoryGrowth, syncPlayersFromState } from "./adapter"
+import { applySkillPractice, type SkillMasteryGain } from "../progression"
 import {
   getBattleTriggeredSupportEffects,
   getBattleTriggeredSupportEvents,
@@ -56,7 +57,13 @@ export interface BattleAdvanceResult {
 
 export interface FinalizeBattleResult {
   player: Player
-  rewards?: { exp: number; gold: number; leveledUp: boolean }
+  rewards?: {
+    exp: number
+    gold: number
+    leveledUp: boolean
+    levelsGained: number
+  }
+  masteryGains: SkillMasteryGain[]
   logs: BattleLogEntry[]
 }
 
@@ -252,6 +259,7 @@ export function finalizeBattleResult(args: {
   enemies: Enemy[]
   inventoryPatch: Record<string, number>
   runtime: BattleSupportRuntimeState
+  skillUses?: Record<string, number>
 }): FinalizeBattleResult {
   const syncedCombatPlayer = syncPlayersFromState([args.combatPlayer], cleanupSupportStatuses(args.finalState, args.runtime))[0]
   const syncedPlayer: Player = {
@@ -261,6 +269,11 @@ export function finalizeBattleResult(args: {
     statuses: syncedCombatPlayer.statuses,
   }
   const withItems: Player = { ...syncedPlayer, inventory: { ...syncedPlayer.inventory, ...args.inventoryPatch } }
+  const practiced = applySkillPractice(withItems, args.skillUses ?? {})
+  const practiceLogs: BattleLogEntry[] = practiced.gains.map((gain) => ({
+    text: `${gain.skillName}熟练度 +${gain.gained}（${gain.after} / 100）`,
+    type: "status",
+  }))
 
   if (args.result === "won") {
     const defeatedEnemyIndexes = new Set(
@@ -269,24 +282,42 @@ export function finalizeBattleResult(args: {
     const defeatedEnemies = args.enemies.filter((_, index) => defeatedEnemyIndexes.has(index))
     const totalExp = defeatedEnemies.reduce((sum, enemy) => sum + enemy.expReward, 0)
     const totalGold = defeatedEnemies.reduce((sum, enemy) => sum + enemy.goldReward, 0)
-    const { player, rewards } = applyVictoryGrowth(withItems, totalExp, totalGold)
+    const { player, rewards } = applyVictoryGrowth(practiced.player, totalExp, totalGold)
     return {
       player: { ...player, hp: player.hp, mp: player.mp },
       rewards,
+      masteryGains: practiced.gains,
       logs: [
         { text: "得胜！", type: "system" },
         { text: `获得经验 ${rewards.exp} 点，银两 ${rewards.gold} 两`, type: "system" },
-        ...(rewards.leveledUp ? [{ text: `境界突破！升到 ${player.level} 级！`, type: "crit" as const }] : []),
+        ...(rewards.leveledUp
+          ? [{
+              text: `境界突破！连升 ${rewards.levelsGained} 级，当前 ${player.level} 级！`,
+              type: "crit" as const,
+            }]
+          : []),
+        ...practiceLogs,
       ],
     }
   }
 
   if (args.result === "fled") {
-    return { player: withItems, logs: [] }
+    return {
+      player: practiced.player,
+      masteryGains: practiced.gains,
+      logs: practiceLogs,
+    }
   }
 
   return {
-    player: { ...withItems, hp: Math.max(1, Math.round(withItems.hpMax * 0.3)) },
-    logs: [{ text: "你被击败了……", type: "system" }],
+    player: {
+      ...practiced.player,
+      hp: Math.max(1, Math.round(practiced.player.hpMax * 0.3)),
+    },
+    masteryGains: practiced.gains,
+    logs: [
+      { text: "你被击败了……", type: "system" },
+      ...practiceLogs,
+    ],
   }
 }

@@ -1,6 +1,7 @@
 import type { Player, Skill } from "../types"
 import { getSkillById } from "../data/skills"
 import { deriveStats } from "./attributes"
+import { MAX_SKILL_MASTERY } from "./progression"
 import { createWorld, migrateWorld } from "./story/state"
 
 // ============================================================
@@ -37,7 +38,7 @@ export function createPlayer(name: string): Player {
     speed: derived.speed,
     roots,
     attributePoints: 0,
-    mastery: {},
+    mastery: { changquan: 0 },
     relations: {},
     gold: 100,
     aptitude: roots.comprehension, // 向后兼容：aptitude 指向悟性
@@ -93,6 +94,8 @@ function migratePlayer(p: any): Player {
   }
   if (p.attributePoints === undefined) p.attributePoints = 0
   if (!p.mastery) p.mastery = {}
+  if (!Number.isFinite(p.exp)) p.exp = 0
+  if (!Number.isFinite(p.expMax) || p.expMax <= 0) p.expMax = 100
   if (!p.relations) p.relations = {}
   p.aptitude = p.roots.comprehension
   // 迁移到世界状态体系：补 karma（由旧 alignment 反推）与 world
@@ -104,6 +107,18 @@ function migratePlayer(p: any): Player {
   } else {
     p.skills = [getSkillById("changquan")!]
   }
+  const previousMastery = p.mastery as Record<string, number>
+  p.mastery = Object.fromEntries(
+    p.skills.map((skill: Skill) => {
+      const rawMastery = previousMastery[skill.id]
+      return [
+        skill.id,
+        Number.isFinite(rawMastery)
+          ? Math.max(0, Math.min(MAX_SKILL_MASTERY, Math.floor(rawMastery)))
+          : 0,
+      ]
+    }),
+  )
   return p as Player
 }
 

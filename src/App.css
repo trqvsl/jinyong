@@ -1908,8 +1908,67 @@ body {
 .char-priority-main {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
+}
+.char-priority-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.char-priority-title .char-skill-name {
+  color: var(--ink);
+}
+.skill-mastery-rank {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.skill-mastery-rank.mastered {
+  color: #8a681d;
+  font-weight: 700;
+}
+.skill-mastery-track {
+  width: 100%;
+  height: 7px;
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(139, 44, 31, 0.1);
+  border-radius: 4px;
+  background: rgba(201, 190, 168, 0.42);
+}
+.skill-mastery-track.compact {
+  height: 6px;
+  margin-top: 6px;
+}
+.skill-mastery-track > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8b2c1f, #b8965a);
+  transition: width 0.3s ease;
+}
+.char-skill-detail {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+.char-skill-detail .char-skill-desc {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+.skill-mastery-bonus {
+  flex-shrink: 0;
+  color: #7a5b20;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 .char-deep-panel {
   opacity: 0.96;
@@ -1939,6 +1998,25 @@ body {
 .char-skill-item:last-child { border-bottom: none; }
 .char-skill-name { font-weight: 600; margin-right: 8px; }
 .char-skill-desc { font-size: 12px; color: var(--ink-soft); display: block; margin-top: 2px; }
+.char-mastery-item {
+  padding: 10px 0;
+}
+.char-mastery-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+@media (max-width: 520px) {
+  .char-skill-detail {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .skill-mastery-bonus {
+    white-space: normal;
+  }
+}
 .party-section-block { display: flex; flex-direction: column; gap: 10px; }
 .party-section-block + .party-section-block { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--paper-dark); }
 .party-section-head { font-size: 13px; letter-spacing: 2px; color: var(--ink-soft); }
@@ -4246,10 +4324,439 @@ body {
 }
 /* ===== 调试炼丹房 ===== */
 .debug-screen {
-  max-width: 640px;
+  width: 100%;
+  max-width: 960px;
   margin: 0 auto;
   padding: 16px;
 }
+
+.debug-story-console {
+  padding: 0;
+  overflow: hidden;
+  border-color: rgba(139, 44, 31, 0.34);
+}
+
+.debug-console-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 14px;
+  border-left: 4px solid var(--accent);
+}
+
+.debug-console-heading h2 {
+  margin: 3px 0 0;
+  padding: 0;
+  border: 0;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.debug-console-kicker {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.debug-console-progress {
+  min-width: 76px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink-soft);
+  background: var(--paper);
+  font-size: 12px;
+  text-align: center;
+}
+
+.debug-guidance-strip {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.3fr);
+  border-top: 1px solid var(--paper-dark);
+  border-bottom: 1px solid var(--paper-dark);
+  background: #f8f5ee;
+}
+
+.debug-guidance-primary,
+.debug-guidance-source {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 68px;
+  padding: 12px 20px;
+}
+
+.debug-guidance-primary {
+  border-right: 1px solid var(--paper-dark);
+  color: var(--accent);
+}
+
+.debug-guidance-source {
+  color: #41695a;
+}
+
+.debug-guidance-primary div,
+.debug-guidance-source div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.debug-guidance-primary span,
+.debug-guidance-source span {
+  color: #756b5d;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.debug-guidance-primary strong,
+.debug-guidance-source strong {
+  overflow-wrap: anywhere;
+  color: currentColor;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.debug-console-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 16px 20px 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.debug-console-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.debug-console-tabs button:last-child {
+  border-right: 0;
+}
+
+.debug-console-tabs button.active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.debug-console-pane {
+  padding: 18px 20px 20px;
+}
+
+.debug-console-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.debug-console-section-head.route-head {
+  margin-top: 22px;
+}
+
+.debug-console-section-head > span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.debug-console-section-head small {
+  color: #817665;
+  font-size: 10px;
+}
+
+.debug-act-switcher {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.debug-act-switcher button {
+  display: grid;
+  grid-template-rows: 20px 20px 16px;
+  place-items: center;
+  min-width: 0;
+  min-height: 72px;
+  padding: 7px 4px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.debug-act-switcher button:last-child {
+  border-right: 0;
+}
+
+.debug-act-switcher button:hover,
+.debug-act-switcher button.current {
+  background: #f0e8d8;
+  color: var(--accent);
+}
+
+.debug-act-switcher button.current {
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+.debug-act-switcher button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--paper-dark);
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+
+.debug-act-switcher button.current > span {
+  background: var(--accent);
+  color: #fff;
+}
+
+.debug-act-switcher strong {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-act-switcher small {
+  color: #817665;
+  font-size: 9px;
+}
+
+.debug-route-fixtures {
+  border-top: 1px solid var(--line);
+}
+
+.debug-route-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 66px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--paper-dark);
+}
+
+.debug-route-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.debug-route-copy strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.debug-route-copy span {
+  color: #6f6658;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.debug-route-apply {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 74px;
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 1px solid rgba(139, 44, 31, 0.34);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.debug-route-apply:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.debug-variant-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.debug-variant-group {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--paper-dark);
+}
+
+.debug-variant-group:last-child {
+  border-bottom: 1px solid var(--paper-dark);
+}
+
+.debug-variant-group-name {
+  padding-top: 7px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.debug-variant-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.debug-variant-field {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.8fr) minmax(120px, 1.2fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.debug-variant-field > span {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.debug-variant-field select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 26px 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+}
+
+.debug-variant-field select:focus {
+  outline: 2px solid rgba(139, 44, 31, 0.2);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.debug-console-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 9px 20px;
+  border-top: 1px solid rgba(65, 105, 90, 0.24);
+  background: #edf4ef;
+  color: #315b4b;
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .debug-guidance-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .debug-guidance-primary {
+    border-right: 0;
+    border-bottom: 1px solid var(--paper-dark);
+  }
+
+  .debug-act-switcher {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .debug-act-switcher button {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .debug-act-switcher button:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .debug-act-switcher button:nth-last-child(-n + 3) {
+    border-bottom: 0;
+  }
+
+  .debug-variant-group {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .debug-variant-group-name {
+    padding-top: 0;
+  }
+
+  .debug-variant-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .debug-screen {
+    padding: 8px 0;
+  }
+
+  .debug-console-heading,
+  .debug-guidance-primary,
+  .debug-guidance-source,
+  .debug-console-pane,
+  .debug-console-notice {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .debug-console-tabs {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .debug-console-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .debug-route-row {
+    gap: 9px;
+  }
+
+  .debug-route-apply {
+    min-width: 66px;
+  }
+
+  .debug-variant-field {
+    grid-template-columns: minmax(78px, 0.7fr) minmax(0, 1.3fr);
+  }
+}
+
 .debug-actions {
   display: flex;
   flex-wrap: wrap;

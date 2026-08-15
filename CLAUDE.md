@@ -55,7 +55,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 - 《射雕主线脚本.md》：**当前实现样板线说明**，负责当前代码里已落地的主线事件自然语言镜像
 - `src/data/story/shendiao.ts`：**实际实现数据**
 
-当前前五幕已完整重组，第六幕已落地 P0-P4（战斗目标、地图路引、穆念慈、桃花岛血案、烟雨楼会局与铁枪庙裁决）；`niujia / damos / meet-rong / qigong / wangfu / taohua` 仍同步写入，作为旧存档与后续旧样板兼容 beat。
+当前前六幕已连续可玩，第六幕 P0-P5 与成长系统收口已完成（统一经验升级、实战熟练度、战斗修正、角色页展示与专项测试）；下一阶段为第七幕 P0 战争玩法契约盘点。`niujia / damos / meet-rong / qigong / wangfu / taohua` 仍同步写入，作为旧存档与后续旧样板兼容 beat。
 
 ## 存档迁移
 
@@ -69,16 +69,20 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `npm run dev` — 启动开发服务器 http://localhost:5173/
 - `npm run build` — tsc + vite build
 - `npm run lint` — 运行 oxlint
+- `npm test` — Vitest 路线、证物组合与引擎回归
+- `npm run verify` — 聚合剧情、战斗、修复回归与 Vitest
 - `npm run preview` — 预览构建结果
 
-### 手动验证命令（不在 package.json scripts 中）
-- `npx tsx scripts/verify-story.ts` — 剧情引擎 + 静态结构 / flag 使用验证
-- `npx tsx scripts/verify-battle.ts` — 战斗引擎验证
-- `npx tsx scripts/verify-fixes.ts` — 修复回归验证
+### 单项验证命令
+- `npm run verify:story` — 剧情引擎 + 静态结构 / flag 使用验证
+- `npm run verify:battle` — 战斗引擎验证
+- `npm run verify:fixes` — 修复回归验证
+- `npm run test:story-routes` — 路线可达性与证物组合
+- `npm run test:story-engine` — 剧情引擎回归
 
 ## 常见坑
 
-- **applyConsequences 返回后 `player.world` 必须等于 `world`**（已修复，但改 consequences 时别破坏）
+- **任何返回 player + world 的剧情结算后两者必须同步**；`applyConsequences` 与 `enterNode` 都要保证 `player.world === world`
 - **节点 key ≠ node.id 会导致 enterNode 找不到节点**
 - **纯叙事节点（autoNext）需要 EventScreen 有对应 phase**，否则卡死
 - **通用事件无 condition 会抢先于有 arcBeat 条件的主线事件**
@@ -99,6 +103,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `src/data/events.ts` — 通用奇遇事件
 - `src/data/story/schema.ts` — Consequence/Condition/Transition/StoryNode/WorldState 等类型定义
 - `src/data/story/progress.ts` — 剧情卷幕级进度、界面引导与旧 beat 映射元数据
+- `src/data/story/debugPresets.ts` — Debug 六幕入口、典型路线与可编辑 variant 纯数据
 - `src/data/story/index.ts` — 剧情卷聚合（加新作品改这里）
 - `src/data/map.ts` — 地点定义 + 事件绑定（events 数组）
 - `src/game/story/consequences.ts` — 后果解释器（加新 Consequence 种类改这里）
@@ -108,8 +113,12 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `src/game/story/worldScheduler.ts` — 世界回响调度器
 - `src/game/story/state.ts` — WorldState 初始化 / 迁移 / 默认值
 - `src/game/appFlow.ts` — 剧情 / 战斗 / 主界面回流编排
+- `src/game/debug.ts` — 通用调试预设应用与单项 variant 更新
 - `src/screens/EventScreen.tsx` — 事件界面（choosing/autoNext/result 三阶段 + 书信展示）
 - `src/App.tsx` — 根路由编排
+- `tests/story-routes.test.ts` — 全剧情可达性、第六幕入口 / 并轨、32 / 64 证物组合与旧事件隔离
+- `tests/story-engine-defects.test.ts` — 剧情引擎状态同步回归
+- `tests/story-debug.test.ts` — 六幕跳转、五类铁枪庙夹具、推荐来源与状态编辑回归
 
 ### 改战斗
 - `src/game/battle/index.ts` — battle 模块公共入口（外部优先从这里 import）
@@ -124,9 +133,11 @@ App.tsx        ← 路由编排，不含业务逻辑
 ### 改角色 / 数值
 - `src/types/index.ts` — Player/Enemy/Skill/RootAttributes 等核心类型
 - `src/game/attributes.ts` — 根基→战斗属性推导公式
+- `src/game/progression.ts` — 统一经验升级、武功熟练度增长与战斗修正
 - `src/game/player.ts` — 角色创建 + 存档 + 旧档迁移
 - `src/data/npcs.ts` — NPC 数据 + npcToEnemy 转换
 - `src/data/items.ts` — 道具定义 + apply 效果
+- `tests/progression.test.ts` — 剧情 / 战斗统一升级、熟练度增长上限与适配层修正回归
 
 ### 改界面
 - `src/screens/` — 所有界面组件（Title/Main/Battle/Event/Map/Sect/Shop/Character/Npc/Debug）

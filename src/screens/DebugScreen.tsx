@@ -1,13 +1,29 @@
 import { useState } from "react"
 import type { ReactNode } from "react"
+import {
+  BookOpenCheck,
+  CheckCircle2,
+  MapPin,
+  Route,
+  SlidersHorizontal,
+} from "lucide-react"
 import type { Player, Skill } from "../types"
 import type { BattleObjectiveConfig } from "../game/battle"
 import { savePlayer } from "../game/player"
+import { applyStoryDebugPreset, setStoryDebugVariant } from "../game/debug"
 import { recomputePlayerStats } from "../game/attributes"
 import { getRelationLevel } from "../game/relations"
+import { getStoryProgress } from "../game/story/query"
 import { getSkillById } from "../data/skills"
 import { getEnemyById } from "../data/enemies"
 import { NPCS } from "../data/npcs"
+import { getLocationById } from "../data/map"
+import {
+  STORY_DEBUG_ACT_PRESETS,
+  STORY_DEBUG_ROUTE_PRESETS,
+  STORY_DEBUG_VARIANT_FIELDS,
+  type StoryDebugPreset,
+} from "../data/story/debugPresets"
 
 interface Props {
   player: Player
@@ -35,6 +51,7 @@ const TEST_ENEMY_IDS = [
 ]
 
 type DebugTone = "neutral" | "positive" | "negative" | "warning"
+type StoryDebugTab = "routes" | "variants"
 
 interface DebugEntry {
   text: string
@@ -197,16 +214,41 @@ function renderDebugCard(args: {
   )
 }
 
+function formatGuidanceSource(
+  source: ReturnType<typeof getStoryProgress>["guidanceSource"],
+): string {
+  if (source.kind === "complete") return "卷末完成态"
+  if (source.kind === "act") return `幕级默认 · ${source.id}`
+
+  const boundaries = [
+    source.after ? `已达 ${source.after}` : "",
+    source.before ? `未达 ${source.before}` : "",
+  ].filter(Boolean)
+  return boundaries.join(" · ") || source.id
+}
+
 export function DebugScreen({ player, onUpdate, onBack, onTestBattle }: Props) {
   const [, force] = useState(0)
   const refresh = () => force((n) => n + 1)
   const [selectedEnemies, setSelectedEnemies] = useState<string[]>([])
   const [showOnlyNonEmpty, setShowOnlyNonEmpty] = useState(true)
+  const [storyDebugTab, setStoryDebugTab] = useState<StoryDebugTab>("routes")
+  const [storyDebugNotice, setStoryDebugNotice] = useState("")
 
   function commit(next: Player) {
     savePlayer(next)
     onUpdate(next)
     refresh()
+  }
+
+  function applyStoryPreset(preset: StoryDebugPreset) {
+    commit(applyStoryDebugPreset(player, preset))
+    setStoryDebugNotice(`${preset.title}已载入，推荐地点切到${getLocationById(preset.targetLocationId)?.name ?? preset.targetLocationId}。`)
+  }
+
+  function updateStoryVariant(key: string, value: string, label: string) {
+    commit(setStoryDebugVariant(player, "shendiao", key, value))
+    setStoryDebugNotice(`${label}已${value ? `设为 ${value}` : "清除"}。`)
   }
 
   function applyStoryTestBoost() {
@@ -268,10 +310,20 @@ export function DebugScreen({ player, onUpdate, onBack, onTestBattle }: Props) {
   function addSkill(id: string) {
     const skill = getSkillById(id)
     if (!skill || player.skills.some((s) => s.id === id)) return
-    commit({ ...player, skills: [...player.skills, skill] })
+    commit({
+      ...player,
+      skills: [...player.skills, skill],
+      mastery: { ...player.mastery, [id]: 0 },
+    })
   }
   function removeSkill(id: string) {
-    commit({ ...player, skills: player.skills.filter((s) => s.id !== id) })
+    const mastery = { ...player.mastery }
+    delete mastery[id]
+    commit({
+      ...player,
+      skills: player.skills.filter((s) => s.id !== id),
+      mastery,
+    })
   }
 
   // 刷满血蓝、给银两、重置状态
@@ -298,6 +350,13 @@ export function DebugScreen({ player, onUpdate, onBack, onTestBattle }: Props) {
   const seenNodeGroupSummary = summarizeSeenNodeGroups(player)
   const flagSummary = summarizeFlagStates(player)
   const flagGroupSummary = summarizeFlagGroups(player)
+  const storyProgress = getStoryProgress(player)
+  const recommendedLocation = getLocationById(storyProgress.recommendedLocationId)
+  const storyVariantGroups = (["阶段", "人物与会局", "四轮证据", "裁决"] as const)
+    .map((group) => ({
+      group,
+      fields: STORY_DEBUG_VARIANT_FIELDS.filter((field) => field.group === group),
+    }))
   const currentStorySummary: DebugEntry[] = player.world.currentStory
     ? [
         { text: `event=${player.world.currentStory.eventId}`, tone: "positive", strong: true },
@@ -317,6 +376,144 @@ export function DebugScreen({ player, onUpdate, onBack, onTestBattle }: Props) {
         <span className="player-name">调试炼丹房</span>
         <span className="day-info">第 {player.day} 日</span>
       </header>
+
+      <section className="stat-panel debug-story-console">
+        <div className="debug-console-heading">
+          <div>
+            <span className="debug-console-kicker">P5 · 剧情校验台</span>
+            <h2>{storyProgress.act.title}</h2>
+          </div>
+          <span className="debug-console-progress">
+            {storyProgress.completed} / {storyProgress.total} 幕
+          </span>
+        </div>
+
+        <div className="debug-guidance-strip">
+          <div className="debug-guidance-primary">
+            <MapPin size={17} aria-hidden="true" />
+            <div>
+              <span>当前推荐</span>
+              <strong>{recommendedLocation?.name ?? storyProgress.recommendedLocationId}</strong>
+            </div>
+          </div>
+          <div className="debug-guidance-source">
+            <BookOpenCheck size={16} aria-hidden="true" />
+            <div>
+              <span>推荐来源</span>
+              <strong>{formatGuidanceSource(storyProgress.guidanceSource)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="debug-console-tabs" role="tablist" aria-label="剧情调试模式">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={storyDebugTab === "routes"}
+            className={storyDebugTab === "routes" ? "active" : ""}
+            onClick={() => setStoryDebugTab("routes")}
+          >
+            <Route size={16} aria-hidden="true" />
+            路线预设
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={storyDebugTab === "variants"}
+            className={storyDebugTab === "variants" ? "active" : ""}
+            onClick={() => setStoryDebugTab("variants")}
+          >
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            关键状态
+          </button>
+        </div>
+
+        {storyDebugTab === "routes" ? (
+          <div className="debug-console-pane" role="tabpanel">
+            <div className="debug-console-section-head">
+              <span>按幕跳转</span>
+              <small>保留角色战力，重建剧情世界</small>
+            </div>
+            <div className="debug-act-switcher">
+              {STORY_DEBUG_ACT_PRESETS.map((preset, index) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={storyProgress.act.id === preset.expectedActId ? "current" : ""}
+                  onClick={() => applyStoryPreset(preset)}
+                  title={`载入${preset.title}并推荐${getLocationById(preset.targetLocationId)?.name ?? preset.targetLocationId}`}
+                >
+                  <span>{index + 1}</span>
+                  <strong>{preset.title}</strong>
+                  <small>{getLocationById(preset.targetLocationId)?.name ?? preset.targetLocationId}</small>
+                </button>
+              ))}
+            </div>
+
+            <div className="debug-console-section-head route-head">
+              <span>铁枪庙路线夹具</span>
+              <small>载入后从地图进入铁枪庙</small>
+            </div>
+            <div className="debug-route-fixtures">
+              {STORY_DEBUG_ROUTE_PRESETS.map((preset) => (
+                <div key={preset.id} className="debug-route-row">
+                  <div className="debug-route-copy">
+                    <strong>{preset.title}</strong>
+                    <span>{preset.description}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="debug-route-apply"
+                    onClick={() => applyStoryPreset(preset)}
+                  >
+                    <Route size={15} aria-hidden="true" />
+                    载入
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="debug-console-pane" role="tabpanel">
+            <div className="debug-console-section-head">
+              <span>第六幕关键状态</span>
+              <small>更改后清除当前剧情断点</small>
+            </div>
+            <div className="debug-variant-groups">
+              {storyVariantGroups.map(({ group, fields }) => (
+                <div key={group} className="debug-variant-group">
+                  <div className="debug-variant-group-name">{group}</div>
+                  <div className="debug-variant-fields">
+                    {fields.map((field) => (
+                      <label key={field.key} className="debug-variant-field">
+                        <span>{field.label}</span>
+                        <select
+                          value={player.world.arcs.shendiao?.variants?.[field.key] ?? ""}
+                          onChange={(event) => updateStoryVariant(field.key, event.target.value, field.label)}
+                        >
+                          <option value="">未设置</option>
+                          {field.options.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {storyDebugNotice ? (
+          <div className="debug-console-notice" role="status">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            {storyDebugNotice}
+          </div>
+        ) : null}
+      </section>
 
       <section className="stat-panel">
         <h2>角色调试</h2>

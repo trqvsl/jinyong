@@ -1,7 +1,12 @@
 import { getItemById } from "../data/items"
-import type { Player, SkillCategory } from "../types"
+import type { Player, Skill, SkillCategory } from "../types"
 import { savePlayer } from "../game/player"
 import { recomputePlayerStats } from "../game/attributes"
+import {
+  applyMasteryToSkill,
+  getSkillMastery,
+  getSkillMasteryLabel,
+} from "../game/progression"
 import { getLocationById } from "../data/map"
 import { getRelationLevel } from "../game/relations"
 import { getActivePartyNpcs, getReservePartyNpcs, moveActiveNpc, setNpcPartyActive, MAX_ACTIVE_TEAMMATES, normalizePlayerParty, getNpcBattleRole, getPartySupportBonuses, getPartySupportTotals, getPartyBondBonuses, getBattleSupportMechanicRules } from "../game/party"
@@ -28,6 +33,25 @@ const ROOT_ATTRS: { key: keyof Player["roots"]; label: string; note: string }[] 
   { key: "agility", label: "身法", note: "速度、命中、暴击、闪避" },
   { key: "luck", label: "福缘", note: "奇遇、剧情检定、逃跑" },
 ]
+
+function getMasteryBonusText(skill: Skill, mastery: number): string {
+  const modified = applyMasteryToSkill(skill, mastery)
+  const bonuses: string[] = []
+  const powerGain = modified.power - skill.power
+  if (powerGain > 0) bonuses.push(`威力 +${powerGain}`)
+
+  if (skill.effect) {
+    const potencyGain = Math.abs(modified.effectPotency) - Math.abs(skill.effect.potency)
+    if (potencyGain > 0) bonuses.push(`效果 +${potencyGain}`)
+
+    const chanceGain = Math.round(
+      (modified.effectApplyChance - skill.effect.applyChance) * 1000,
+    ) / 10
+    if (chanceGain > 0) bonuses.push(`命中 +${chanceGain}%`)
+  }
+
+  return bonuses.join(" · ") || "尚无战斗加成"
+}
 
 export function CharacterScreen({ player, onUpdate, onBack }: Props) {
   const activeParty = getActivePartyNpcs(player)
@@ -215,15 +239,36 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
         </div>
         {topSkills.length === 0 ? <p className="hint">尚未习得任何武功。</p> : (
           <div className="char-priority-list">
-            {topSkills.map((skill) => (
-              <div key={skill.id} className="char-priority-item">
-                <div className="char-priority-main">
-                  <span className="skill-cat-tag" style={{ background: CAT_COLOR[skill.category] }}>{skill.category}</span>
-                  <span className="char-skill-name">{skill.name}</span>
+            {topSkills.map((skill) => {
+              const mastery = getSkillMastery(player, skill.id)
+              return (
+                <div key={skill.id} className="char-priority-item">
+                  <div className="char-priority-main">
+                    <div className="char-priority-title">
+                      <span className="skill-cat-tag" style={{ background: CAT_COLOR[skill.category] }}>{skill.category}</span>
+                      <span className="char-skill-name">{skill.name}</span>
+                    </div>
+                    <span className={`skill-mastery-rank ${mastery >= 100 ? "mastered" : ""}`}>
+                      {getSkillMasteryLabel(mastery)} · {mastery}
+                    </span>
+                  </div>
+                  <div
+                    className="skill-mastery-track"
+                    role="progressbar"
+                    aria-label={`${skill.name}熟练度`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={mastery}
+                  >
+                    <span style={{ width: `${mastery}%` }} />
+                  </div>
+                  <div className="char-skill-detail">
+                    <span className="char-skill-desc">{skill.description}</span>
+                    <span className="skill-mastery-bonus">{getMasteryBonusText(skill, mastery)}</span>
+                  </div>
                 </div>
-                <span className="char-skill-desc">{skill.description}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>
@@ -358,12 +403,33 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
               <span className="skill-cat-tag" style={{ background: CAT_COLOR[group.cat] }}>{group.cat}</span>
               <span className="char-cat-count">{group.skills.length} 门</span>
             </div>
-            {group.skills.map(s => (
-              <div key={s.id} className="char-skill-item">
-                <span className="char-skill-name">{s.name}</span>
-                <span className="char-skill-desc">{s.description}</span>
-              </div>
-            ))}
+            {group.skills.map((skill) => {
+              const mastery = getSkillMastery(player, skill.id)
+              return (
+                <div key={skill.id} className="char-skill-item char-mastery-item">
+                  <div className="char-mastery-line">
+                    <span className="char-skill-name">{skill.name}</span>
+                    <span className={`skill-mastery-rank ${mastery >= 100 ? "mastered" : ""}`}>
+                      {getSkillMasteryLabel(mastery)} · {mastery}/100
+                    </span>
+                  </div>
+                  <div
+                    className="skill-mastery-track compact"
+                    role="progressbar"
+                    aria-label={`${skill.name}熟练度`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={mastery}
+                  >
+                    <span style={{ width: `${mastery}%` }} />
+                  </div>
+                  <div className="char-skill-detail">
+                    <span className="char-skill-desc">{skill.description}</span>
+                    <span className="skill-mastery-bonus">{getMasteryBonusText(skill, mastery)}</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         ))}
         {player.skills.length === 0 && <p className="hint">尚未习得任何武功。</p>}
