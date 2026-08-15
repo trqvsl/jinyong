@@ -6113,6 +6113,98 @@ body {
   box-shadow: 0 0 8px currentColor;
 }
 
+.battle-objective-panel {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: auto minmax(150px, 1fr) minmax(150px, 240px) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid rgba(216, 191, 134, 0.24);
+  border-radius: 3px;
+  background: #1a231f;
+  color: #e6d3a5;
+}
+
+.battle-objective-panel.failed {
+  border-color: rgba(211, 82, 67, 0.56);
+  background: #2d1d1a;
+}
+
+.battle-objective-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(216, 191, 134, 0.24);
+  border-radius: 2px;
+  color: #d7b970;
+}
+
+.battle-objective-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.battle-objective-kicker,
+.battle-objective-protect span {
+  color: #8fa198;
+  font-size: 9px;
+}
+
+.battle-objective-copy strong {
+  overflow: hidden;
+  color: #f1dfb7;
+  font-family: var(--stage-display-font);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-objective-progress {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: #c8d1cb;
+  font-size: 11px;
+}
+
+.battle-objective-track {
+  height: 5px;
+  overflow: hidden;
+  background: #101714;
+}
+
+.battle-objective-track i {
+  display: block;
+  height: 100%;
+  background: #b28d45;
+  transition: width 0.2s ease;
+}
+
+.battle-objective-protect {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 6px;
+  align-items: baseline;
+  text-align: right;
+}
+
+.battle-objective-protect b {
+  color: #d9e8e1;
+  font-size: 12px;
+}
+
+.battle-objective-protect small {
+  grid-column: 1 / -1;
+  color: #9da9a2;
+  font-size: 9px;
+}
+
 .battle-screen-v2 .battle-support-panel {
   padding: 10px 12px;
   border: 1px solid rgba(216, 191, 134, 0.18);
@@ -6654,6 +6746,16 @@ body {
 .battle-fighter.player .fighter-side-tag {
   background: rgba(71, 116, 106, 0.24);
   color: #acd0c6;
+}
+
+.battle-fighter.protected-target .fighter-hud {
+  border-color: rgba(213, 180, 104, 0.62);
+  box-shadow: 0 0 0 1px rgba(213, 180, 104, 0.12);
+}
+
+.battle-fighter.protected-target .fighter-side-tag {
+  background: rgba(184, 147, 42, 0.28);
+  color: #f0d68d;
 }
 
 .fighter-bar {
@@ -7302,6 +7404,17 @@ body {
 
   .battle-screen-v2 .turn-order-bar::before {
     padding: 0 6px;
+  }
+
+  .battle-objective-panel {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .battle-objective-progress,
+  .battle-objective-protect {
+    grid-column: 1 / -1;
+    text-align: left;
   }
 
   .battle-stage-v2 {

@@ -2,14 +2,15 @@ import { useState } from "react"
 import type { Player, Enemy } from "./types"
 import type { Transition, StoryEvent } from "./data/events"
 import type { StoryCheckpoint } from "./data/story/schema"
+import type { BattleObjectiveConfig } from "./game/battle"
 import { savePlayer } from "./game/player"
 import { getEnemyById } from "./data/enemies"
 import { applyPartySupportToPlayer, getPartyBondBonuses, getPartySupportBonuses, getPartySupportTotals, getBattleSupportOpeningLines } from "./game/party"
 import {
   createBattleEntryCommand,
   createMainViewCommand,
+  getBattleTeammates,
   getPendingWorldEvents,
-  getRecruitedTeammates,
   normalizeMainPlayer,
   openLocationStory,
   openPendingWorldEvent,
@@ -45,6 +46,8 @@ function App() {
   const [storyInitialResult, setStoryInitialResult] = useState<{ text: string; transition: Transition; title?: string; consumedDay: boolean } | undefined>(undefined)
   // 当前战斗对应的 transition（剧情战斗用；调试/NPC切磋为 null）
   const [pendingBattleTransition, setPendingBattleTransition] = useState<Transition | null>(null)
+  const [battleAllyIds, setBattleAllyIds] = useState<string[]>([])
+  const [battleObjective, setBattleObjective] = useState<BattleObjectiveConfig | undefined>(undefined)
   // NPC 切磋时的 npcId，战后结算关系后果
   const [challengeNpcId, setChallengeNpcId] = useState<string | null>(null)
 
@@ -56,6 +59,8 @@ function App() {
         setStoryInitialPageIndex(0)
         setLocationId(null)
         setPendingBattleTransition(null)
+        setBattleAllyIds([])
+        setBattleObjective(undefined)
         setChallengeNpcId(null)
         setEnemies([])
         setScreen("main")
@@ -67,6 +72,8 @@ function App() {
         setStoryInitialResult(command.initialResult)
         setLocationId(command.locationId)
         setPendingBattleTransition(null)
+        setBattleAllyIds([])
+        setBattleObjective(undefined)
         setChallengeNpcId(null)
         setEnemies([])
         setScreen("event")
@@ -80,6 +87,8 @@ function App() {
         })
         setStoryInitialPageIndex(0)
         setPendingBattleTransition(null)
+        setBattleAllyIds([])
+        setBattleObjective(undefined)
         setChallengeNpcId(null)
         setEnemies([])
         setScreen("event")
@@ -93,6 +102,8 @@ function App() {
           setLocationId(command.storyContext.locationId)
         }
         setPendingBattleTransition(command.pendingBattleTransition)
+        setBattleAllyIds(command.allyIds)
+        setBattleObjective(command.battleObjective)
         setChallengeNpcId(command.challengeNpcId)
         setEnemies(command.enemies)
         setScreen("battle")
@@ -200,9 +211,16 @@ function App() {
     applyViewCommand(createBattleEntryCommand({ enemies: [enemy], challengeNpcId: npcId ?? null }))
   }
   // 调试屏：指定敌人直接进战斗（非剧情）
-  function handleTestBattle(enemyIds: string[]) {
+  function handleTestBattle(
+    enemyIds: string[],
+    options?: { allyIds?: string[]; objective?: BattleObjectiveConfig },
+  ) {
     if (!player) return
-    applyViewCommand(createBattleEntryCommand({ enemies: enemyIds.map((id) => getEnemyById(id)) }))
+    applyViewCommand(createBattleEntryCommand({
+      enemies: enemyIds.map((id) => getEnemyById(id)),
+      allyIds: options?.allyIds,
+      battleObjective: options?.objective,
+    }))
   }
 
   function handleLearn(p: Player) {
@@ -215,6 +233,7 @@ function App() {
   const activePartyTotals = player ? getPartySupportTotals(player) : { attack: 0, defense: 0, speed: 0 }
   const battleSupportOpeningLines = player ? getBattleSupportOpeningLines(player) : []
   const battlePlayer = player ? applyPartySupportToPlayer(player) : null
+  const battleTeammates = player ? getBattleTeammates(player, battleAllyIds) : []
 
   return (
     <div className="app">
@@ -238,7 +257,7 @@ function App() {
       {screen === "map" && player && <MapScreen player={player} onSelect={handleSelectLocation} onBack={() => returnToMain(player)} />}
       {screen === "debug" && player && <DebugScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} onTestBattle={handleTestBattle} />}
       {screen === "npc" && player && <NpcScreen player={player} onUpdate={handleUpdate} onChallenge={handleChallengeNpc} onBack={() => returnToMain(player)} />}
-      {screen === "battle" && player && battlePlayer && enemies.length > 0 && <BattleScreen player={player} battlePlayer={battlePlayer} enemies={enemies} teammates={getRecruitedTeammates(player)} partySupportBonuses={activePartyBonuses} partyBondBonuses={activePartyBondBonuses} partySupportTotals={activePartyTotals} openingSupportLines={battleSupportOpeningLines} onEnd={handleBattleEnd} />}
+      {screen === "battle" && player && battlePlayer && enemies.length > 0 && <BattleScreen player={player} battlePlayer={battlePlayer} enemies={enemies} teammates={battleTeammates} objective={battleObjective} partySupportBonuses={activePartyBonuses} partyBondBonuses={activePartyBondBonuses} partySupportTotals={activePartyTotals} openingSupportLines={battleSupportOpeningLines} onEnd={handleBattleEnd} />}
       {screen === "sect" && player && <SectScreen player={player} onLearn={handleLearn} onBack={() => returnToMain(player)} />}
       {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}
       {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}

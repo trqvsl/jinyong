@@ -48,6 +48,10 @@ function getRawBeatResult(player: Player, definition: StoryProgressDefinition, b
   return player.world.arcs[definition.arcId]?.beats[beat]
 }
 
+function getRawVariant(player: Player, definition: StoryProgressDefinition, key: string): string | undefined {
+  return player.world.arcs[definition.arcId]?.variants?.[key]
+}
+
 function getActResult(
   player: Player,
   definition: StoryProgressDefinition,
@@ -55,6 +59,11 @@ function getActResult(
 ): BeatResult | undefined {
   const direct = getRawBeatResult(player, definition, act.beat)
   if (direct) return direct
+
+  const hasExplicitActProgress = definition.acts.some((candidate) =>
+    getRawBeatResult(player, definition, candidate.beat) !== undefined
+  )
+  if (hasExplicitActProgress) return undefined
 
   for (const migration of definition.legacyBeatMigrations) {
     if (!getRawBeatResult(player, definition, migration.legacyBeat)) continue
@@ -82,10 +91,16 @@ export function getStoryProgress(player: Player, volumeId = "shendiao"): StoryPr
   let relatedNpcIds = act.relatedNpcIds
 
   for (const override of definition.legacyGuidance) {
-    const afterReached = !!getRawBeatResult(player, definition, override.afterBeat)
+    const afterReached = override.afterBeat
+      ? !!getRawBeatResult(player, definition, override.afterBeat)
+      : override.afterVariant
+        ? getRawVariant(player, definition, override.afterVariant.key) === override.afterVariant.value
+        : true
     const beforeReached = override.beforeBeat
       ? !!getRawBeatResult(player, definition, override.beforeBeat)
-      : false
+      : override.beforeVariant
+        ? getRawVariant(player, definition, override.beforeVariant.key) === override.beforeVariant.value
+        : false
     if (!afterReached || beforeReached) continue
     recommendedLocationId = override.recommendedLocationId ?? recommendedLocationId
     primaryAction = override.primaryAction ?? primaryAction

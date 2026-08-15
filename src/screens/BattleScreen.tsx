@@ -16,6 +16,7 @@ import type {
   BattleState as EngineBattleState,
   BattleSkill as EngineBattleSkill,
   BattleLogEntry as EngineBattleLogEntry,
+  BattleObjectiveConfig,
 } from "../game/battle"
 import type { PortraitSpec } from "../assets/portraits"
 import type { Npc } from "../data/npcs"
@@ -24,7 +25,7 @@ import { getItemById } from "../data/items"
 import { getSkillById } from "../data/skills"
 import {
   performAction, enemyDecideAction, findCombatant, isStunned,
-  createBattleState, applyAtbConsume, previewTurnOrder,
+  createBattleState, completeBattleTurn, previewTurnOrder,
   createBattleSupportRuntimeState, applyTriggeredSupport, advanceBattleToNextActor, finalizeBattleResult,
 } from "../game/battle"
 import { npcToPlayerSideCombatant } from "../game/npc"
@@ -53,6 +54,7 @@ interface Props {
   battlePlayer?: Player
   enemies: Enemy[]
   teammates?: Npc[]    // 已入队 NPC 队友，AI 自动操控
+  objective?: BattleObjectiveConfig
   partySupportBonuses?: PartySupportBonus[]
   partyBondBonuses?: PartyBondBonus[]
   partySupportTotals?: PartySupportTotals
@@ -87,6 +89,14 @@ function targetingLabel(skill: EngineBattleSkill): string {
   }
 }
 
+function objectiveOpeningText(objective?: BattleObjectiveConfig): string | null {
+  if (!objective) return null
+  const base = objective.kind === "surviveRounds"
+    ? `守住 ${objective.rounds} 轮`
+    : "击退全部敌人"
+  return `战斗目标：${objective.title ?? base}${objective.protectUid ? "，保护指定友方" : ""}`
+}
+
 function SkillGlyph({ category }: { category: EngineBattleSkill["category"] }) {
   const Icon = category === "外功"
     ? Swords
@@ -98,11 +108,11 @@ function SkillGlyph({ category }: { category: EngineBattleSkill["category"] }) {
   return <Icon size={20} aria-hidden="true" />
 }
 
-export function BattleScreen({ player, battlePlayer, enemies, teammates, partySupportBonuses = [], partyBondBonuses = [], partySupportTotals = { attack: 0, defense: 0, speed: 0 }, openingSupportLines = [], onEnd }: Props) {
+export function BattleScreen({ player, battlePlayer, enemies, teammates, objective, partySupportBonuses = [], partyBondBonuses = [], partySupportTotals = { attack: 0, defense: 0, speed: 0 }, openingSupportLines = [], onEnd }: Props) {
   const combatPlayer = battlePlayer ?? player
   const supportMechanicRules = useMemo(() => getBattleSupportMechanicRules(player), [player])
   const [state, setState] = useState<EngineBattleState>(() => {
-    const base = createBattleState([combatPlayer], enemies)
+    const base = createBattleState([combatPlayer], enemies, objective)
     // 将 NPC 队友追加到玩家侧
     if (teammates && teammates.length > 0) {
       base.playerSide = [...base.playerSide, ...teammates.map(npcToPlayerSideCombatant)]
@@ -111,6 +121,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
   })
   const [log, setLog] = useState<{ text: string; type: string }[]>([
     { text: enemies.length > 1 ? "遭遇 " + enemies.map(function(e: Enemy){return e.name}).join("、") + " 等" + enemies.length + "人！" : ("遭遇 " + (enemies[0] ? enemies[0].name : "") + "！" + (enemies[0] ? enemies[0].description : "")), type: "system" },
+    ...(objectiveOpeningText(objective) ? [{ text: objectiveOpeningText(objective)!, type: "system" }] : []),
     ...openingSupportLines.map((text) => ({ text, type: "status" })),
   ])
   const [phase, setPhase] = useState<"acting" | "busy" | "ended">("acting")
@@ -333,7 +344,14 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
 
   // 一次行动后：消耗该行动者的 ATB，调度下一个能行动的单位
   function afterAction(curState: EngineBattleState, actorUid: string) {
-    scheduleNext(applyAtbConsume(curState, actorUid))
+    const completed = completeBattleTurn(curState, actorUid)
+    if (completed.roundCompleted && completed.state.objective?.kind === "surviveRounds") {
+      pushLog([{
+        text: `守势推进：第 ${completed.state.objective.completedRounds} / ${completed.state.objective.targetRounds} 轮`,
+        type: "system",
+      }])
+    }
+    scheduleNext(completed.state)
   }
 
   // 调度下一个行动者：推进 ATB → 结算其身上状态 → 跳过死亡/眩晕者 → 让其出手。
@@ -403,6 +421,11 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
   const turnOrder = useMemo(() => previewTurnOrder(state, 6), [state])
   const currentActor = currentActorUid ? findCombatant(state, currentActorUid) : null
   const isPlayerTurn = currentActor?.side === "player" && !currentActor?.uid.startsWith("npc-") && phase === "acting"
+  const protectedUnit = state.objective?.protectUid
+    ? findCombatant(state, state.objective.protectUid)
+    : undefined
+  const objectiveTitle = state.objective?.title
+    ?? (state.objective?.kind === "surviveRounds" ? "守住阵线" : "击退敌手")
 
   const ownedItems = Object.entries({ ...player.inventory, ...inventoryPatch.current }).filter(([, count]) => count > 0)
   function handleUseItem(itemId: string) {
@@ -473,6 +496,31 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
           </span>
         ))}
       </div>
+
+      {state.objective && (
+        <div className={`battle-objective-panel ${protectedUnit && protectedUnit.hp <= 0 ? "failed" : ""}`}>
+          <div className="battle-objective-icon"><Shield size={18} aria-hidden="true" /></div>
+          <div className="battle-objective-copy">
+            <span className="battle-objective-kicker">战斗目标</span>
+            <strong>{objectiveTitle}</strong>
+          </div>
+          {state.objective.kind === "surviveRounds" && (
+            <div className="battle-objective-progress">
+              <span>{Math.min(state.objective.completedRounds, state.objective.targetRounds)} / {state.objective.targetRounds} 轮</span>
+              <div className="battle-objective-track">
+                <i style={{ width: `${Math.min(100, state.objective.completedRounds / state.objective.targetRounds * 100)}%` }} />
+              </div>
+            </div>
+          )}
+          {protectedUnit && (
+            <div className="battle-objective-protect">
+              <span>保护</span>
+              <b>{protectedUnit.name}</b>
+              <small>{protectedUnit.hp} / {protectedUnit.hpMax}</small>
+            </div>
+          )}
+        </div>
+      )}
 
       {(partySupportBonuses.length > 0 || partyBondBonuses.length > 0 || (teammates?.length ?? 0) > 0) && (
         <div className="battle-support-panel">
@@ -558,7 +606,8 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, partySu
               floats={floats.filter((f) => f.uid === c.uid)}
               highlight={currentActorUid === c.uid}
               supportActive={!!teammates?.[index - 1] && supportHighlightNpcIds.includes(teammates[index - 1].id)}
-              tagText={index === 0 ? "主角" : "同伴"}
+              tagText={state.objective?.protectUid === c.uid ? "保护目标" : index === 0 ? "主角" : "同伴"}
+              protectedTarget={state.objective?.protectUid === c.uid}
               isAttacking={actionMotion?.actorUid === c.uid}
               isTargeted={actionMotion?.targetUids.includes(c.uid)}
               actionCategory={actionMotion?.actorUid === c.uid || actionMotion?.targetUids.includes(c.uid) ? actionMotion?.category : undefined}
@@ -688,6 +737,7 @@ function BattleFighter({
   onSelect,
   tagText,
   supportActive,
+  protectedTarget,
   isAttacking,
   isTargeted,
   actionCategory,
@@ -698,6 +748,7 @@ function BattleFighter({
   floats: FloatText[]
   highlight?: boolean
   supportActive?: boolean
+  protectedTarget?: boolean
   selectable?: boolean
   onSelect?: () => void
   tagText?: string
@@ -717,6 +768,7 @@ function BattleFighter({
         shaken ? "shake" : "",
         highlight ? "active" : "",
         supportActive ? "support-active" : "",
+        protectedTarget ? "protected-target" : "",
         selectable ? "selectable" : "",
         unit.hp <= 0 ? "down" : "",
         isAttacking ? "is-attacking" : "",

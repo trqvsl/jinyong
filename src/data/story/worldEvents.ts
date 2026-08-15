@@ -310,4 +310,113 @@ export const WORLD_EVENTS: WorldEvent[] = [
       },
     },
   },
+  {
+    id: "taohua-blame-spreads",
+    once: true,
+    trigger: {
+      kind: "and",
+      items: [
+        { kind: "arcVariant", arcId: "shendiao", key: "act6.island", eq: "cleared" },
+        { kind: "arcVariant", arcId: "shendiao", key: "act6.misunderstanding", eq: "weak" },
+      ],
+    },
+    event: {
+      id: "world-taohua-blame-spreads",
+      entryNode: "main",
+      nodes: {
+        main: {
+          id: "main",
+          title: "江湖回响·东邪杀徒传闻",
+          text: "你回到江南落脚处，楼下说书人已经把桃花岛血案编成新段。柯镇恶的指认被传成黄药师亲手杀人，白驼山与杨康的名字一句未提。",
+          choices: [
+            {
+              id: "stop-the-rumor",
+              text: "拿现有线索压下定论",
+              description: "证物尚弱，只能要求众人先等烟雨楼对质。",
+              resultText: "你让说书人删去“亲眼所见”四字，又请丐帮弟子传话：柯镇恶是亲耳听见，不是亲眼看见。传闻没有消失，至少不再被说成定案。",
+              consequences: [
+                { kind: "relation", npcId: "huangrong", delta: 2 },
+                { kind: "reputation", delta: 1 },
+              ],
+              transition: { type: "end" },
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    id: "taohua-evidence-disputed",
+    once: true,
+    trigger: {
+      kind: "and",
+      items: [
+        { kind: "arcVariant", arcId: "shendiao", key: "act6.island", eq: "cleared" },
+        { kind: "arcVariant", arcId: "shendiao", key: "act6.misunderstanding", eq: "partial" },
+      ],
+    },
+    event: {
+      id: "world-taohua-evidence-disputed",
+      entryNode: "main",
+      nodes: {
+        main: {
+          id: "main",
+          title: "江湖回响·两种伤痕",
+          text: "丐帮分舵送来两张验伤抄件。一张记着桃花岛落英掌伤，另一张却记着白驼蛇毒与九阴爪孔。两派弟子正为哪一张可信争执不休。",
+          choices: [
+            {
+              id: "seal-both-records",
+              text: "两份都封存",
+              description: "不让任何一派先毁掉对自己不利的验伤记录。",
+              resultText: "你让分舵在两份抄件上同时盖印，交由不同弟子带往烟雨楼。此后谁要质疑，都得当众指出哪一处伤痕作假。",
+              consequences: [
+                { kind: "factionAttitude", factionId: "beggar", delta: 2 },
+                { kind: "aptitude", delta: 1 },
+              ],
+              transition: { type: "end" },
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    id: "taohua-evidence-summons",
+    once: true,
+    trigger: {
+      kind: "and",
+      items: [
+        { kind: "arcVariant", arcId: "shendiao", key: "act6.island", eq: "cleared" },
+        { kind: "arcVariant", arcId: "shendiao", key: "act6.misunderstanding", eq: "questioning" },
+      ],
+    },
+    event: {
+      id: "world-taohua-evidence-summons",
+      entryNode: "main",
+      presentation: "letter",
+      letterStyle: "formal",
+      nodes: {
+        main: {
+          id: "main",
+          title: "江湖回响·烟雨楼验匣",
+          letterIntro: "鲁有脚派两名弟子送来盖着丐帮分舵印记的短帖，另附三只编号木匣的封条。",
+          text: "翡翠鞋、血字与蛇毒已分路送往烟雨楼。柯大侠愿当众复述所闻，韩女侠若能赴会，也请一并到场。各方只认证物，不认传闻。",
+          letterSignature: "鲁有脚",
+          choices: [
+            {
+              id: "accept-seals",
+              text: "收下木匣封条",
+              description: "确认三份证物在烟雨楼会局前不会被混换。",
+              resultText: "你核过封条编号，让两名弟子分别走水路与陆路。烟雨楼会局因此多了可以逐件质询的实物。",
+              consequences: [
+                { kind: "relation", npcId: "luyoujiao", delta: 4 },
+                { kind: "reputation", delta: 3 },
+              ],
+              transition: { type: "end" },
+            },
+          ],
+        },
+      },
+    },
+  },
 ]

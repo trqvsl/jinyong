@@ -54,6 +54,7 @@ import type { Combatant, BattleSkill, BattleState } from "../game/battle/types"
 
 - 当前 battle engine 已支持多对多战斗与 ATB / CTB 式行动值推进。
 - `advanceAtb / nextActor / applyAtbConsume / previewTurnOrder` 已在 `engine.ts` 落地。
+- 剧情战可声明 `defeatAll / surviveRounds` 目标，并附加指定友方保护条件；完整轮由所有存活单位各获得一次行动权构成。
 - 队友 / 羁绊支援规则定义在 `src/game/party.ts`，并由 battle flow + `BattleScreen.tsx` 在触发点调用 battle 能力应用护盾 / buff / 回血 / 回内等效果；它们不是 battle core 内核硬编码规则。
 - 当前职责边界可总结为：`engine` 负责纯规则，`adapter` 负责世界模型 ↔ 战斗模型转换，`flow` 负责 battle 应用层编排，`BattleScreen` 负责展示 + 交互反馈。
 
@@ -69,6 +70,7 @@ import type { Combatant, BattleSkill, BattleState } from "../game/battle/types"
 | 新的"单位来源"（队友/召唤物） | `adapter.ts` 加 `xxxToCombatant` |
 | 成长/升级规则变化 | `adapter.ts` 的 `applyVictoryGrowth` |
 | 行动顺序轴 CTB 细化 | `engine.ts` 中继续打磨现有 `advanceAtb / nextActor / applyAtbConsume / previewTurnOrder` 相关逻辑 |
+| 剧情战目标 | `types.ts` 定义目标，`engine.ts` 判定，`appFlow.ts` 将剧情声明转成运行时目标 |
 
 ## 测试（建议未来补）
 引擎是纯函数，非常适合单测：给定 Combatant A/B 和 skill，断言伤害范围、状态变化。

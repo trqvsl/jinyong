@@ -5,7 +5,7 @@
 // ============================================================
 import type { Player } from "../../types"
 import type { WorldState, Condition } from "../../data/story/schema"
-import { getNpcState, getFactionState, getBeatResult } from "./state"
+import { getNpcState, getFactionState, getBeatResult, getArcVariant } from "./state"
 
 export function checkCondition(player: Player, world: WorldState, cond?: Condition): boolean {
   if (!cond) return true
@@ -31,6 +31,8 @@ export function checkCondition(player: Player, world: WorldState, cond?: Conditi
       if (r === undefined) return false                 // 未完成
       return cond.result === undefined ? true : r === cond.result
     }
+    case "arcVariant":
+      return getArcVariant(world, cond.arcId, cond.key) === cond.eq
     case "flag":
       return cond.eq !== undefined ? world.flags[cond.name] === cond.eq : world.flags[cond.name] !== undefined
     case "hasItem":

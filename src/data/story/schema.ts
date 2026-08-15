@@ -41,6 +41,7 @@ export interface WorldFactionState {
 
 export interface WorldArcState {
   beats: Record<string, BeatResult>
+  variants: Record<string, string>
   ending?: string
 }
 
@@ -107,6 +108,7 @@ export type Consequence =
   | { kind: "factionPower"; factionId: string; delta?: number; set?: number }
   // ④ 主线进度 / 卷结局 / 兜底标记
   | { kind: "arcBeat"; arcId: string; beat: string; result: BeatResult }
+  | { kind: "arcVariant"; arcId: string; key: string; value: string }
   | { kind: "arcEnding"; arcId: string; ending: string }
   | { kind: "flag"; name: string; value: boolean | number | string }
 
@@ -123,6 +125,7 @@ export type Condition =
   | { kind: "npcRelationType"; npcId: string; eq: NpcRelationType }
   | { kind: "factionAttitude"; factionId: string; gte?: number; lte?: number }
   | { kind: "arcBeat"; arcId: string; beat: string; result?: BeatResult }  // result 缺省=已完成不论结果
+  | { kind: "arcVariant"; arcId: string; key: string; eq: string }
   | { kind: "flag"; name: string; eq?: boolean | number | string }
   | { kind: "hasItem"; id: string }
   | { kind: "hasSkill"; id: string }
@@ -133,12 +136,17 @@ export type Condition =
 // ============================================================
 // 流转 Transition + 战斗结局 Outcome
 // ============================================================
+export type StoryBattleObjective =
+  | { kind: "defeatAll"; protectAllyId?: string; title?: string }
+  | { kind: "surviveRounds"; rounds: number; protectAllyId?: string; title?: string }
+
 export type Transition =
   | { type: "end" }                                                // 回主菜单
   | { type: "goto"; nodeId: string }                               // 同事件下一节点
   | { type: "branch"; cases: { when: Condition; then: Transition }[]; else?: Transition }  // 条件分叉
   | { type: "random"; cases: { weight: number; then: Transition }[] }                       // 加权随机分流（如赌博）
   | { type: "battle"; enemyId?: string; useLocationPool?: boolean; lethal?: boolean;
+      allyIds?: string[]; objective?: StoryBattleObjective;
       onWin?: Outcome; onLose?: Outcome; onFlee?: Outcome }
   | { type: "gotoEvent"; eventId: string }                         // 跨事件串联
   | { type: "gameOver"; endingId?: string }                        // 死亡/结局

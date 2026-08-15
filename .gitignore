@@ -30,3 +30,12 @@ Thumbs.db
 # 本地环境变量
 *.local
 .env
+
+# 本地原著参考资料（不进入代码检查点）
+doc/
+
+# 浏览器与运行态验证产物
+.claude/runtime-check/
+.claude/verify-*.png
+.claude/verify-runtime.mjs
+test-results/

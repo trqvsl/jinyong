@@ -83,6 +83,26 @@ export const SKILLS: Skill[] = [
    description: "大理段氏家传指法，点穴制敌。",
     innerScale: 0.8,
  },
+  {
+    id: "kongming",
+    name: "空明拳",
+    category: "外功",
+    damageType: "拳掌",
+    power: 32,
+    mpCost: 12,
+    description: "老顽童所传拳法，以空而明、以柔胜刚，出掌若有若无。",
+    innerScale: 0.8,
+  },
+  {
+    id: "tiezhang",
+    name: "铁掌功",
+    category: "外功",
+    damageType: "拳掌",
+    power: 38,
+    mpCost: 17,
+    description: "铁掌帮镇派掌法，掌力沉雄凌厉，近身中掌后极难卸开。",
+    innerScale: 0.9,
+  },
 
   // ---------- 内功（自身增益 / 治疗） ----------
   {

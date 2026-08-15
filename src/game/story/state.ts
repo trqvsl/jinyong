@@ -9,7 +9,7 @@ import { ALIGNMENT_THRESHOLDS } from "../../data/story/schema"
 import { STORY_PROGRESS_DEFINITIONS } from "../../data/story/progress"
 import type { Alignment } from "../../types"
 
-export const WORLD_VERSION = 5
+export const WORLD_VERSION = 6
 
 // 空世界：所有 Record 初始为空，字段渐进生长
 export function createWorld(): WorldState {
@@ -41,6 +41,9 @@ export function getFactionState(world: WorldState, factionId: string): WorldFact
 export function getBeatResult(world: WorldState, arcId: string, beat: string): BeatResult | undefined {
   return world.arcs[arcId]?.beats[beat]
 }
+export function getArcVariant(world: WorldState, arcId: string, key: string): string | undefined {
+  return world.arcs[arcId]?.variants?.[key]
+}
 
 // 取某 NPC 的"可变副本"用于写入：返回 prev 的浅拷贝并写回 world.npcs。
 // 调用方须保证传入的 world.npcs 已是拷贝（applyConsequences 会先浅拷贝），以免污染原状态。
@@ -54,6 +57,16 @@ export function ensureFaction(world: WorldState, factionId: string): WorldFactio
   const prev = world.factions[factionId] ?? DEFAULT_FACTION
   const next = { ...prev }
   world.factions[factionId] = next
+  return next
+}
+export function ensureArc(world: WorldState, arcId: string): WorldState["arcs"][string] {
+  const prev = world.arcs[arcId]
+  const next = {
+    ...prev,
+    beats: { ...(prev?.beats ?? {}) },
+    variants: { ...(prev?.variants ?? {}) },
+  }
+  world.arcs[arcId] = next
   return next
 }
 
@@ -95,6 +108,9 @@ function migrateStoryProgress(world: WorldState): void {
     const arc = world.arcs[definition.arcId]
     if (!arc) continue
 
+    const hasExplicitActProgress = definition.acts.some((act) => arc.beats[act.beat] !== undefined)
+    if (hasExplicitActProgress) continue
+
     for (const migration of definition.legacyBeatMigrations) {
       if (!arc.beats[migration.legacyBeat]) continue
       for (const target of migration.targets) {
@@ -115,7 +131,11 @@ export function migrateWorld(raw: unknown): WorldState {
   w.arcs = Object.fromEntries(
     Object.entries(rawArcs).map(([arcId, state]) => [
       arcId,
-      { ...state, beats: { ...(state?.beats ?? {}) } },
+      {
+        ...state,
+        beats: { ...(state?.beats ?? {}) },
+        variants: { ...(state?.variants ?? {}) },
+      },
     ]),
   )
   w.flags = (r.flags as WorldState["flags"]) ?? {}
@@ -134,7 +154,7 @@ export function migrateWorld(raw: unknown): WorldState {
 
   // 迁移 v0 → v1：旧存档 completedEvents 含射雕事件但无对应 arcBeat
   if (w.completedEvents.includes("shendiao-niujia") && !w.arcs.shendiao?.beats.niujia) {
-    if (!w.arcs.shendiao) w.arcs.shendiao = { beats: {} }
+    if (!w.arcs.shendiao) w.arcs.shendiao = { beats: {}, variants: {} }
     w.arcs.shendiao.beats.niujia = "won"
   }
 
@@ -145,6 +165,7 @@ export function migrateWorld(raw: unknown): WorldState {
   // 迁移 v3 → v4：新增 party 状态（上方已补默认值）
   // 迁移 v4：WorldArcState 可选增加 ending（兼容旧档时保持 undefined 即可）
   // 迁移 v4 → v5：新增 currentStory 事件断点，并补写八幕进度兼容 beat
+  // 迁移 v5 → v6：WorldArcState 新增 variants，承载幕内入口与结果版本
   w.version = WORLD_VERSION
   return w
 }

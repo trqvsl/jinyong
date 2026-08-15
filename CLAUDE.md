@@ -20,7 +20,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 ## 关键类型与数据流
 
 - `Player`（`src/types/index.ts`）：战斗属性 + 八大根基 `roots` + `karma`/`world`/`relations`/`inventory`
-- `WorldState`（`src/data/story/schema.ts`）：npcs（含 relationType 语义关系）/factions/arcs/flags/party/pendingWorldEvents/triggeredEvents/seenNodes/completedEvents/currentStory
+- `WorldState`（`src/data/story/schema.ts`）：npcs（含 relationType 语义关系）/factions/arcs（beats + variants）/flags/party/pendingWorldEvents/triggeredEvents/seenNodes/completedEvents/currentStory
 - **世界状态挂 `player.world`**，`applyConsequences` 会同步 `p.world = w`（必须，否则 arcBeat 丢失）
 - `karma` → 自动派生 `alignment`（≥30 正，≤-30 邪）
 - 根基属性经 `src/game/attributes.ts` 推导战斗属性
@@ -28,7 +28,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 ## 剧情引擎（声明式）
 
 - **Consequence**（写入）：当前以 `src/data/story/schema.ts` 为准，包含数值 delta/set、NPC 命运、语义关系、arcBeat、arcEnding、flag 等多种声明式写入
-- **Condition**（查询）：15 种 + and/or/not，missing key 有默认值（npc alive=true, recruited=false, faction attitude=0, relationType=初识）
+- **Condition**（查询）：13 种原子条件 + and/or/not，missing key 有默认值（npc alive=true, recruited=false, faction attitude=0, relationType=初识）
 - **Transition**（流转）：end / goto / branch / random / battle / gotoEvent / gameOver
 - **StoryNode**：`choices?`（选择）或 `autoNext`（纯叙事自动流转）或无（终点）
 - **StoryEvent**：`once?` + `condition?` + `entryNode` + `nodes: Record<string, StoryNode>`
@@ -55,7 +55,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 - 《射雕主线脚本.md》：**当前实现样板线说明**，负责当前代码里已落地的主线事件自然语言镜像
 - `src/data/story/shendiao.ts`：**实际实现数据**
 
-当前前三幕已按八幕结构重组；`niujia / damos / meet-rong / qigong / wangfu` 仍同步写入，作为旧存档与后续旧样板兼容 beat。
+当前前五幕已完整重组，第六幕已落地 P0-P4（战斗目标、地图路引、穆念慈、桃花岛血案、烟雨楼会局与铁枪庙裁决）；`niujia / damos / meet-rong / qigong / wangfu / taohua` 仍同步写入，作为旧存档与后续旧样板兼容 beat。
 
 ## 存档迁移
 
@@ -92,6 +92,9 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `射雕主线脚本.md` — 当前实现样板线的自然语言脚本；改当前已落地主线事件时同步这里与代码
 - `src/data/story/shendiao.ts` — 射雕剧情卷聚合、第一二幕、旧样板主线与同卷支线 / 余波事件
 - `src/data/story/shendiaoAct3.ts` — 第三幕“中都照影”双地点连续事件
+- `src/data/story/shendiaoAct4.ts` — 第四幕“五湖桃花”太湖、归云庄与桃花岛连续事件
+- `src/data/story/shendiaoAct5.ts` — 第五幕“旧债成网”禁宫、密室、君山、铁掌峰、黑沼与一灯居连续事件
+- `src/data/story/shendiaoAct6.ts` — 第六幕 P2-P4“真相索命”牛家村穆念慈、桃花岛血案、烟雨楼会局与铁枪庙四轮推理 / 杨康裁决连续事件
 - `src/data/story/worldEvents.ts` — 世界回响 / 江湖消息数据
 - `src/data/events.ts` — 通用奇遇事件
 - `src/data/story/schema.ts` — Consequence/Condition/Transition/StoryNode/WorldState 等类型定义

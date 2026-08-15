@@ -7,7 +7,7 @@
 // ============================================================
 import type { Player } from "../../types"
 import type { WorldState, Consequence } from "../../data/story/schema"
-import { deriveAlignment, ensureNpc, ensureFaction } from "./state"
+import { deriveAlignment, ensureNpc, ensureFaction, ensureArc } from "./state"
 import { getSkillById } from "../../data/skills"
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
@@ -88,13 +88,15 @@ export function applyConsequences(
         ensureFaction(w, c.factionId).power = applyNum(getFactionPower(w, c.factionId), c)
         break
       case "arcBeat": {
-        if (!w.arcs[c.arcId]) w.arcs[c.arcId] = { beats: {} }
-        w.arcs[c.arcId].beats[c.beat] = c.result
+        ensureArc(w, c.arcId).beats[c.beat] = c.result
+        break
+      }
+      case "arcVariant": {
+        ensureArc(w, c.arcId).variants[c.key] = c.value
         break
       }
       case "arcEnding": {
-        if (!w.arcs[c.arcId]) w.arcs[c.arcId] = { beats: {} }
-        w.arcs[c.arcId].ending = c.ending
+        ensureArc(w, c.arcId).ending = c.ending
         break
       }
       case "flag": w.flags = { ...w.flags, [c.name]: c.value }; break

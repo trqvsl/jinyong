@@ -63,6 +63,19 @@ export type SkillTargeting =
 // 阵营归属（多对多的基础）
 export type Side = "player" | "enemy"
 
+export type BattleObjectiveConfig =
+  | { kind: "defeatAll"; protectUid?: string; title?: string }
+  | { kind: "surviveRounds"; rounds: number; protectUid?: string; title?: string }
+
+export interface BattleObjectiveRuntime {
+  kind: BattleObjectiveConfig["kind"]
+  targetRounds: number
+  completedRounds: number
+  actedUids: string[]
+  protectUid?: string
+  title?: string
+}
+
 // 战斗单位（引擎只认这个，不认 Player/Enemy 的其他字段）
 export interface Combatant {
   uid: string            // 战斗内唯一标识（多单位时区分谁是谁）
@@ -90,6 +103,7 @@ export interface BattleState {
   playerSide: Combatant[]
   enemySide: Combatant[]
   atbThreshold: number   // 行动值阈值，达到则可行动（默认 100）
+  objective?: BattleObjectiveRuntime
 }
 
 // 一次行动指令：谁、用什么招、打谁（目标 uid 列表）

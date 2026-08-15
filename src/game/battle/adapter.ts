@@ -8,8 +8,9 @@
 // ============================================================
 
 import type { Player, Enemy, Skill } from "../../types"
-import type { Combatant, BattleSkill, BattleState } from "./types"
+import type { Combatant, BattleSkill, BattleState, BattleObjectiveConfig } from "./types"
 import { recomputePlayerStats, effectiveAttack, critRateOf, dodgeRateOf, luckDodgeBonus } from "../attributes"
+import { createBattleObjective } from "./engine"
 
 // 把全局 Skill 转成引擎需要的 BattleSkill（字段是兼容子集）
 export function toBattleSkill(skill: Skill): BattleSkill {
@@ -81,11 +82,16 @@ export function enemiesToSide(enemies: Enemy[]): Combatant[] {
 }
 
 // 构造一场战斗的初始状态
-export function createBattleState(players: Player[], enemies: Enemy[]): BattleState {
+export function createBattleState(
+  players: Player[],
+  enemies: Enemy[],
+  objective?: BattleObjectiveConfig,
+): BattleState {
   return {
     playerSide: playersToSide(players),
     enemySide: enemiesToSide(enemies),
     atbThreshold: 100,
+    objective: createBattleObjective(objective),
   }
 }
 

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { ReactNode } from "react"
 import type { Player, Skill } from "../types"
+import type { BattleObjectiveConfig } from "../game/battle"
 import { savePlayer } from "../game/player"
 import { recomputePlayerStats } from "../game/attributes"
 import { getRelationLevel } from "../game/relations"
@@ -12,12 +13,16 @@ interface Props {
   player: Player
   onUpdate: (player: Player) => void
   onBack: () => void
-  onTestBattle: (enemyIds: string[]) => void
+  onTestBattle: (
+    enemyIds: string[],
+    options?: { allyIds?: string[]; objective?: BattleObjectiveConfig },
+  ) => void
 }
 
 // 可分配/学习的武功候选（全部 SKILLS 的子集，用于加减）
 const SKILL_IDS = [
   "changquan", "xianglong18", "dugu9", "liumai", "taijiquan", "dagou", "yiyangzhi",
+  "kongming", "tiezhang",
   "jiuyang", "yijin", "qiankun", "beiming", "lingbo", "tiyun",
   "qianzhu", "huagu", "shehun", "lanhua", "hamagong", "lingshiquan",
 ]
@@ -26,7 +31,7 @@ const STORY_TEST_SKILL_IDS = ["xianglong18", "jiuyang", "lingbo", "lanhua", "liu
 
 const TEST_ENEMY_IDS = [
   "xialiubang", "shanzei", "duyaozi", "emingke", "xiejiaoshi",
-  "guojing", "ouyangfeng", "huangyaoshi", "guanjun",
+  "guojing", "ouyangfeng", "huangyaoshi", "guanjun", "palace-guard", "qiuqianren", "yideng-disciple",
 ]
 
 type DebugTone = "neutral" | "positive" | "negative" | "warning"
@@ -40,19 +45,24 @@ interface DebugEntry {
 function summarizeArcProgress(player: Player): DebugEntry[] {
   return Object.entries(player.world.arcs ?? {}).flatMap(([arcId, arcState]) => {
     const beatEntries = Object.entries(arcState.beats ?? {})
-    if (beatEntries.length === 0 && !arcState.ending) return []
+    const variantEntries = Object.entries(arcState.variants ?? {})
+    if (beatEntries.length === 0 && variantEntries.length === 0 && !arcState.ending) return []
 
     const beatLine = beatEntries.length > 0
       ? `${arcId}：${beatEntries.map(([beat, result]) => `${beat}=${result}`).join(" / ")}`
       : `${arcId}：暂无节点记录`
+    const variantLine = variantEntries.length > 0
+      ? `${arcId}·variants：${variantEntries.map(([key, value]) => `${key}=${value}`).join(" / ")}`
+      : ""
 
     const tone = beatEntries.some(([, result]) => result === "lost" || result === "skipped")
       ? "warning"
       : "positive"
 
-    return arcState.ending
-      ? [{ text: beatLine, tone, strong: true }, { text: `${arcId}·ending=${arcState.ending}`, tone: "positive" }]
-      : [{ text: beatLine, tone, strong: true }]
+    const entries: DebugEntry[] = [{ text: beatLine, tone, strong: true }]
+    if (variantLine) entries.push({ text: variantLine })
+    if (arcState.ending) entries.push({ text: `${arcId}·ending=${arcState.ending}`, tone: "positive" })
+    return entries
   })
 }
 
@@ -403,6 +413,21 @@ export function DebugScreen({ player, onUpdate, onBack, onTestBattle }: Props) {
           disabled={selectedEnemies.length === 0}
           onClick={() => onTestBattle(selectedEnemies)}
         >开战（{selectedEnemies.length || 0} 个对手）</button>
+        <button
+          className="menu-btn"
+          onClick={() => onTestBattle(
+            ["qiuqianren"],
+            {
+              allyIds: ["guojing"],
+              objective: {
+                kind: "surviveRounds",
+                rounds: 3,
+                protectUid: "npc-guojing",
+                title: "护住郭靖并守满三轮",
+              },
+            },
+          )}
+        >守轮护友测试</button>
       </section>
 
       <section className="stat-panel debug-world-panel">

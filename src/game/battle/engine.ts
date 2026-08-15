@@ -7,7 +7,7 @@
 
 import type {
   BattleSkill, Combatant, ActionResult, BattleLogEntry,
-  StatusEffect, StatusKind, SkillEffect,
+  StatusEffect, StatusKind, SkillEffect, BattleObjectiveConfig,
 } from "./types"
 
 // ============================================================
@@ -341,9 +341,29 @@ export function sideDefeated(side: Combatant[]): boolean {
 
 // 按队伍判胜负（替代旧的单体 checkBattleEnd）
 export function checkBattleEndBySide(state: BattleState): "ongoing" | "won" | "lost" {
-  if (sideDefeated(state.enemySide)) return "won"
+  const protectedUnit = state.objective?.protectUid
+    ? findCombatant(state, state.objective.protectUid)
+    : undefined
+  if (state.objective?.protectUid && (!protectedUnit || protectedUnit.hp <= 0)) return "lost"
   if (sideDefeated(state.playerSide)) return "lost"
+  if (sideDefeated(state.enemySide)) return "won"
+  if (
+    state.objective?.kind === "surviveRounds"
+    && state.objective.completedRounds >= state.objective.targetRounds
+  ) return "won"
   return "ongoing"
+}
+
+export function createBattleObjective(config?: BattleObjectiveConfig): BattleState["objective"] {
+  if (!config) return undefined
+  return {
+    kind: config.kind,
+    targetRounds: config.kind === "surviveRounds" ? Math.max(1, Math.floor(config.rounds)) : 0,
+    completedRounds: 0,
+    actedUids: [],
+    protectUid: config.protectUid,
+    title: config.title,
+  }
 }
 
 // CTB：给所有单位推进行动值。返回新 state（不修改原）。
@@ -401,6 +421,34 @@ export function applyAtbConsume(state: BattleState, uid: string): BattleState {
   const threshold = state.atbThreshold || DEFAULT_ATB_THRESHOLD
   const map = (c: Combatant): Combatant => (c.uid === uid ? { ...c, atb: Math.max(0, c.atb - threshold) } : c)
   return { ...state, playerSide: state.playerSide.map(map), enemySide: state.enemySide.map(map) }
+}
+
+export function completeBattleTurn(state: BattleState, actorUid: string): {
+  state: BattleState
+  roundCompleted: boolean
+} {
+  let nextState = applyAtbConsume(state, actorUid)
+  const objective = nextState.objective
+  if (!objective || objective.kind !== "surviveRounds") {
+    return { state: nextState, roundCompleted: false }
+  }
+
+  const actedUids = new Set(objective.actedUids)
+  actedUids.add(actorUid)
+  const aliveUids = [...nextState.playerSide, ...nextState.enemySide]
+    .filter((unit) => unit.hp > 0)
+    .map((unit) => unit.uid)
+  const roundCompleted = aliveUids.length > 0 && aliveUids.every((uid) => actedUids.has(uid))
+
+  nextState = {
+    ...nextState,
+    objective: {
+      ...objective,
+      completedRounds: objective.completedRounds + (roundCompleted ? 1 : 0),
+      actedUids: roundCompleted ? [] : Array.from(actedUids),
+    },
+  }
+  return { state: nextState, roundCompleted }
 }
 
 // 根据招式目标模式，把"已选目标"解析为实际受击单位 uid 列表

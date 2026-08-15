@@ -2,8 +2,10 @@ import type { Player, Enemy } from "../types"
 import type { Transition, StoryEvent } from "../data/events"
 import type { Consequence, StoryCheckpoint, StoryCheckpointPhase } from "../data/story/schema"
 import type { Npc } from "../data/npcs"
+import type { BattleObjectiveConfig } from "./battle"
 import { getLocationById } from "../data/map"
 import { getEnemyById } from "../data/enemies"
+import { getNpcById } from "../data/npcs"
 import { applyConsequences } from "./story/consequences"
 import { getActivePartyNpcs, normalizePlayerParty } from "./party"
 import { resolveBranch, pickRandom, resolveBattleOutcome } from "./story/engine"
@@ -26,6 +28,8 @@ export type AppViewCommand =
       enemies: Enemy[]
       pendingBattleTransition: Transition | null
       challengeNpcId: string | null
+      allyIds: string[]
+      battleObjective?: BattleObjectiveConfig
       storyContext?: { event: StoryEvent; nodeId: string; locationId: string | null }
     }
 
@@ -60,6 +64,33 @@ export function getPendingWorldEvents(player: Player): StoryEvent[] {
 
 export function getRecruitedTeammates(player: Player): Npc[] {
   return getActivePartyNpcs(player)
+}
+
+export function getBattleTeammates(player: Player, allyIds: string[] = []): Npc[] {
+  const teammates = [
+    ...getActivePartyNpcs(player),
+    ...allyIds.map((npcId) => getNpcById(npcId)).filter((npc): npc is Npc => !!npc),
+  ]
+  return Array.from(new Map(teammates.map((npc) => [npc.id, npc])).values())
+}
+
+function toBattleObjectiveConfig(transition: Transition | null | undefined): BattleObjectiveConfig | undefined {
+  if (transition?.type !== "battle" || !transition.objective) return undefined
+  const protectUid = transition.objective.protectAllyId
+    ? `npc-${transition.objective.protectAllyId}`
+    : undefined
+  return transition.objective.kind === "surviveRounds"
+    ? {
+        kind: "surviveRounds",
+        rounds: transition.objective.rounds,
+        protectUid,
+        title: transition.objective.title,
+      }
+    : {
+        kind: "defeatAll",
+        protectUid,
+        title: transition.objective.title,
+      }
 }
 
 export function createMainViewCommand(): Extract<AppViewCommand, { type: "show-main" }> {
@@ -218,13 +249,19 @@ export function createBattleEntryCommand(args: {
   enemies: Enemy[]
   pendingBattleTransition?: Transition | null
   challengeNpcId?: string | null
+  allyIds?: string[]
+  battleObjective?: BattleObjectiveConfig
   storyContext?: { event: StoryEvent; nodeId: string; locationId: string | null }
 }): Extract<AppViewCommand, { type: "show-battle" }> {
+  const pendingBattleTransition = args.pendingBattleTransition ?? null
   return {
     type: "show-battle",
     enemies: args.enemies,
-    pendingBattleTransition: args.pendingBattleTransition ?? null,
+    pendingBattleTransition,
     challengeNpcId: args.challengeNpcId ?? null,
+    allyIds: args.allyIds
+      ?? (pendingBattleTransition?.type === "battle" ? pendingBattleTransition.allyIds ?? [] : []),
+    battleObjective: args.battleObjective ?? toBattleObjectiveConfig(pendingBattleTransition),
     storyContext: args.storyContext,
   }
 }

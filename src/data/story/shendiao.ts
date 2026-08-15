@@ -1,5 +1,8 @@
 import type { StoryEvent } from "../events"
 import { SHENDIAO_ACT3_STORY } from "./shendiaoAct3"
+import { SHENDIAO_ACT4_STORY } from "./shendiaoAct4"
+import { SHENDIAO_ACT5_STORY } from "./shendiaoAct5"
+import { SHENDIAO_ACT6_STORY } from "./shendiaoAct6"
 
 // ============================================================
 // 射雕英雄传 · 剧情卷（声明式）
@@ -1962,6 +1965,9 @@ export const SHENDIAO_STORY: StoryEvent[] = [
   },
 
   ...SHENDIAO_ACT3_STORY,
+  ...SHENDIAO_ACT4_STORY,
+  ...SHENDIAO_ACT5_STORY,
+  ...SHENDIAO_ACT6_STORY,
 
   // ===== 3. 中原·客栈奇缘 =====
   {
@@ -2298,7 +2304,13 @@ export const SHENDIAO_STORY: StoryEvent[] = [
     locationId: "taohuadao",
     weight: 5,
     once: true,
-    condition: { kind: "arcBeat", arcId: "shendiao", beat: "wangfu" },
+    condition: {
+      kind: "and",
+      items: [
+        { kind: "arcBeat", arcId: "shendiao", beat: "wangfu" },
+        { kind: "not", item: { kind: "arcBeat", arcId: "shendiao", beat: "act3-zhongdu" } },
+      ],
+    },
     nodes: {
       arrival: {
         id: "arrival",
@@ -2415,14 +2427,20 @@ export const SHENDIAO_STORY: StoryEvent[] = [
     },
   },
 
-  // ===== 7. 铁枪庙·恩仇了断（正邪核心分支） =====
+  // ===== 7. 旧铁枪庙样板（仅供未进入 act6 新流程的存档兼容） =====
   {
     id: "shendiao-yangkang",
     entryNode: "main",
     locationId: "niujia",
     weight: 5,
     once: true,
-    condition: { kind: "arcBeat", arcId: "shendiao", beat: "taohua" },
+    condition: {
+      kind: "and",
+      items: [
+        { kind: "arcBeat", arcId: "shendiao", beat: "taohua" },
+        { kind: "not", item: { kind: "arcVariant", arcId: "shendiao", key: "act6.munianci", eq: "cleared" } },
+      ],
+    },
     nodes: {
       main: {
         id: "main",
@@ -3262,6 +3280,7 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       items: [
         { kind: "arcBeat", arcId: "shendiao", beat: "wangfu" },
         { kind: "not", item: { kind: "arcBeat", arcId: "shendiao", beat: "taohua" } },
+        { kind: "not", item: { kind: "arcBeat", arcId: "shendiao", beat: "act3-zhongdu" } },
       ],
     },
     nodes: {

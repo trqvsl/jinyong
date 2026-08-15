@@ -8,9 +8,9 @@ import type {
 } from "./types"
 import {
   advanceAtb,
-  applyAtbConsume,
   applyStatusToCombatant,
   checkBattleEndBySide,
+  completeBattleTurn,
   findCombatant,
   healCombatant,
   isStunned,
@@ -213,6 +213,7 @@ export function advanceBattleToNextActor(start: BattleState): BattleAdvanceResul
     const actor = nextActor(state)
     if (!actor) return { state, logs, actor: null, actorMode: null, ended: "ongoing" }
 
+    const wasStunned = isStunned(actor)
     const ticked = tickUnitStatuses(state, actor.uid)
     state = ticked.state
     logs.push(...ticked.logs)
@@ -220,9 +221,16 @@ export function advanceBattleToNextActor(start: BattleState): BattleAdvanceResul
 
     if (!currentActor || currentActor.hp <= 0) continue
 
-    if (isStunned(currentActor)) {
+    if (wasStunned) {
       logs.push({ text: `${currentActor.name}被点穴封住经脉，动弹不得！`, type: "system" })
-      state = applyAtbConsume(state, currentActor.uid)
+      const completed = completeBattleTurn(state, currentActor.uid)
+      state = completed.state
+      if (completed.roundCompleted && state.objective?.kind === "surviveRounds") {
+        logs.push({
+          text: `守势推进：第 ${state.objective.completedRounds} / ${state.objective.targetRounds} 轮`,
+          type: "system",
+        })
+      }
       continue
     }
 
@@ -255,8 +263,12 @@ export function finalizeBattleResult(args: {
   const withItems: Player = { ...syncedPlayer, inventory: { ...syncedPlayer.inventory, ...args.inventoryPatch } }
 
   if (args.result === "won") {
-    const totalExp = args.enemies.reduce((sum, enemy) => sum + enemy.expReward, 0)
-    const totalGold = args.enemies.reduce((sum, enemy) => sum + enemy.goldReward, 0)
+    const defeatedEnemyIndexes = new Set(
+      args.finalState.enemySide.flatMap((unit, index) => unit.hp <= 0 ? [index] : []),
+    )
+    const defeatedEnemies = args.enemies.filter((_, index) => defeatedEnemyIndexes.has(index))
+    const totalExp = defeatedEnemies.reduce((sum, enemy) => sum + enemy.expReward, 0)
+    const totalGold = defeatedEnemies.reduce((sum, enemy) => sum + enemy.goldReward, 0)
     const { player, rewards } = applyVictoryGrowth(withItems, totalExp, totalGold)
     return {
       player: { ...player, hp: player.hp, mp: player.mp },

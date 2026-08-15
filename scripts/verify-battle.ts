@@ -4,11 +4,14 @@ import {
   type Combatant,
   type BattleState,
 } from "../src/game/battle/types"
+import { advanceBattleToNextActor } from "../src/game/battle/flow"
 import {
   performAction,
   advanceAtb,
   nextActor,
   checkBattleEndBySide,
+  completeBattleTurn,
+  createBattleObjective,
   previewTurnOrder,
   tickUnitStatuses,
   enemyDecideAction,
@@ -116,7 +119,7 @@ console.log("\n=== 验证 5：胜负判定——敌方全灭=胜 ===")
 
 console.log("\n=== 验证 6：完整回合模拟（含状态结算、敌人AI、CTB轮转） ===")
 {
-  const p = mkUnit("p1", "player", "我方", 40, 22, 120)
+  const p = mkUnit("p1", "player", "我方", 40, 22, 240)
   const e1 = mkUnit("e1", "enemy", "敌甲", 30, 16, 70)
   const e2 = mkUnit("e2", "enemy", "敌乙", 30, 16, 70)
   let state = mkState([p], [e1, e2])
@@ -158,7 +161,7 @@ console.log("\n=== 验证 6：完整回合模拟（含状态结算、敌人AI、
   console.log(log.slice(0, 8).map(l => "    " + l).join("\n"))
   check("模拟在50回合内结束", turns < 50, `跑了 ${turns} 回合`)
   check("战斗有明确结局", result === "won" || result === "lost", `结局: ${result}`)
-  if (result === "won") check("我方获胜（1打2应能赢）", result === "won")
+  check("我方获胜（1打2应能赢）", result === "won", `结局: ${result}`)
 }
 
 console.log("\n=== 验证 7：ATB 消耗后，再次行动需重新累积 ===")
@@ -172,6 +175,89 @@ console.log("\n=== 验证 7：ATB 消耗后，再次行动需重新累积 ===")
   state = { ...state, playerSide: state.playerSide.map(c => c.uid === actor1!.uid ? { ...c, atb: c.atb - 100 } : c) }
   const immediatelyAfter = nextActor(state)
   check("消耗后不应立即再次行动", immediatelyAfter?.uid !== actor1?.uid || (immediatelyAfter && immediatelyAfter.atb < 100), `atb: ${immediatelyAfter?.atb}`)
+}
+
+console.log("\n=== 验证 8：守回合目标按完整行动轮推进 ===")
+{
+  const p = mkUnit("p1", "player", "快侠", 80, 20)
+  const ally = mkUnit("ally", "player", "证人", 20, 10)
+  const enemy = mkUnit("e1", "enemy", "追兵", 40, 18)
+  let state: BattleState = {
+    ...mkState([p, ally], [enemy]),
+    objective: createBattleObjective({ kind: "surviveRounds", rounds: 2, protectUid: "ally" }),
+  }
+
+  let completed = completeBattleTurn(state, "p1")
+  state = completed.state
+  check("快侠首次行动不完成整轮", !completed.roundCompleted && state.objective?.completedRounds === 0)
+
+  completed = completeBattleTurn(state, "p1")
+  state = completed.state
+  check("高速单位重复行动不重复计轮", !completed.roundCompleted && state.objective?.completedRounds === 0)
+
+  completed = completeBattleTurn(state, "e1")
+  state = completed.state
+  check("仍有存活友方未行动时不计轮", !completed.roundCompleted && state.objective?.completedRounds === 0)
+
+  completed = completeBattleTurn(state, "ally")
+  state = completed.state
+  check("所有存活单位行动后完成第一轮", completed.roundCompleted && state.objective?.completedRounds === 1)
+  check("第一轮后战斗继续", checkBattleEndBySide(state) === "ongoing")
+
+  for (const uid of ["p1", "e1", "ally"]) state = completeBattleTurn(state, uid).state
+  check("守满目标轮数判胜", state.objective?.completedRounds === 2 && checkBattleEndBySide(state) === "won")
+}
+
+console.log("\n=== 验证 9：保护目标与提前清场 ===")
+{
+  const p = mkUnit("p1", "player", "护卫", 40, 20)
+  const protectedAlly = mkUnit("ally", "player", "证人", 25, 10)
+  const otherAlly = mkUnit("other", "player", "同伴", 30, 10)
+  const enemy = mkUnit("e1", "enemy", "追兵", 35, 18)
+  const base: BattleState = {
+    ...mkState([p, protectedAlly, otherAlly], [enemy]),
+    objective: createBattleObjective({ kind: "surviveRounds", rounds: 3, protectUid: "ally" }),
+  }
+
+  const otherDown: BattleState = {
+    ...base,
+    playerSide: base.playerSide.map((unit) => unit.uid === "other" ? { ...unit, hp: 0 } : unit),
+  }
+  check("非保护友方倒下不立即失败", checkBattleEndBySide(otherDown) === "ongoing")
+
+  const protectedDown: BattleState = {
+    ...base,
+    playerSide: base.playerSide.map((unit) => unit.uid === "ally" ? { ...unit, hp: 0 } : unit),
+  }
+  check("指定保护友方倒下立即失败", checkBattleEndBySide(protectedDown) === "lost")
+
+  const enemyDown: BattleState = {
+    ...base,
+    enemySide: base.enemySide.map((unit) => ({ ...unit, hp: 0 })),
+  }
+  check("守回合目标提前清场仍判胜", checkBattleEndBySide(enemyDown) === "won")
+
+  const protectOnly: BattleState = {
+    ...mkState([p, protectedAlly], [enemy]),
+    objective: createBattleObjective({ kind: "defeatAll", protectUid: "ally" }),
+  }
+  check("歼灭目标可附加保护条件", checkBattleEndBySide(protectOnly) === "ongoing")
+}
+
+console.log("\n=== 验证 10：眩晕跳过仍计入完整轮 ===")
+{
+  const stunned = mkUnit("p1", "player", "被点穴者", 60, 20)
+  stunned.statuses = [{ kind: "stun", name: "眩晕", duration: 1, potency: 0 }]
+  const enemy = mkUnit("e1", "enemy", "追兵", 50, 18)
+  const state: BattleState = {
+    ...mkState([stunned], [enemy]),
+    objective: createBattleObjective({ kind: "surviveRounds", rounds: 1 }),
+  }
+  const advanced = advanceBattleToNextActor(state)
+  check("眩晕单位本次行动被跳过", advanced.actor?.uid === "e1")
+  check("眩晕单位已记入本轮参与者", advanced.state.objective?.actedUids.includes("p1") === true)
+  const completed = completeBattleTurn(advanced.state, "e1")
+  check("其他存活单位行动后该轮完成", completed.roundCompleted && completed.state.objective?.completedRounds === 1)
 }
 
 console.log(`\n========================================`)
