@@ -1,10 +1,14 @@
+import { useState } from "react"
 import { SHOP_ITEMS } from "../data/shop"
+import { getItemById } from "../data/items"
 import type { Player } from "../types"
 
 interface Props {
   player: Player
   onUpdate: (player: Player) => void
   onBack: () => void
+  shopName?: string
+  shopkeeper?: string
 }
 
 function getShopRecommendation(player: Player): { title: string; detail: string; focusItemId?: string } {
@@ -51,29 +55,45 @@ function getShopRecommendation(player: Player): { title: string; detail: string;
   }
 }
 
-export function ShopScreen({ player, onUpdate, onBack }: Props) {
+export function ShopScreen({
+  player,
+  onUpdate,
+  onBack,
+  shopName = "江湖商铺",
+  shopkeeper,
+}: Props) {
   const recommendation = getShopRecommendation(player)
+  const [notice, setNotice] = useState("")
 
   function buy(itemId: string) {
     const item = SHOP_ITEMS.find((entry) => entry.id === itemId)
     if (!item) return
     if (player.gold < item.price) {
-      alert("银两不足，买不起这件货物。")
+      setNotice("银两不足，柜上的货物不能赊账。")
       return
     }
 
     const updated = item.apply({ ...player, gold: player.gold - item.price })
     onUpdate(updated)
-    alert(`购入 ${item.name} 成功，已收入行囊。`)
+    setNotice(`${shopkeeper ? `${shopkeeper}把` : ""}${item.name}包好，已经收入行囊。`)
   }
 
   return (
     <div className="shop-screen">
       <header className="top-bar">
         <button className="back-btn" onClick={onBack}>← 返回</button>
-        <span className="player-name">江湖商铺</span>
+        <span className="player-name">{shopName}</span>
         <span className="day-info">银两 {player.gold}</span>
       </header>
+
+      {shopkeeper && (
+        <section className="shopkeeper-strip">
+          <span>{shopkeeper}</span>
+          <p>柜上只摆日常伤药与干粮。银货两讫，买下的东西直接收入行囊。</p>
+        </section>
+      )}
+
+      {notice && <div className="shop-inline-notice" role="status">{notice}</div>}
 
       <section className="stat-panel">
         <h2>行囊状态</h2>
@@ -86,7 +106,10 @@ export function ShopScreen({ player, onUpdate, onBack }: Props) {
           行囊物资：
           {Object.keys(player.inventory).length === 0
             ? " 暂无道具"
-            : Object.entries(player.inventory).map(([itemId, count]) => ` ${itemId} x${count}`).join(" / ")}
+            : Object.entries(player.inventory)
+                .filter(([, count]) => count > 0)
+                .map(([itemId, count]) => ` ${getItemById(itemId)?.name ?? itemId} x${count}`)
+                .join(" / ")}
         </div>
       </section>
 

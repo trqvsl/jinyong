@@ -85,6 +85,26 @@ export function applyExperience(player: Player, delta: number): ExperienceResult
   }
 }
 
+export function trainForDay(player: Player): Player {
+  const gain = 1 + Math.floor(player.aptitude / 30)
+  const cultivated: Player = {
+    ...player,
+    day: player.day + 1,
+    roots: {
+      ...player.roots,
+      external: player.roots.external + gain,
+      internal: player.roots.internal + 1,
+      constitution: player.roots.constitution + Math.max(1, Math.floor(gain / 2)),
+    },
+  }
+  const recomputed = recomputePlayerStats(cultivated)
+  return {
+    ...recomputed,
+    hp: recomputed.hpMax,
+    mp: recomputed.mpMax,
+  }
+}
+
 export function applySkillPractice(
   player: Player,
   skillUses: Record<string, number>,

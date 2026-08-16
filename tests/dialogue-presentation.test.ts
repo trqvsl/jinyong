@@ -31,9 +31,11 @@ describe("RPG dialogue presentation", () => {
   })
 
   it("resolves aliases to the same generated portrait", () => {
-    expect(getDialoguePortrait("小叫花")).toBe(DIALOGUE_PORTRAITS.黄蓉)
+    expect(getDialoguePortrait("蓉儿")).toBe(DIALOGUE_PORTRAITS.黄蓉)
     expect(getDialoguePortrait("长春子丘处机")).toBe(DIALOGUE_PORTRAITS.丘处机)
-    expect(getDialoguePortrait("穆易")).toBe(DIALOGUE_PORTRAITS.杨铁心)
+    expect(getDialoguePortrait("六王爷")).toBe(DIALOGUE_PORTRAITS.完颜洪烈)
+    expect(getDialoguePortrait("小叫花")).toBeUndefined()
+    expect(getDialoguePortrait("穆易")).toBeUndefined()
   })
 
   it("keeps unknown speakers readable with a short fallback mark", () => {
@@ -44,7 +46,7 @@ describe("RPG dialogue presentation", () => {
 
   it("uses only generated portrait resources and keeps every URL unique", () => {
     const urls = Object.values(DIALOGUE_PORTRAITS).map((portrait) => portrait.src)
-    expect(urls.length).toBeGreaterThanOrEqual(12)
+    expect(urls.length).toBeGreaterThanOrEqual(22)
     expect(new Set(urls).size).toBe(urls.length)
     expect(urls.every((url) =>
       url.startsWith(

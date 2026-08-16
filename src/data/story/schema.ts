@@ -63,6 +63,8 @@ export interface StoryCheckpoint {
   transition?: Transition
   consumedDay?: boolean
   battleEnemyIds?: string[]
+  paused?: boolean
+  areaEntry?: boolean
 }
 
 export interface WorldState {
@@ -76,7 +78,7 @@ export interface WorldState {
   triggeredEvents: string[]        // 已触发过的涌现事件 id（防重复）
   seenNodes: string[]              // 已结算过 onEnter 的事件作用域节点键（`${eventId}:${nodeId}`）
   completedEvents: string[]        // 已完成的 once 事件 id（一次性剧情节点防重复触发）
-  currentStory: StoryCheckpoint | null // 当前事件断点；回主界面或事件完成时清空
+  currentStory: StoryCheckpoint | null // 当前事件断点；pause 暂存，事件完成时清空
 }
 
 // ============================================================
@@ -149,6 +151,7 @@ export type StoryBattleObjective = (
 
 export type Transition =
   | { type: "end" }                                                // 回主菜单
+  | { type: "pause"; nodeId: string }                              // 暂离事件，保留下一节点供回地点续接
   | { type: "goto"; nodeId: string }                               // 同事件下一节点
   | { type: "branch"; cases: { when: Condition; then: Transition }[]; else?: Transition }  // 条件分叉
   | { type: "random"; cases: { weight: number; then: Transition }[] }                       // 加权随机分流（如赌博）
@@ -171,6 +174,7 @@ export interface Choice {
   id: string
   text: string
   description?: string
+  kind?: "decision" | "travel"
   condition?: Condition            // 不满足则隐藏
   consequences?: Consequence[]     // 选了立即结算
   consumeDay?: boolean             // 选了是否消耗 1 天
@@ -178,11 +182,56 @@ export interface Choice {
   resultText?: string
 }
 
+export type StoryStageSlot = "far-left" | "left" | "center" | "right" | "far-right"
+export type StoryStageMotion =
+  | "enter-left"
+  | "enter-right"
+  | "step-forward"
+  | "cross-left"
+  | "cross-right"
+  | "lunge-left"
+  | "lunge-right"
+  | "recoil"
+  | "guard"
+  | "injured"
+
+export interface StoryStageActor {
+  name: string
+  slot: StoryStageSlot
+  motion?: StoryStageMotion
+  focus?: boolean
+  scale?: "small" | "normal" | "large"
+}
+
+export interface StoryStageProp {
+  id: string
+  slot: StoryStageSlot
+  motion?: "run-left" | "run-right" | "shake" | "sway"
+  label?: string
+}
+
+export interface StoryStage {
+  sceneId: string
+  sceneLabel: string
+  actors?: StoryStageActor[]
+  props?: StoryStageProp[]
+}
+
+export interface StorySceneTransition {
+  title: string
+  subtitle?: string
+  timeLabel?: string
+  tone?: "ink" | "dusk" | "night" | "snow"
+  durationMs?: number
+}
+
 export interface StoryNode {
   id: string
   title?: string
   text: string
   speaker?: string
+  stage?: StoryStage
+  sceneTransition?: StorySceneTransition
   letterIntro?: string
   letterSignature?: string
   onEnter?: Consequence[]          // 进入节点时结算（幂等，由事件作用域 seenNodes 守护）

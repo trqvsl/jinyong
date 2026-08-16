@@ -115,6 +115,7 @@ function transitionNodeTargets(transition?: Transition): string[] {
   if (!transition) return []
   switch (transition.type) {
     case "goto":
+    case "pause":
       return [transition.nodeId]
     case "branch":
       return [
@@ -166,6 +167,7 @@ function transitionHasTerminal(transition?: Transition): boolean {
     case "gotoEvent":
       return true
     case "goto":
+    case "pause":
       return false
     case "branch":
       return transition.cases.some((item) => transitionHasTerminal(item.then))

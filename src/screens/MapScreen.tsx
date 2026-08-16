@@ -3,7 +3,11 @@ import { ArrowLeft, Compass, LockKeyhole, MapPin, Route } from "lucide-react"
 import type { Player } from "../types"
 import { getAllLocationsWithStatus, type Location } from "../data/map"
 import { getNpcState } from "../game/story/state"
-import { getStoryProgress, type StoryProgressView } from "../game/story/query"
+import {
+  getStoryEventById,
+  getStoryProgress,
+  type StoryProgressView,
+} from "../game/story/query"
 import { getNpcById } from "../data/npcs"
 
 interface Props {
@@ -19,14 +23,15 @@ const CHINA_OUTLINE = "M 18,30 Q 22,22 30,20 L 45,18 Q 55,17 62,20 L 72,22 Q 80,
 function getLocationPreview(
   location: Location,
   progress: StoryProgressView,
-  recommendedLocationId: string
+  recommendedLocationId: string,
+  resumeTitle?: string,
 ): { tag: string; preview: string; rhythm: string; risk: string } {
   if (location.id === recommendedLocationId) {
     return {
-      tag: "主线",
-      preview: progress.next,
+      tag: resumeTitle ? "续接" : "主线",
+      preview: resumeTitle ? `未完剧情：${resumeTitle}` : progress.next,
       rhythm: location.rhythm,
-      risk: "当前推荐",
+      risk: resumeTitle ? "剧情未完" : "当前推荐",
     }
   }
   return {
@@ -40,7 +45,17 @@ function getLocationPreview(
 export function MapScreen({ player, onSelect, onBack }: Props) {
   const locations = useMemo(() => getAllLocationsWithStatus(player), [player])
   const storyProgress = getStoryProgress(player)
-  const recommendedLocationId = storyProgress.recommendedLocationId
+  const pausedCheckpoint = player.world.currentStory?.paused
+    ? player.world.currentStory
+    : null
+  const pausedEvent = pausedCheckpoint
+    ? getStoryEventById(pausedCheckpoint.eventId)
+    : undefined
+  const resumeTitle = pausedCheckpoint
+    ? pausedEvent?.nodes[pausedCheckpoint.nodeId]?.title
+    : undefined
+  const recommendedLocationId = pausedCheckpoint?.locationId
+    ?? storyProgress.recommendedLocationId
   const recommendedLocation = locations.find((loc) => loc.id === recommendedLocationId) ?? locations[0]
 
   return (
@@ -54,9 +69,13 @@ export function MapScreen({ player, onSelect, onBack }: Props) {
       <section className="map-route-banner">
         <div className="map-hero-copy">
           <div className="main-hub-scene-tag"><Route size={14} /> 当前路引</div>
-          <h1 className="map-hero-title">下一站 · {recommendedLocation?.name}</h1>
-          <p className="map-hero-desc">{storyProgress.guidance}</p>
-          <div className="map-hero-advance">{storyProgress.next}</div>
+          <h1 className="map-hero-title">{resumeTitle ? "续接" : "下一站"} · {recommendedLocation?.name}</h1>
+          <p className="map-hero-desc">
+            {resumeTitle
+              ? `未完的「${resumeTitle}」仍留在${recommendedLocation?.name ?? "原地"}。`
+              : storyProgress.guidance}
+          </p>
+          <div className="map-hero-advance">{resumeTitle ? `未完剧情：${resumeTitle}` : storyProgress.next}</div>
         </div>
         {recommendedLocation && (
           <button
@@ -64,12 +83,12 @@ export function MapScreen({ player, onSelect, onBack }: Props) {
             onClick={() => recommendedLocation.unlocked && onSelect(recommendedLocation.id)}
             disabled={!recommendedLocation.unlocked}
           >
-            <span className="map-recommend-tag">主线推荐</span>
+            <span className="map-recommend-tag">{resumeTitle ? "剧情续接" : "主线推荐"}</span>
             <span className="map-recommend-name"><MapPin size={20} /> {recommendedLocation.name}{!recommendedLocation.unlocked && " · 未解锁"}</span>
             <span className="map-recommend-desc">{recommendedLocation.description}</span>
             <div className="map-recommend-signal-row">
               <span className="location-signal-chip rhythm">{recommendedLocation.rhythm}</span>
-              <span className="location-signal-chip risk recommended">当前推荐</span>
+              <span className="location-signal-chip risk recommended">{resumeTitle ? "剧情未完" : "当前推荐"}</span>
             </div>
             <span className="map-recommend-advance">启程</span>
           </button>
@@ -79,8 +98,8 @@ export function MapScreen({ player, onSelect, onBack }: Props) {
       <section className="map-atlas">
         <div className="map-canvas-wrap recommended-layout">
           <div className="map-canvas-caption">
-            <span>山河舆图</span>
-            <small>朱砂所记，皆可抵达</small>
+            <span>江湖路引图</span>
+            <small>方位为行程示意，以路引册为准</small>
           </div>
           <svg className="map-canvas" viewBox="0 0 100 90" preserveAspectRatio="xMidYMid meet">
             <path d={CHINA_OUTLINE} className="map-outline" />
@@ -121,7 +140,12 @@ export function MapScreen({ player, onSelect, onBack }: Props) {
           <div className="location-list">
           {locations.map((loc) => {
             const isRecommended = loc.id === recommendedLocationId
-            const preview = getLocationPreview(loc, storyProgress, recommendedLocationId)
+            const preview = getLocationPreview(
+              loc,
+              storyProgress,
+              recommendedLocationId,
+              isRecommended ? resumeTitle : undefined,
+            )
             const visibleNpcNames = loc.npcIds
               ?.filter(id => getNpcState(player.world, id).alive !== false)
               .map(id => getNpcById(id)?.name)
@@ -137,7 +161,7 @@ export function MapScreen({ player, onSelect, onBack }: Props) {
                 <span className="location-name">
                   {loc.name}
                   {!loc.unlocked && <LockKeyhole size={13} />}
-                  {isRecommended && <span className="location-recommend-badge">主线推荐</span>}
+                  {isRecommended && <span className="location-recommend-badge">{resumeTitle ? "剧情续接" : "主线推荐"}</span>}
                 </span>
                 <span className="location-desc">{loc.description}</span>
                 <div className="location-preview-row">

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { Player, Enemy } from "./types"
 import type { Transition, StoryEvent } from "./data/events"
 import type { StoryCheckpoint } from "./data/story/schema"
@@ -14,6 +14,7 @@ import {
   normalizeMainPlayer,
   openLocationStory,
   openPendingWorldEvent,
+  resumePausedStory,
   restoreStoryCheckpoint,
   resolveBattleFlow,
   resolveStoryFlow,
@@ -31,9 +32,10 @@ import { MapScreen } from "./screens/MapScreen"
 import { NpcScreen } from "./screens/NpcScreen"
 import { DebugScreen } from "./screens/DebugScreen"
 import { EndingRecordScreen } from "./screens/EndingRecordScreen"
+import { AreaScreen } from "./screens/AreaScreen"
 import "./App.css"
 
-type Screen = "title" | "main" | "battle" | "sect" | "character" | "shop" | "event" | "map" | "debug" | "npc" | "ending-record"
+type Screen = "title" | "main" | "battle" | "sect" | "character" | "shop" | "event" | "map" | "area" | "debug" | "npc" | "ending-record"
 
 function App() {
   const [player, setPlayer] = useState<Player | null>(null)
@@ -45,12 +47,19 @@ function App() {
   const [storyNodeId, setStoryNodeId] = useState<string>("main")
   const [storyInitialPageIndex, setStoryInitialPageIndex] = useState(0)
   const [storyInitialResult, setStoryInitialResult] = useState<{ text: string; transition: Transition; title?: string; consumedDay: boolean } | undefined>(undefined)
+  const [areaPlaceId, setAreaPlaceId] = useState<string | null>(null)
+  const [areaUtilityReturn, setAreaUtilityReturn] = useState(false)
+  const [battleReturnAreaId, setBattleReturnAreaId] = useState<string | null>(null)
   // 当前战斗对应的 transition（剧情战斗用；调试/NPC切磋为 null）
   const [pendingBattleTransition, setPendingBattleTransition] = useState<Transition | null>(null)
   const [battleAllyIds, setBattleAllyIds] = useState<string[]>([])
   const [battleObjective, setBattleObjective] = useState<BattleObjectiveConfig | undefined>(undefined)
   // NPC 切磋时的 npcId，战后结算关系后果
   const [challengeNpcId, setChallengeNpcId] = useState<string | null>(null)
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 })
+  }, [screen])
 
   function applyViewCommand(command: AppViewCommand) {
     switch (command.type) {
@@ -64,7 +73,25 @@ function App() {
         setBattleObjective(undefined)
         setChallengeNpcId(null)
         setEnemies([])
+        setAreaPlaceId(null)
+        setAreaUtilityReturn(false)
+        setBattleReturnAreaId(null)
         setScreen("main")
+        return
+      case "show-area":
+        setStoryEvent(null)
+        setStoryInitialResult(undefined)
+        setStoryInitialPageIndex(0)
+        setLocationId(command.locationId)
+        setPendingBattleTransition(null)
+        setBattleAllyIds([])
+        setBattleObjective(undefined)
+        setChallengeNpcId(null)
+        setEnemies([])
+        setAreaPlaceId(null)
+        setAreaUtilityReturn(false)
+        setBattleReturnAreaId(null)
+        setScreen("area")
         return
       case "show-event-entry":
         setStoryEvent(command.event)
@@ -77,6 +104,9 @@ function App() {
         setBattleObjective(undefined)
         setChallengeNpcId(null)
         setEnemies([])
+        setAreaPlaceId(null)
+        setAreaUtilityReturn(false)
+        setBattleReturnAreaId(null)
         setScreen("event")
         return
       case "show-event-result":
@@ -92,6 +122,9 @@ function App() {
         setBattleObjective(undefined)
         setChallengeNpcId(null)
         setEnemies([])
+        setAreaPlaceId(null)
+        setAreaUtilityReturn(false)
+        setBattleReturnAreaId(null)
         setScreen("event")
         return
       case "show-battle":
@@ -144,6 +177,42 @@ function App() {
   function handleUpdate(p: Player) { savePlayer(p); setPlayer(p) }
   function handleAdventure() { setScreen("map") }
 
+  function handleResumeAreaStory() {
+    if (!player) return
+    const resumed = resumePausedStory(player)
+    savePlayer(resumed.player)
+    setPlayer(resumed.player)
+    setAreaPlaceId(null)
+    if (resumed.command) applyViewCommand(resumed.command)
+  }
+
+  function handleAreaShop(spotId: string) {
+    setAreaPlaceId(spotId)
+    setAreaUtilityReturn(true)
+    setScreen("shop")
+  }
+
+  function handleAreaInventory(spotId: string) {
+    setAreaPlaceId(spotId)
+    setAreaUtilityReturn(true)
+    setScreen("character")
+  }
+
+  function returnToAreaUtility() {
+    setAreaUtilityReturn(false)
+    setScreen("area")
+  }
+
+  function handleAreaChallenge(enemy: Enemy, npcId: string, spotId: string) {
+    if (!player || !locationId) return
+    setAreaPlaceId(spotId)
+    setBattleReturnAreaId(locationId)
+    applyViewCommand(createBattleEntryCommand({
+      enemies: [enemy],
+      challengeNpcId: npcId,
+    }))
+  }
+
   // 地图选地点 → 触发该地点剧情事件
   function handleSelectLocation(locId: string) {
     if (!player) return
@@ -195,11 +264,25 @@ function App() {
       pendingBattleTransition,
       challengeNpcId,
     })
-    savePlayer(flow.player)
-    setPlayer(flow.player)
+    const nextPlayer = battleReturnAreaId && !pendingBattleTransition
+      ? { ...flow.player, hp: flow.player.hpMax, mp: flow.player.mpMax }
+      : flow.player
+    savePlayer(nextPlayer)
+    setPlayer(nextPlayer)
+
+    if (battleReturnAreaId && !pendingBattleTransition) {
+      setEnemies([])
+      setPendingBattleTransition(null)
+      setBattleAllyIds([])
+      setBattleObjective(undefined)
+      setChallengeNpcId(null)
+      setBattleReturnAreaId(null)
+      setScreen("area")
+      return
+    }
 
     if (flow.command.type === "show-main") {
-      returnToMain(flow.player)
+      returnToMain(nextPlayer)
       return
     }
 
@@ -209,6 +292,7 @@ function App() {
   // NPC 切磋：把 NPC 转 Enemy 进战斗（非剧情，战后回主菜单+结算关系）
   function handleChallengeNpc(enemy: Enemy, npcId?: string) {
     if (!player) return
+    setBattleReturnAreaId(null)
     applyViewCommand(createBattleEntryCommand({ enemies: [enemy], challengeNpcId: npcId ?? null }))
   }
   // 调试屏：指定敌人直接进战斗（非剧情）
@@ -217,6 +301,7 @@ function App() {
     options?: { allyIds?: string[]; objective?: BattleObjectiveConfig },
   ) {
     if (!player) return
+    setBattleReturnAreaId(null)
     applyViewCommand(createBattleEntryCommand({
       enemies: enemyIds.map((id) => getEnemyById(id)),
       allyIds: options?.allyIds,
@@ -240,8 +325,8 @@ function App() {
     <div className="app">
       {screen === "title" && <TitleScreen onSelectPlayer={handleSelectPlayer} />}
       {screen === "main" && player && (
-        <MainScreen player={player} pendingWorldEvents={getPendingWorldEvents(player)} onOpenPendingWorldEvent={handleOpenPendingWorldEvent} onUpdate={handleUpdate} onAdventure={handleAdventure}
-          onSect={() => setScreen("sect")} onCharacter={() => setScreen("character")} onShop={() => setScreen("shop")}
+        <MainScreen player={player} pendingWorldEvents={getPendingWorldEvents(player)} onOpenPendingWorldEvent={handleOpenPendingWorldEvent} onAdventure={handleAdventure}
+          onSect={() => setScreen("sect")} onCharacter={() => { setAreaUtilityReturn(false); setScreen("character") }} onShop={() => { setAreaUtilityReturn(false); setScreen("shop") }}
           onNpc={() => setScreen("npc")} onDebug={() => setScreen("debug")} onEndingRecord={() => setScreen("ending-record")}
         />
       )}
@@ -256,12 +341,23 @@ function App() {
         />
       )}
       {screen === "map" && player && <MapScreen player={player} onSelect={handleSelectLocation} onBack={() => returnToMain(player)} />}
+      {screen === "area" && player && (
+        <AreaScreen
+          player={player}
+          initialSpotId={areaPlaceId}
+          onResume={handleResumeAreaStory}
+          onOpenShop={handleAreaShop}
+          onOpenInventory={handleAreaInventory}
+          onChallenge={handleAreaChallenge}
+          onExit={() => { setAreaPlaceId(null); returnToMain(player) }}
+        />
+      )}
       {screen === "debug" && player && <DebugScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} onTestBattle={handleTestBattle} />}
       {screen === "npc" && player && <NpcScreen player={player} onUpdate={handleUpdate} onChallenge={handleChallengeNpc} onBack={() => returnToMain(player)} />}
       {screen === "battle" && player && battlePlayer && enemies.length > 0 && <BattleScreen player={player} battlePlayer={battlePlayer} enemies={enemies} teammates={battleTeammates} objective={battleObjective} partySupportBonuses={activePartyBonuses} partyBondBonuses={activePartyBondBonuses} partySupportTotals={activePartyTotals} openingSupportLines={battleSupportOpeningLines} onEnd={handleBattleEnd} />}
       {screen === "sect" && player && <SectScreen player={player} onLearn={handleLearn} onBack={() => returnToMain(player)} />}
-      {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}
-      {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}
+      {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={areaUtilityReturn ? returnToAreaUtility : () => returnToMain(player)} />}
+      {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={areaUtilityReturn ? returnToAreaUtility : () => returnToMain(player)} shopName={areaUtilityReturn ? "曲三酒店柜台" : undefined} shopkeeper={areaUtilityReturn ? "曲三" : undefined} />}
       {screen === "ending-record" && player && <EndingRecordScreen player={player} onBack={() => returnToMain(player)} />}
     </div>
   )

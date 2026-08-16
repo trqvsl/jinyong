@@ -108,6 +108,18 @@ export const ENEMIES: Enemy[] = [
  },
   // ===== 剧情专用敌人（由事件指定，不参与随机池） =====
   {
+    id: "jin-village-raider",
+    name: "闯巷官兵",
+    hp: 72, hpMax: 72,
+    mp: 12, mpMax: 12,
+    attack: 10, defense: 6, speed: 7,
+    statuses: [],
+    skills: [getSkillById("changquan")!],
+    expReward: 70,
+    goldReward: 24,
+    description: "围村官军中闯入侧巷的一名兵卒。此战由郭啸天在旁接应，是玩家的首场教学战。",
+  },
+  {
     id: "guanjun",
     name: "官军小队",
     hp: 110, hpMax: 110,

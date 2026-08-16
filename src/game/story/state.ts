@@ -100,6 +100,8 @@ function migrateStoryCheckpoint(raw: unknown): StoryCheckpoint | null {
     battleEnemyIds: Array.isArray(value.battleEnemyIds)
       ? value.battleEnemyIds.filter((id): id is string => typeof id === "string")
       : undefined,
+    paused: value.paused === true,
+    areaEntry: value.areaEntry === true,
   }
 }
 

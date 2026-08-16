@@ -6,6 +6,7 @@ import type { BattleObjectiveConfig, BattleOutcome } from "./battle"
 import { getLocationById } from "../data/map"
 import { getEnemyById } from "../data/enemies"
 import { getNpcById } from "../data/npcs"
+import { STORY_AREA_MAPS } from "../data/story/areaMaps"
 import { applyConsequences } from "./story/consequences"
 import { getActivePartyNpcs, normalizePlayerParty } from "./party"
 import { resolveBranch, pickRandom, resolveBattleOutcome } from "./story/engine"
@@ -14,6 +15,7 @@ import { getAdventureEnemy, getStoryEventById, getStoryEventByLocation } from ".
 
 export type AppViewCommand =
   | { type: "show-main" }
+  | { type: "show-area"; locationId: string }
   | {
       type: "show-event-entry"
       event: StoryEvent
@@ -64,6 +66,7 @@ export function dequeuePendingWorldEvent(player: Player, eventId: string): Playe
 }
 
 export function getPendingWorldEvents(player: Player): StoryEvent[] {
+  if (player.world.currentStory?.paused) return []
   return getPendingWorldEventIds(player)
     .map((eventId) => getStoryEventById(eventId))
     .filter((event): event is StoryEvent => !!event)
@@ -127,6 +130,12 @@ function getStoryBattleEnemies(
 
 export function createMainViewCommand(): Extract<AppViewCommand, { type: "show-main" }> {
   return { type: "show-main" }
+}
+
+export function createAreaViewCommand(
+  locationId: string,
+): Extract<AppViewCommand, { type: "show-area" }> {
+  return { type: "show-area", locationId }
 }
 
 function getNodePhase(event: StoryEvent, nodeId: string): StoryCheckpointPhase {
@@ -212,11 +221,39 @@ export function openLocationStory(args: {
 }): { player: Player; command: AppViewCommand } | null {
   const location = getLocationById(args.locationId)
   if (!location) return null
-  return beginStoryEvent({
-    player: args.player,
-    event: getStoryEventByLocation(args.player, location.events),
-    locationId: args.locationId,
-  })
+  const checkpoint = args.player.world.currentStory
+  if (checkpoint?.paused && checkpoint.locationId === args.locationId) {
+    const event = getStoryEventById(checkpoint.eventId)
+    if (event?.nodes[checkpoint.nodeId]) {
+      return {
+        player: args.player,
+        command: createAreaViewCommand(args.locationId),
+      }
+    }
+  }
+  const event = getStoryEventByLocation(args.player, location.events)
+  const area = STORY_AREA_MAPS.find((item) => item.locationId === args.locationId)
+  const hasMappedEntry = area?.spots.some((spot) =>
+    spot.storyTargets?.some((target) =>
+      target.eventId === event.id && target.nodeId === event.entryNode
+    )
+  )
+  if (hasMappedEntry) {
+    const entryCheckpoint = createNodeCheckpoint({
+      event,
+      nodeId: event.entryNode,
+      locationId: args.locationId,
+    })
+    return {
+      player: setStoryCheckpoint(args.player, {
+        ...entryCheckpoint,
+        paused: true,
+        areaEntry: true,
+      }),
+      command: createAreaViewCommand(args.locationId),
+    }
+  }
+  return beginStoryEvent({ player: args.player, event, locationId: args.locationId })
 }
 
 export function restoreStoryCheckpoint(player: Player): { player: Player; command: AppViewCommand | null } {
@@ -226,6 +263,11 @@ export function restoreStoryCheckpoint(player: Player): { player: Player; comman
   const event = getStoryEventById(checkpoint.eventId)
   if (!event || !event.nodes[checkpoint.nodeId]) {
     return { player: setStoryCheckpoint(player, null), command: null }
+  }
+  if (checkpoint.paused) {
+    return checkpoint.locationId
+      ? { player, command: createAreaViewCommand(checkpoint.locationId) }
+      : { player, command: null }
   }
 
   if (checkpoint.phase === "battle") {
@@ -277,6 +319,32 @@ export function restoreStoryCheckpoint(player: Player): { player: Player; comman
   }
 }
 
+export function resumePausedStory(player: Player): {
+  player: Player
+  command: Extract<AppViewCommand, { type: "show-event-entry" }> | null
+} {
+  const checkpoint = player.world.currentStory
+  if (!checkpoint?.paused) return { player, command: null }
+  const event = getStoryEventById(checkpoint.eventId)
+  if (!event?.nodes[checkpoint.nodeId]) {
+    return { player: setStoryCheckpoint(player, null), command: null }
+  }
+  const resumedPlayer = setStoryCheckpoint(player, {
+    ...checkpoint,
+    paused: false,
+    areaEntry: false,
+  })
+  return {
+    player: resumedPlayer,
+    command: createStoryEntryCommand({
+      event,
+      nodeId: checkpoint.nodeId,
+      locationId: checkpoint.locationId,
+      pageIndex: checkpoint.pageIndex,
+    }),
+  }
+}
+
 export function createBattleEntryCommand(args: {
   enemies: Enemy[]
   pendingBattleTransition?: Transition | null
@@ -309,6 +377,7 @@ export function normalizeMainPlayer(player: Player): Player {
   if (currentStory && !getStoryEventById(currentStory.eventId)) {
     finalPlayer = setStoryCheckpoint(finalPlayer, null)
   }
+  if (finalPlayer.world.currentStory?.paused) return finalPlayer
 
   const polled = pollWorldEvent(finalPlayer, finalPlayer.world)
   finalPlayer = polled.player
@@ -342,6 +411,22 @@ export function resolveStoryFlow(args: {
   switch (transition.type) {
     case "end":
       return { player: setStoryCheckpoint(player, null), command: createMainViewCommand() }
+    case "pause": {
+      if (!args.currentStoryEvent) {
+        return { player: setStoryCheckpoint(player, null), command: createMainViewCommand() }
+      }
+      const checkpoint = createNodeCheckpoint({
+        event: args.currentStoryEvent,
+        nodeId: transition.nodeId,
+        locationId: args.locationId,
+      })
+      return {
+        player: setStoryCheckpoint(player, { ...checkpoint, paused: true }),
+        command: args.locationId
+          ? createAreaViewCommand(args.locationId)
+          : createMainViewCommand(),
+      }
+    }
     case "goto": {
       if (!args.currentStoryEvent) {
         return { player: setStoryCheckpoint(player, null), command: createMainViewCommand() }

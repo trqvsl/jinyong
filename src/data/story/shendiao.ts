@@ -44,39 +44,85 @@ export const SHENDIAO_STORY: StoryEvent[] = [
     nodes: {
       riverbank: {
         id: "riverbank",
-        title: "钱塘江边",
-        text: "八月的钱塘江水从牛家村外滚滚东去。两株松树下围着村民，一个青袍老者敲着梨花木板，正说北地百姓遭金兵冲散的故事。人群边站着两个北方口音的汉子，一个浓眉阔肩，一个白净精悍；村头小酒店的跛脚掌柜把酒壶摆上桌，转身时两根拐杖落地极稳。",
+        title: "松下开场",
+        text: "两株老松之间铺着一方旧草席。张十五盘腿坐下，把一块梨花木板横在膝上，右手握着短木槌。围听的船夫、樵夫和村民刚站稳，木槌便在板上敲出两声脆响。张十五：\"列位，今日不说神仙鬼怪，先说一段北地旧事。那一年金兵渡河，汴京城门一破，徽钦二帝连同宗室百官都被押往北地。史书上只写靖康二字，落在百姓头上，却是千万户人家再也等不到归人。\"",
+        stage: {
+          sceneId: "niujia-riverbank",
+          sceneLabel: "牛家村 · 钱塘江边",
+          actors: [
+            { name: "张十五", slot: "far-left", motion: "enter-left" },
+            { name: "郭啸天", slot: "left", motion: "step-forward" },
+            { name: "杨铁心", slot: "right", motion: "enter-right" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "riverbank-jingkang" },
+      },
+      "riverbank-jingkang": {
+        id: "riverbank-jingkang",
+        title: "靖康旧恨",
+        text: "张十五把木槌在掌中一转，又敲了一记。张十五：\"有人背着老母往南逃，有人抱着孩子死守渡口。过了黄河，官军叫他们等；过了长江，官府还叫他们等。可这一等，北地的田契成了废纸，祖坟也不知落进谁家马场。\"人群外侧站着两名结义兄弟。浓眉阔肩、背负双戟的是郭啸天；白净精悍、枪囊从不离身的是杨家枪传人杨铁心。郭啸天听到这里，把原本抱在胸前的手放了下来。",
+        stage: {
+          sceneId: "niujia-riverbank",
+          sceneLabel: "牛家村 · 钱塘江边",
+          actors: [
+            { name: "张十五", slot: "far-left", motion: "step-forward", focus: true },
+            { name: "郭啸天", slot: "left" },
+            { name: "杨铁心", slot: "right" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "riverbank-wumu" },
+      },
+      "riverbank-wumu": {
+        id: "riverbank-wumu",
+        title: "岳武穆北伐",
+        text: "江风把草席一角掀起，张十五用木板压住，接着往下说。张十五：\"后来岳元帅在郾城破拐子马，朱仙镇前军心正盛。北地百姓已经备好香案，只等王师渡河。谁知临安一日十二道金牌，硬把人从前线召了回来。十年功废，三军气短，风波亭里再没有一支军队能替他说话。\"杨铁心按住枪囊。杨铁心：\"若当年朝廷肯让岳家军再走百里，何至于让百姓把北伐只当说书听。\"",
+        stage: {
+          sceneId: "niujia-riverbank",
+          sceneLabel: "牛家村 · 钱塘江边",
+          actors: [
+            { name: "张十五", slot: "far-left", focus: true },
+            { name: "郭啸天", slot: "left" },
+            { name: "杨铁心", slot: "right", motion: "step-forward" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "riverbank-qusan" },
+      },
+      "riverbank-qusan": {
+        id: "riverbank-qusan",
+        title: "村头酒来",
+        text: "村路那头传来拐杖点地声。跛脚掌柜曲三一手提酒壶，一手夹着几只粗瓷碗，从人群后面挪到松树下。他右腿落地不便，两根木拐却一前一后，酒壶里的水没有洒出半滴。曲三：\"张先生说了半日，先润润嗓子。酒算郭杨两位的账。\"郭啸天笑着接过酒碗。郭啸天：\"曲掌柜肯送酒，郭某自然认账。张先生若不嫌村酒薄，散场后再到店里喝一碗。\"",
+        stage: {
+          sceneId: "niujia-riverbank",
+          sceneLabel: "牛家村 · 钱塘江边",
+          actors: [
+            { name: "张十五", slot: "far-left" },
+            { name: "郭啸天", slot: "left", motion: "step-forward" },
+            { name: "杨铁心", slot: "right" },
+            { name: "曲三", slot: "far-right", motion: "enter-right", focus: true },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "riverbank-departure" },
+      },
+      "riverbank-departure": {
+        id: "riverbank-departure",
+        title: "江边散场",
+        text: "最后一段说完，张十五用木槌在梨花木板上敲出收场三响。他把木槌塞回布囊，又用麻绳把木板系到背后。围听的村民这才把铜钱放进草席边的小碗，沿江岸各自散去。张十五：\"郭英雄相请，老汉便再叨扰一碗。只是入夜前还得赶回钱塘城。\"杨铁心替他提起布囊，郭啸天已经沿村路往曲三酒店走去。",
+        stage: {
+          sceneId: "niujia-riverbank",
+          sceneLabel: "牛家村 · 钱塘江边",
+          actors: [
+            { name: "张十五", slot: "left" },
+            { name: "郭啸天", slot: "center", motion: "cross-right" },
+            { name: "杨铁心", slot: "right", motion: "cross-right" },
+            { name: "曲三", slot: "far-right" },
+          ],
+        },
         choices: [
           {
-            id: "listen-story",
-            text: "留下听完",
-            description: "听听北地来客怎么说，也看看那两个汉子为何如此在意。",
-            consumeDay: true,
-            consequences: [
-              { kind: "reputation", delta: 1 },
-              { kind: "relation", npcId: "guoxiaotian", delta: 2 },
-              { kind: "relation", npcId: "yangtiexin", delta: 2 },
-            ],
-            resultText: "说书人收起木板时，浓眉汉子上前相邀。郭啸天：\"张先生，喝上三杯便算相识。\"白净汉子跟着抱拳，自报名叫杨铁心。三人进了村头酒店，跛脚掌柜曲三只管烫酒，没有多问。",
-            transition: { type: "goto", nodeId: "qusan-tavern" },
-          },
-          {
-            id: "help-tavern",
-            text: "帮曲三送酒",
-            description: "人群散得快，先替跛脚掌柜把酒食送进店里。",
-            consumeDay: true,
-            consequences: [
-              { kind: "aptitude", delta: 1 },
-            ],
-            resultText: "曲三把两壶热酒交到你手里，自己撑着拐杖去搬桌边酒坛。他双腿虽废，转身时却没碰响一只碗。一个满脸泥灰的小姑娘挺着火叉追鸡进店，曲三只看她一眼，脸上便有了笑意。",
-            transition: { type: "goto", nodeId: "qusan-tavern" },
-          },
-          {
-            id: "watch-patrol",
-            text: "避开巡差",
-            description: "江边有几个差役盘问生客，先退到酒店檐下避一避。",
-            consumeDay: true,
-            resultText: "巡差沿江问了几户人家，见郭杨二人进店，也只在门外多看了两眼。曲三把酒帘放低半截，让你从侧门进屋。店里三人正在谈北方战事，桌上的酒刚斟满。",
+            id: "go-tavern",
+            kind: "travel",
+            text: "前往曲三酒店",
+            description: "跟着郭啸天、杨铁心和张十五进店。",
             transition: { type: "goto", nodeId: "qusan-tavern" },
           },
         ],
@@ -84,44 +130,233 @@ export const SHENDIAO_STORY: StoryEvent[] = [
       "qusan-tavern": {
         id: "qusan-tavern",
         title: "曲三酒店",
-        text: "郭啸天、杨铁心与说书人谈到靖康旧耻，曲三忽然指出，害死岳飞的不只秦桧。话说完，他又撑着拐杖坐回门边。泥脸小姑娘把公鸡当老虎追得满店乱跑，曲三弯腰护住酒坛，起身时右拐只在地上一点，整个人已越过半张桌子。",
+        text: "郭啸天把双戟靠在桌边，先替说书人张十五斟满一碗。郭啸天：\"郭某祖上也是北地人。靖康以后多少百姓有家难回，这碗酒敬张先生肯把旧事说给后人听。\"",
+        sceneTransition: {
+          title: "曲三酒店",
+          subtitle: "离江边不过百余步",
+          timeLabel: "申时末",
+          tone: "dusk",
+        },
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [
+            { name: "郭啸天", slot: "far-left" },
+            { name: "杨铁心", slot: "left" },
+            { name: "曲三", slot: "right" },
+            { name: "傻姑", slot: "far-right", scale: "small" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "tavern-yangtiexin" },
+      },
+      "tavern-yangtiexin": {
+        id: "tavern-yangtiexin",
+        title: "同饮旧事",
+        text: "杨铁心把枪囊放到脚边，也向张十五举起酒碗。杨铁心：\"我与郭大哥在牛家村结义安家。朝廷若真肯北望，也不会只剩说书人口中的岳武穆。\"",
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [
+            { name: "郭啸天", slot: "far-left" },
+            { name: "杨铁心", slot: "left", motion: "step-forward" },
+            { name: "曲三", slot: "right" },
+            { name: "傻姑", slot: "far-right", scale: "small" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "tavern-qusan" },
+      },
+      "tavern-qusan": {
+        id: "tavern-qusan",
+        title: "酒炉旧话",
+        text: "曲三正给火上的酒壶添水，听到岳武穆三个字，手忽然停住。曲三：\"害死岳飞的，不只秦桧一个。\"郭啸天放下酒碗。郭啸天：\"曲掌柜还知道些什么？\"曲三把酒壶推回炭火上。曲三：\"临安城里知道的人不少，肯说的没几个。我一个卖酒的，只管酒冷不冷。\"",
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [
+            { name: "郭啸天", slot: "far-left" },
+            { name: "杨铁心", slot: "left" },
+            { name: "曲三", slot: "right", motion: "step-forward", focus: true },
+            { name: "傻姑", slot: "far-right", scale: "small" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "tavern-shagu-chase" },
+      },
+      "tavern-shagu-chase": {
+        id: "tavern-shagu-chase",
+        title: "满店鸡飞",
+        text: "后院木门被撞开。泥脸小姑娘傻姑把公鸡当老虎，举着烧火棍追得它满店乱跑。曲三弯腰护住酒坛，起身时右拐只在地上一点，整个人已经越过半张桌子。杨铁心的手停在枪囊上。杨铁心：\"曲掌柜，好利落的身手。\"曲三把酒坛放稳。曲三：\"酒坛碎了要赔。我这条腿，不过挪得快些。\"",
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [
+            { name: "郭啸天", slot: "far-left" },
+            { name: "杨铁心", slot: "left" },
+            { name: "曲三", slot: "right", motion: "cross-left", focus: true },
+            { name: "傻姑", slot: "far-right", motion: "cross-left", scale: "small" },
+          ],
+          props: [
+            { id: "rooster", slot: "far-right", motion: "run-left", label: "被傻姑追赶的公鸡" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "tavern-last-bowl" },
+      },
+      "tavern-last-bowl": {
+        id: "tavern-last-bowl",
+        title: "日影西斜",
+        text: "门外江面已经染上晚霞，店里的影子从桌脚一直拖到墙边。张十五把最后半碗酒慢慢喝完，摸出两枚铜钱压在桌上。张十五：\"天黑前还要过渡口。今日这碗酒，老汉记下了。改日再说到岳家军，给两位英雄留个靠前的位置。\"郭啸天把铜钱推回去。郭啸天：\"说书钱归说书钱，酒钱归酒钱。张先生收着。\"",
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [
+            { name: "张十五", slot: "far-left", motion: "step-forward", focus: true },
+            { name: "郭啸天", slot: "left" },
+            { name: "杨铁心", slot: "right" },
+            { name: "曲三", slot: "far-right" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "tavern-guoyang-depart" },
+      },
+      "tavern-guoyang-depart": {
+        id: "tavern-guoyang-depart",
+        title: "各自归家",
+        text: "张十五背好梨花木板，沿江路往渡口去了。郭啸天把双戟重新负到背后，起身时朝杨铁心家的方向看了一眼。郭啸天：\"弟妹今日说要补屋顶。天还没黑，我去搭把手。\"杨铁心提起枪囊。杨铁心：\"大哥先走，我把这坛酒送回后院便来。\"两人向曲三抱拳，先后出了店门。",
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [
+            { name: "郭啸天", slot: "left", motion: "cross-right" },
+            { name: "杨铁心", slot: "right", motion: "cross-right" },
+            { name: "曲三", slot: "far-right" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "tavern-closing" },
+      },
+      "tavern-closing": {
+        id: "tavern-closing",
+        title: "收店",
+        text: "曲三把空碗一只只摞回木盘，又让傻姑把公鸡抱进后院。曲三：\"天黑后不再卖酒。靠窗那张桌子可以歇脚，灯油只够到二更。\"傻姑抱着公鸡从后门探出半张泥脸。傻姑：\"大老虎不咬人。\"曲三用拐杖轻轻碰了碰门槛。曲三：\"不咬人也得关好。去。\"",
+        sceneTransition: {
+          title: "暮色入村",
+          subtitle: "酒旗落下，渡口收船",
+          timeLabel: "酉时 · 日暮",
+          tone: "dusk",
+        },
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [
+            { name: "曲三", slot: "right", motion: "step-forward", focus: true },
+            { name: "傻姑", slot: "far-right", motion: "cross-right", scale: "small" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "tavern-first-watch" },
+      },
+      "tavern-first-watch": {
+        id: "tavern-first-watch",
+        title: "初更灯火",
+        text: "店门合上后，江风只从窗缝里钻进来。曲三在柜后核完酒账，提着灯进了后院。屋里剩下靠窗一盏小油灯，灯芯偶尔爆出细响。村道上先是有人收晾衣杆，随后是犬吠，最后连脚步声也听不见了。",
+        sceneTransition: {
+          title: "初更",
+          subtitle: "村道渐静",
+          timeLabel: "戌时",
+          tone: "night",
+        },
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [],
+        },
+        autoNext: { type: "goto", nodeId: "tavern-second-watch" },
+      },
+      "tavern-second-watch": {
+        id: "tavern-second-watch",
+        title: "灯油将尽",
+        text: "二更梆子从村东传来时，窗边油灯已经矮了一半。后院没有鸡叫，曲三的房门也没有再开。江潮退去，水声离岸更远，反倒让村西松林的风声显得清楚。柜台下压着一截没收走的麻绳，门边却少了曲三平日倚着的一根短拐。",
+        sceneTransition: {
+          title: "二更",
+          subtitle: "潮退，灯残",
+          timeLabel: "亥时",
+          tone: "night",
+        },
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [],
+        },
+        autoNext: { type: "goto", nodeId: "tavern-nightfall" },
+      },
+      "tavern-nightfall": {
+        id: "tavern-nightfall",
+        title: "林中兵刃",
+        text: "三更梆子刚落，村西林中传来一声金铁相撞。第一声很短，像刀刃被硬物架住；片刻后又是一声，紧接着有枯枝折断。后院仍没有人出来，柜边那根短拐也一直没有回来。",
+        sceneTransition: {
+          title: "三更",
+          subtitle: "村西林传来兵刃声",
+          timeLabel: "子时",
+          tone: "night",
+        },
+        stage: {
+          sceneId: "qusan-tavern",
+          sceneLabel: "牛家村 · 曲三酒店",
+          actors: [],
+        },
         choices: [
           {
-            id: "mind-shagu",
-            text: "替他看住傻姑",
-            description: "先把孩子和公鸡分开，免得一屋酒坛全被撞翻。",
-            consumeDay: true,
-            consequences: [
-              { kind: "reputation", delta: 1 },
-            ],
-            resultText: "你把公鸡赶出门，又从傻姑手里换下火叉。傻姑指着曲三背后的旧包袱。傻姑：\"爹爹夜里拿宝贝，亮晶晶，不能给人看。\"曲三回头叫她吃饭，没有解释。",
+            id: "go-west-grove",
+            kind: "travel",
+            text: "循声前往村西林",
+            description: "林中有兵刃声，曲三刚才也不见了。",
             transition: { type: "goto", nodeId: "qusan-night" },
-          },
-          {
-            id: "watch-qusan",
-            text: "留意曲三",
-            description: "跛脚人方才那一步不像寻常，先看看他还藏着什么。",
-            consumeDay: true,
-            consequences: [
-              { kind: "aptitude", delta: 1 },
-            ],
-            resultText: "你没有追问，只把曲三换拐、提坛和收拾桌面的动作逐一看过。他每次借力都快得干净，双腿虽有旧伤，手上功夫却远胜寻常武人。",
-            transition: { type: "goto", nodeId: "qusan-night" },
-          },
-          {
-            id: "leave-tavern",
-            text: "先回村中",
-            description: "酒馆里的事与自己无关，先去找今晚的落脚处。",
-            consumeDay: true,
-            resultText: "你离开酒店时，曲三正把门边几个空坛搬回屋里。傻姑趴在门槛上冲你挥了挥火叉，江边暮色已经压了下来。",
-            transition: { type: "goto", nodeId: "winter-snow" },
           },
         ],
       },
       "qusan-night": {
         id: "qusan-night",
-        title: "月下旧物",
-        text: "三更后，村西林中传来兵刃相击声。你赶到时争斗已经结束，三个宫中侍卫倒在草间，曲三背上的包裹被刀划破，书画卷轴与金玉旧物散了一地。郭啸天和杨铁心也从林后现身。曲三没有否认，只让众人帮他掩埋尸首。",
+        title: "林中三尸",
+        text: "松林里倒着三名黑衣人。两人伏在草间，一人背靠树根，胸口都已经没有起伏。三柄短刀落在湿土上，刀镡刻着宫门内卫的纹样。曲三半跪在一只破开的包裹旁，右肩衣料被割开，散落的书画卷轴和金玉器物铺了半圈。",
+        sceneTransition: {
+          title: "村西林",
+          subtitle: "循兵刃声穿过松林",
+          timeLabel: "三更后",
+          tone: "night",
+        },
+        stage: {
+          sceneId: "niujia-west-grove",
+          sceneLabel: "牛家村 · 村西林",
+          actors: [
+            { name: "曲三", slot: "center", motion: "injured", focus: true },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "qusan-night-guoyang" },
+      },
+      "qusan-night-guoyang": {
+        id: "qusan-night-guoyang",
+        title: "郭杨赶到",
+        text: "林后响起急促脚步。郭啸天提着双戟先穿过树隙，杨铁心紧随其后，枪尖仍套着布囊。郭啸天看了一眼地上的短刀。郭啸天：\"这些是宫里的人？\"杨铁心停在散落的卷轴前。杨铁心：\"曲掌柜，你从临安带回来的究竟是什么？\"",
+        stage: {
+          sceneId: "niujia-west-grove",
+          sceneLabel: "牛家村 · 村西林",
+          actors: [
+            { name: "郭啸天", slot: "left", motion: "enter-left" },
+            { name: "曲三", slot: "center", motion: "injured", focus: true },
+            { name: "杨铁心", slot: "right", motion: "enter-right" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "qusan-night-account" },
+      },
+      "qusan-night-account": {
+        id: "qusan-night-account",
+        title: "曲三认账",
+        text: "曲三用短拐拨开脚边一柄刀，刀下露出半块宫库封签。曲三：\"人是从临安跟来的，东西也是从宫里取的。字画金玉原本锁在库房，放着给那些人发霉，不如带出来。\"郭啸天：\"为了这些东西，值得连杀三人？\"曲三：\"他们先追到牛家村。今夜若不倒在这里，明日进店搜的就不只是酒坛。\"杨铁心望向村路。杨铁心：\"天亮前必须把尸首和痕迹处理掉。后面还有没有追兵，等埋完再问。\"",
+        stage: {
+          sceneId: "niujia-west-grove",
+          sceneLabel: "牛家村 · 村西林",
+          actors: [
+            { name: "郭啸天", slot: "left" },
+            { name: "曲三", slot: "center", motion: "step-forward", focus: true },
+            { name: "杨铁心", slot: "right", motion: "guard" },
+          ],
+        },
         choices: [
           {
             id: "bury-traces",
@@ -166,24 +401,62 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         id: "winter-snow",
         title: "秋尽冬来",
         text: "此后数月，曲三没有再回酒店，只留下傻姑由村人照看。江畔乌柏落尽了叶，北风一日紧过一日。入冬后第一场大雪封住村路，杨铁心到红梅村沽酒回来，傍晚又在雪中看见一个负剑道人沿大路而来。",
+        sceneTransition: {
+          title: "秋尽冬来",
+          subtitle: "曲三酒店空置，牛家村迎来第一场雪",
+          timeLabel: "数月后 · 入冬",
+          tone: "snow",
+        },
+        stage: {
+          sceneId: "niujia-snow-courtyard",
+          sceneLabel: "牛家村 · 杨家院外",
+          actors: [
+            { name: "杨铁心", slot: "left", motion: "enter-left" },
+            { name: "长春子丘处机", slot: "far-right", motion: "enter-right" },
+          ],
+        },
         autoNext: { type: "goto", nodeId: "qiu-arrival" },
       },
       "qiu-arrival": {
         id: "qiu-arrival",
         title: "风雪遇长春",
-        text: "郭啸天与杨铁心好意请道人饮酒，对方却把他们当成官府埋伏。几句话不合，杨铁心已经提枪站到雪地里。道人空手接住回马枪，认出杨家枪法后立刻收劲抱拳。长春子丘处机：\"贫道认错了人。两位既是忠良之后，方才多有得罪。\"",
+        text: "道人走到杨家院前，袍角与剑鞘上都是积雪。郭啸天把双戟留在屋内，杨铁心也解下枪囊，请他进屋喝碗热酒。道人没有跨过门槛，目光在两家院墙与兵器架之间来回。长春子丘处机：\"贫道一路被官差追到这里。两位半夜持兵相候，这碗酒怕不是专为贫道温的。\"郭啸天：\"道长误会。大雪封路，不过请你进屋避一避。\"",
+        stage: {
+          sceneId: "niujia-snow-courtyard",
+          sceneLabel: "牛家村 · 杨家院前",
+          actors: [
+            { name: "郭啸天", slot: "far-left", motion: "step-forward" },
+            { name: "杨铁心", slot: "left", motion: "guard" },
+            { name: "长春子丘处机", slot: "right", motion: "enter-right", focus: true },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "qiu-clash" },
+      },
+      "qiu-clash": {
+        id: "qiu-clash",
+        title: "风雪交锋",
+        text: "丘处机没有收手，反而扣向郭啸天手腕。杨铁心横枪隔开这一抓，枪杆刚离地面，道人的袍袖已经卷向枪尖。双方还没分清身份，第二招便逼到院门。",
+        stage: {
+          sceneId: "niujia-snow-courtyard",
+          sceneLabel: "牛家村 · 风雪院前",
+          actors: [
+            { name: "郭啸天", slot: "far-left", motion: "guard" },
+            { name: "杨铁心", slot: "left", motion: "lunge-right", focus: true },
+            { name: "长春子丘处机", slot: "right", motion: "lunge-left", focus: true },
+          ],
+        },
         choices: [
           {
-            id: "watch-skills",
-            text: "在旁观招",
-            description: "不贸然插手，先看清杨家枪与全真手法的差别。",
+            id: "name-spear-lineage",
+            text: "喊明杨家枪来历",
+            description: "趁第二招未落，点明枪法传承，让双方先核身份。",
             consumeDay: true,
             consequences: [
               { kind: "aptitude", delta: 2 },
               { kind: "relation", npcId: "qiuchuji", delta: 2 },
             ],
-            resultText: "丘处机夹住枪尖时没有顺势伤人，认出枪法后又立即还礼。杨铁心收枪请他进屋，郭啸天也把双戟重新放回墙边。",
-            transition: { type: "goto", nodeId: "qiu-aftermath" },
+            resultText: "你在枪尖再起前报出岳武穆麾下杨家枪的来历。道人目光一动，原本探向胸口的掌势改成封架，却仍要亲手验完这一枪。",
+            transition: { type: "goto", nodeId: "qiu-recognition" },
           },
           {
             id: "clear-villagers",
@@ -194,27 +467,74 @@ export const SHENDIAO_STORY: StoryEvent[] = [
               { kind: "reputation", delta: 2 },
               { kind: "relation", npcId: "qiuchuji", delta: 2 },
             ],
-            resultText: "你把门外看热闹的村民劝回各家，又将路上的脚印扫乱。丘处机看了一眼空下来的村道。丘处机：\"做得利落。追贫道的人，确实快到了。\"",
-            transition: { type: "goto", nodeId: "qiu-aftermath" },
-          },
-          {
-            id: "stand-guoyang",
-            text: "站到郭杨一边",
-            description: "若误会再起，至少先替两人递一句话。",
-            consumeDay: true,
-            consequences: [
-              { kind: "relation", npcId: "guoxiaotian", delta: 3 },
-              { kind: "relation", npcId: "yangtiexin", delta: 3 },
-            ],
-            resultText: "你说明郭杨二人在村中住了数年，从未替官府做事。丘处机没有只凭这一句话信人，却在看过杨家枪与郭家双戟后收了敌意。",
-            transition: { type: "goto", nodeId: "qiu-aftermath" },
+            resultText: "你把门外看热闹的村民劝回各家，又将路上的脚印扫乱。院门前空下来，郭杨二人不必再护着旁人，道人也不再分神留意街口。",
+            transition: { type: "goto", nodeId: "qiu-recognition" },
           },
         ],
+      },
+      "qiu-recognition": {
+        id: "qiu-recognition",
+        title: "枪下释疑",
+        text: "杨铁心拧腰收势，回马枪由实转虚。丘处机两指夹住枪杆，顺着枪路看清来历，随即松手退开。长春子丘处机：\"岳武穆麾下杨家枪，原来传到了这里。贫道认错了人。两位既是忠良之后，方才多有得罪。\"杨铁心收枪抱拳，郭啸天重新推开院门。",
+        stage: {
+          sceneId: "niujia-snow-courtyard",
+          sceneLabel: "牛家村 · 风雪院前",
+          actors: [
+            { name: "郭啸天", slot: "far-left", motion: "guard" },
+            { name: "杨铁心", slot: "left", motion: "recoil" },
+            { name: "长春子丘处机", slot: "right", motion: "recoil", focus: true },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "qiu-night-talk" },
+      },
+      "qiu-night-talk": {
+        id: "qiu-night-talk",
+        title: "灯下短剑",
+        text: "丘处机把长剑解下，横放在门边，这才接过热酒。他说自己追查临安武官与金人往来的线索，途中杀了一个替金人办事的奸细，后面的官差因此紧追不放。李萍与包惜弱添过炭火，提到两家孩子都将在来年出生。丘处机取出两柄短剑，在剑鞘上分别刻下郭靖、杨康。长春子丘处机：\"靖康二字，不该只留在说书人口中。孩子长大后，是友是敌，由他们自己选。\"",
+        stage: {
+          sceneId: "niujia-snow-courtyard",
+          sceneLabel: "牛家村 · 杨家屋内",
+          actors: [
+            { name: "郭啸天", slot: "far-left" },
+            { name: "杨铁心", slot: "left" },
+            { name: "长春子丘处机", slot: "center", motion: "step-forward", focus: true },
+            { name: "李萍", slot: "right" },
+            { name: "包惜弱", slot: "far-right" },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "qiu-pursuers" },
+      },
+      "qiu-pursuers": {
+        id: "qiu-pursuers",
+        title: "雪夜追兵",
+        text: "两柄短剑刚收回鞘中，村外便传来急促马蹄。火把沿雪路逼近，前排官差中还夹着几个佩女真腰牌的人。丘处机提剑走到门外。长春子丘处机：\"他们追的是贫道。两位守住家门，不必替我添这一场人命。\"",
+        stage: {
+          sceneId: "niujia-snow-courtyard",
+          sceneLabel: "牛家村 · 雪夜院前",
+          actors: [
+            { name: "郭啸天", slot: "far-left", motion: "guard" },
+            { name: "杨铁心", slot: "left", motion: "guard" },
+            { name: "长春子丘处机", slot: "right", motion: "step-forward", focus: true },
+          ],
+        },
+        autoNext: { type: "goto", nodeId: "qiu-aftermath" },
       },
       "qiu-aftermath": {
         id: "qiu-aftermath",
         title: "雪地腰牌",
-        text: "追兵还是在夜里赶到。丘处机独自迎敌，剑光与箭影在雪中交错，郭杨二人只守着屋门，没有违背他的嘱咐。战后，尸身上既有临安府公文，也有刻着女真文字的腰牌。丘处机替两家未出世的孩子取名郭靖、杨康，又留下两柄短剑。",
+        text: "一盏茶后，院外只剩折断的箭杆和没入雪地的火把。丘处机收剑回到门前，郭杨二人这才上前查看。尸身上既有临安府公文，也有刻着女真文字的腰牌；官差与金人显然走的是同一路。",
+        stage: {
+          sceneId: "niujia-snow-courtyard",
+          sceneLabel: "牛家村 · 雪夜之后",
+          actors: [
+            { name: "郭啸天", slot: "left", motion: "guard" },
+            { name: "长春子丘处机", slot: "center", motion: "step-forward", focus: true },
+            { name: "杨铁心", slot: "right", motion: "guard" },
+          ],
+        },
+        onEnter: [
+          { kind: "flag", name: "shendiao.niujia.witnessed_sword_oath", value: true },
+        ],
         choices: [
           {
             id: "keep-token",
@@ -223,9 +543,10 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             consumeDay: true,
             consequences: [
               { kind: "item", id: "jin-command-token" },
+              { kind: "exp", delta: 40 },
             ],
             resultText: "你从雪地里捡起一枚断带腰牌，先让丘处机看过。丘处机：\"留着。金兵能在临安地界随官差拿人，这块牌子比空口骂几句有用。\"",
-            transition: { type: "goto", nodeId: "main" },
+            transition: { type: "pause", nodeId: "main" },
           },
           {
             id: "help-bury",
@@ -235,21 +556,10 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             consequences: [
               { kind: "reputation", delta: 2 },
               { kind: "relation", npcId: "qiuchuji", delta: 4 },
+              { kind: "exp", delta: 40 },
             ],
             resultText: "你与郭杨二人把尸身移到江边，李萍和包惜弱扫去雪上血迹。丘处机在旁辨认公文与腰牌，记下领兵者的来路。",
-            transition: { type: "goto", nodeId: "main" },
-          },
-          {
-            id: "remember-swords",
-            text: "记住短剑之约",
-            description: "看清两柄短剑上的名字与交换方式。",
-            consumeDay: true,
-            consequences: [
-              { kind: "aptitude", delta: 1 },
-              { kind: "flag", name: "shendiao.niujia.witnessed_sword_oath", value: true },
-            ],
-            resultText: "两柄短剑一刻郭靖，一刻杨康，却分别交到另一家手中。郭杨约定，孩子若同为男女便结义，若一男一女便结亲。你记住了剑名与交换次序。",
-            transition: { type: "goto", nodeId: "main" },
+            transition: { type: "pause", nodeId: "main" },
           },
         ],
       },
@@ -257,6 +567,14 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         id: "main",
         title: "雪夜余痕",
         text: "丘处机离村后，风雪仍未停。杨家后院还有一线血迹没扫干净，从旧坟旁一路拖进林中。包惜弱提着灯循迹过去，片刻后又匆匆回屋取了热酒、药布和一块门板。村口方向没有追兵，林里却传来一声被压住的呻吟。",
+        stage: {
+          sceneId: "yang-backyard",
+          sceneLabel: "牛家村 · 杨家后院",
+          actors: [
+            { name: "杨铁心", slot: "far-left", motion: "guard" },
+            { name: "包惜弱", slot: "right", motion: "enter-right", focus: true },
+          ],
+        },
         choices: [
           {
             id: "follow-blood",
@@ -300,12 +618,28 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         id: "lodging-night",
         title: "雪夜更深",
         text: "柴房里药味、血腥味和炭火气混在一处。包惜弱已经拔出伤者肩后的狼牙箭，正用止血散压住创口。那人衣甲残破，靴面绣线与宋军不同，昏迷中仍把右手扣在腰间刀柄上。包惜弱抬头看向你，手上没有停。包惜弱：\"人都伤成这样了，总不能看着他死。\"",
+        stage: {
+          sceneId: "yang-backyard",
+          sceneLabel: "牛家村 · 杨家柴房",
+          actors: [
+            { name: "包惜弱", slot: "left", motion: "step-forward", focus: true },
+            { name: "完颜洪烈", slot: "right", motion: "injured" },
+          ],
+        },
         autoNext: { type: "goto", nodeId: "rescue" },
       },
       rescue: {
         id: "rescue",
         title: "雪夜救伤",
         text: "柴房里药味、血腥味和炭火气混在一处。伤者半倚在草堆边，嘴唇发白，右手却仍扣着腰间刀柄。包惜弱把药布缠好，又伸手去够远处的热水。门外忽然传来犬吠，伤者立刻睁眼。包惜弱回头看向你，手仍压在伤口上。",
+        stage: {
+          sceneId: "yang-backyard",
+          sceneLabel: "牛家村 · 杨家柴房",
+          actors: [
+            { name: "包惜弱", slot: "left", motion: "guard", focus: true },
+            { name: "完颜洪烈", slot: "right", motion: "injured" },
+          ],
+        },
         choices: [
           {
             id: "oppose-rescue",
@@ -350,12 +684,35 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         id: "months-later",
         title: "数月之后",
         text: "天亮前，柴房里的伤者已经独自离去。雪地只留下一串向西的血脚印。此后腊尽春回，包惜弱与李萍的身孕渐渐显怀；村外却多了盘问户籍的差役，曲三空置的酒店也被人翻过两次。",
-        autoNext: { type: "goto", nodeId: "wait-righteous" },
+        sceneTransition: {
+          title: "腊尽春回",
+          subtitle: "村外开始有人盘问户籍",
+          timeLabel: "次年春",
+          tone: "ink",
+        },
+        stage: {
+          sceneId: "niujia-riverbank",
+          sceneLabel: "牛家村 · 腊尽春回",
+          actors: [
+            { name: "李萍", slot: "left", motion: "enter-left" },
+            { name: "包惜弱", slot: "right", motion: "enter-right" },
+          ],
+        },
+        onEnter: [{ kind: "exp", delta: 60 }],
+        autoNext: { type: "pause", nodeId: "wait-righteous" },
       },
       "wait-righteous": {
         id: "wait-righteous",
         title: "温柔的网",
         text: "傍晚，段天德的亲随在废酒店后门接下一包银子。契纸上写着调兵数目，侧边压着半枚赵王府印。另有两名生客沿村道逐户认门，问的正是郭杨两家。围捕尚未发动，你还来得及决定把这条线送到谁手里。",
+        stage: {
+          sceneId: "niujia-ruined-inn",
+          sceneLabel: "牛家村 · 废酒店后门",
+          actors: [
+            { name: "段天德", slot: "center", motion: "step-forward", focus: true },
+            { name: "王府亲随", slot: "right", motion: "enter-right" },
+          ],
+        },
         choices: [
           {
             id: "warn-families",
@@ -417,12 +774,28 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         id: "wait-jin",
         title: "赵王门下",
         text: "正屋里坐着的正是雪地伤者。他已换了锦袍，肩伤也只剩一道浅痕。亲随躬身称他六王爷。完颜洪烈把一枚完整铜扣放到你的拓纹旁，纹路严丝合缝。完颜洪烈：\"本王不喜欢欠人情，也不喜欢有人拿着半件信物四处打听。\"",
+        stage: {
+          sceneId: "niujia-ruined-inn",
+          sceneLabel: "牛家村外 · 王府偏院",
+          actors: [
+            { name: "王府亲随", slot: "left", motion: "guard" },
+            { name: "完颜洪烈", slot: "center", motion: "step-forward", focus: true },
+          ],
+        },
         autoNext: { type: "goto", nodeId: "recruit" },
       },
       recruit: {
         id: "recruit",
         title: "完颜洪烈的差事",
         text: "桌上摊着牛家村草图，郭杨两家的院门和后巷都被朱笔圈出。完颜洪烈没有解释罪名。完颜洪烈：\"明夜官府拿人。你熟悉村路，替本王认一认后巷。事成以后，银钱、师门、前程，都可以谈。\"",
+        stage: {
+          sceneId: "niujia-ruined-inn",
+          sceneLabel: "牛家村外 · 王府偏院",
+          actors: [
+            { name: "完颜洪烈", slot: "center", motion: "step-forward", focus: true },
+            { name: "王府亲随", slot: "right", motion: "guard" },
+          ],
+        },
         choices: [
           {
             id: "accept-offer",
@@ -465,18 +838,46 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         id: "raid-righteous-bridge",
         title: "围村之夜",
         text: "午夜前后，四面马蹄同时逼近。官兵举火把封住村路，领头军官正是段天德。郭杨两家虽提前收好兵刃与短剑，孕妇和村民仍无法从四路骑兵之间悄然脱身。",
+        stage: {
+          sceneId: "niujia-raid",
+          sceneLabel: "牛家村 · 围村之夜",
+          actors: [
+            { name: "郭啸天", slot: "far-left", motion: "guard" },
+            { name: "杨铁心", slot: "left", motion: "guard" },
+            { name: "李萍", slot: "right" },
+            { name: "包惜弱", slot: "far-right" },
+          ],
+        },
         autoNext: { type: "goto", nodeId: "raid-righteous" },
       },
       "raid-jin-bridge": {
         id: "raid-jin-bridge",
         title: "围村之夜",
         text: "午夜前后，你带着王府腰牌跟官兵回到牛家村。段天德把兵马分作四路，火把沿村道一圈圈铺开。草图上的后巷就在眼前，郭杨两家也已经听见马蹄。",
+        stage: {
+          sceneId: "niujia-raid",
+          sceneLabel: "牛家村 · 围村之夜",
+          actors: [
+            { name: "段天德", slot: "left", motion: "step-forward", focus: true },
+            { name: "完颜洪烈", slot: "right", motion: "guard" },
+          ],
+        },
         autoNext: { type: "goto", nodeId: "raid-jin" },
       },
       "raid-righteous": {
         id: "raid-righteous",
         title: "官兵围村",
         text: "段天德在马上宣读临安府公文，指郭啸天、杨铁心勾结巨寇。杨铁心提枪守住杨家门前，郭啸天握着双戟退到妻子身侧。李萍和包惜弱都已有数月身孕，短剑藏在衣内，村外四条路却已被骑兵封死。",
+        stage: {
+          sceneId: "niujia-raid",
+          sceneLabel: "牛家村 · 郭杨两家",
+          actors: [
+            { name: "郭啸天", slot: "far-left", motion: "guard", focus: true },
+            { name: "杨铁心", slot: "left", motion: "guard", focus: true },
+            { name: "李萍", slot: "right" },
+            { name: "包惜弱", slot: "far-right" },
+          ],
+        },
         choices: [
           {
             id: "help-guoxiao",
@@ -485,12 +886,20 @@ export const SHENDIAO_STORY: StoryEvent[] = [
             consumeDay: true,
             resultText: "郭啸天把右侧交给你，双戟一错，先架住两柄长矛。杨铁心从另一边挺枪杀出，官兵立刻分出一队压向院门。",
             transition: {
-              type: "battle", enemyId: "guanjun",
+              type: "battle",
+              enemyId: "jin-village-raider",
+              allyIds: ["guoxiaotian"],
+              objective: {
+                kind: "defeatAll",
+                title: "与郭啸天守住侧巷",
+                protectAllyId: "guoxiaotian",
+              },
               onWin: {
                 text: "一队官军被逼退到巷口，雪地里腾出一线空当。郭啸天收回双戟，先朝李萍那边喊了一声。郭啸天：\"跟弟妹走，别回头！\"远处号角随即响起，更多火把正从村外压来。",
                 consequences: [
                   { kind: "karma", delta: 5 },
                   { kind: "reputation", delta: 4 },
+                  { kind: "exp", delta: 30 },
                   { kind: "npcTag", npcId: "guojing", tag: "牛家村并肩旧识" },
                   { kind: "flag", name: "shendiao.niujia.departure", value: "village-aftermath" },
                   { kind: "arcBeat", arcId: "shendiao", beat: "niujia", result: "won" },
@@ -592,6 +1001,15 @@ export const SHENDIAO_STORY: StoryEvent[] = [
         id: "raid-jin",
         title: "官兵围村",
         text: "段天德把两张画像递给你，又指向草图上的后巷。段天德：\"郭杨两家，一个也不能漏。\"院里已经传来兵刃声，李萍与包惜弱都怀着身孕，正被官兵从两户人家之间逼向村口。",
+        stage: {
+          sceneId: "niujia-raid",
+          sceneLabel: "牛家村 · 官军阵中",
+          actors: [
+            { name: "段天德", slot: "left", motion: "step-forward", focus: true },
+            { name: "李萍", slot: "right", motion: "recoil" },
+            { name: "包惜弱", slot: "far-right", motion: "recoil" },
+          ],
+        },
         choices: [
           {
             id: "serve-jin",

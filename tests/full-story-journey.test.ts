@@ -4,6 +4,7 @@ import type { StoryEvent, Transition } from "../src/data/story/schema"
 import {
   normalizeMainPlayer,
   openLocationStory,
+  resumePausedStory,
   resolveStoryFlow,
 } from "../src/game/appFlow"
 import { createPlayer } from "../src/game/player"
@@ -115,9 +116,29 @@ function resolveTransition(
     }
   }
   if (flow.command.type === "show-main") {
+    if (flow.player.world.currentStory?.paused) {
+      const resumed = openLocationStory({ player: flow.player, locationId })
+      if (!resumed || resumed.command.type !== "show-event-entry") {
+        throw new Error(`Cannot resume paused ${event.id}`)
+      }
+      return {
+        player: resumed.player,
+        nextNodeId: resumed.command.nodeId,
+        ended: false,
+      }
+    }
     return {
       player: normalizeMainPlayer(flow.player),
       ended: true,
+    }
+  }
+  if (flow.command.type === "show-area") {
+    const resumed = resumePausedStory(flow.player)
+    if (!resumed.command) throw new Error(`Cannot resume area for ${event.id}`)
+    return {
+      player: resumed.player,
+      nextNodeId: resumed.command.nodeId,
+      ended: false,
     }
   }
   throw new Error(`Unexpected ${flow.command.type} while playing ${event.id}`)
@@ -129,14 +150,20 @@ function playEvent(
   locationId: string,
 ): Player {
   const opened = openLocationStory({ player, locationId })
-  if (!opened || opened.command.type !== "show-event-entry") {
+  if (!opened) {
     throw new Error(`Cannot open ${expectedEventId} at ${locationId}`)
   }
-  expect(opened.command.event.id).toBe(expectedEventId)
+  const entered = opened.command.type === "show-area"
+    ? resumePausedStory(opened.player)
+    : { player: opened.player, command: opened.command }
+  if (!entered.command || entered.command.type !== "show-event-entry") {
+    throw new Error(`Cannot enter ${expectedEventId} at ${locationId}`)
+  }
+  expect(entered.command.event.id).toBe(expectedEventId)
 
-  const event = opened.command.event
-  let currentPlayer = opened.player
-  let nodeId = opened.command.nodeId
+  const event = entered.command.event
+  let currentPlayer = entered.player
+  let nodeId = entered.command.nodeId
 
   for (let step = 0; step < 500; step++) {
     const entered = enterNode(

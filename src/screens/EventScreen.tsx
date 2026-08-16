@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react"
-import { ArrowRight, ScrollText, Swords } from "lucide-react"
+import { ArrowRight, MapPin, ScrollText } from "lucide-react"
 import type { Player } from "../types"
 import type { StoryEvent, Transition } from "../data/events"
 import type { StoryCheckpoint, StoryCheckpointPhase } from "../data/story/schema"
@@ -15,6 +15,9 @@ import {
   getDialoguePortrait,
   getDialoguePortraitFallback,
 } from "./dialoguePortrait"
+import { StoryStage } from "./StoryStage"
+import { isImagePreloaded, preloadImage } from "./imagePreloader"
+import { SceneTransition } from "./SceneTransition"
 
 interface Props {
   player: Player
@@ -26,6 +29,8 @@ interface Props {
   onResolve: (r: { player: Player; transition: Transition; consumedDay: boolean }) => void
 }
 
+const introducedDialogueCharacters = new Set<string>()
+
 function getEventSceneClass(event: StoryEvent): string {
   if (event.presentation === "letter") return "event-scene-letter"
   return `event-scene-${event.locationId ?? "jianghu"}`
@@ -33,14 +38,25 @@ function getEventSceneClass(event: StoryEvent): string {
 
 function DialoguePortraitView({ speaker }: { speaker?: string }) {
   const portrait = getDialoguePortrait(speaker)
+  const portraitSrc = portrait?.src
   const [failed, setFailed] = useState(false)
+  const [loadedPortraitSrc, setLoadedPortraitSrc] = useState(() =>
+    portraitSrc && isImagePreloaded(portraitSrc) ? portraitSrc : ""
+  )
+  const loaded = !!portraitSrc && loadedPortraitSrc === portraitSrc
 
   useEffect(() => {
     setFailed(false)
-  }, [portrait?.src])
+    if (!portraitSrc) {
+      setLoadedPortraitSrc("")
+      return
+    }
+    setLoadedPortraitSrc(isImagePreloaded(portraitSrc) ? portraitSrc : "")
+    preloadImage(portraitSrc).then(() => setLoadedPortraitSrc(portraitSrc))
+  }, [portraitSrc])
 
   return (
-    <div className={`event-rpg-portrait${portrait && !failed ? " has-image" : ""}`}>
+    <div className={`event-rpg-portrait${portrait && loaded && !failed ? " has-image" : ""}`}>
       <span className="event-rpg-portrait-fallback" aria-hidden="true">
         {getDialoguePortraitFallback(speaker)}
       </span>
@@ -49,6 +65,8 @@ function DialoguePortraitView({ speaker }: { speaker?: string }) {
           src={portrait.src}
           alt=""
           aria-hidden="true"
+          className={loaded ? "is-loaded" : ""}
+          onLoad={() => setLoadedPortraitSrc(portrait.src)}
           onError={() => setFailed(true)}
         />
       ) : null}
@@ -81,6 +99,11 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
   const currentPage = pages[Math.min(pageIndex, pages.length - 1)] ?? []
   const dialogueSegment = currentPage.find((segment) => segment.type === "dialogue")
   const narrationSegments = currentPage.filter((segment) => segment.type === "narration")
+  const activePortrait = getDialoguePortrait(dialogueSegment?.speaker)
+  const [characterEntrance, setCharacterEntrance] = useState<{
+    name: string
+    title: string
+  } | null>(null)
   const isReadingFinished = pageIndex >= pages.length - 1
   const showChoices = phase === "choosing" && !!node && isReadingFinished
   const canTapScript = !isReadingFinished
@@ -93,6 +116,19 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
   const letterSignature = phase === "result" ? "" : node?.letterSignature?.trim() ?? ""
   const mergedLetterText = mergeLetterPageText(currentPage)
   const eventSceneClass = getEventSceneClass(event)
+
+  useEffect(() => {
+    const speaker = dialogueSegment?.speaker
+    const entranceKey = activePortrait?.name ?? speaker
+    if (!speaker || !entranceKey || introducedDialogueCharacters.has(entranceKey)) return
+    introducedDialogueCharacters.add(entranceKey)
+    setCharacterEntrance({
+      name: activePortrait?.name ?? speaker,
+      title: activePortrait?.title ?? "江湖人物",
+    })
+    const timer = window.setTimeout(() => setCharacterEntrance(null), 1800)
+    return () => window.clearTimeout(timer)
+  }, [activePortrait, dialogueSegment?.speaker])
 
   function createCheckpoint(
     nextPhase: StoryCheckpointPhase,
@@ -160,6 +196,14 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
     if (!choice) return
     const r = resolveChoice(entered.player, entered.world, event, nodeId, choiceId)
     if (!r) return
+    if (choice.kind === "travel" && !r.resultText?.trim()) {
+      onResolve({
+        player: r.player,
+        transition: r.transition,
+        consumedDay: choice.consumeDay ?? false,
+      })
+      return
+    }
     setResultText(r.resultText ?? "")
     setResultMeta(summarizeConsequences(choice.consequences))
     setPending({ player: r.player, transition: r.transition, consumedDay: choice.consumeDay ?? false })
@@ -192,14 +236,33 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
 
   return (
     <div className={`event-screen ${eventSceneClass}`}>
+      {node?.sceneTransition && (
+        <SceneTransition transition={node.sceneTransition} />
+      )}
       <header className="top-bar event-topbar">
         <span className="player-name"><ScrollText size={18} /> 江湖纪事</span>
         <span className="day-info">第 {player.day} 日</span>
       </header>
 
       <main className="event-stage">
-        <div className="event-stage-art" aria-hidden="true" />
-        <div className="event-stage-shade" aria-hidden="true" />
+        {node?.stage ? (
+          <StoryStage
+            stage={node.stage}
+            activeSpeaker={dialogueSegment?.speaker}
+          />
+        ) : (
+          <>
+            <div className="event-stage-art" aria-hidden="true" />
+            <div className="event-stage-shade" aria-hidden="true" />
+          </>
+        )}
+        {characterEntrance && (
+          <div className="event-character-entrance" aria-live="polite">
+            <span>人物入场</span>
+            <strong>{characterEntrance.name}</strong>
+            <small>{characterEntrance.title}</small>
+          </div>
+        )}
         <div className="event-stage-content">
           <div className="event-heading">
             <div className="event-tag">{getEventTag(event, activeTitle)}</div>
@@ -270,7 +333,6 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
 
       {showChoices && node && (
         <section className="event-decision-panel">
-          <div className="event-decision-heading"><Swords size={17} /> 你要如何应对</div>
           {hasNoVisibleChoices ? (
             <>
               <div className="event-result-text">此时此地，你已没有可作出的选择。</div>
@@ -281,8 +343,14 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
           ) : (
             <div className="event-choice-list">
               {choices.map((c, index) => (
-                <button key={c.id} className="event-choice-card" onClick={() => handleChoose(c.id)}>
-                  <span className="event-choice-index">{index + 1}</span>
+                <button
+                  key={c.id}
+                  className={`event-choice-card${c.kind === "travel" ? " is-travel" : ""}`}
+                  onClick={() => handleChoose(c.id)}
+                >
+                  <span className="event-choice-index">
+                    {c.kind === "travel" ? <MapPin size={16} /> : index + 1}
+                  </span>
                   <span className="event-choice-copy">
                     <span className="event-choice-title">{c.text}</span>
                     <span className="event-choice-desc">{c.description}</span>

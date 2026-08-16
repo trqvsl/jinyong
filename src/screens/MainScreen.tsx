@@ -3,26 +3,28 @@ import type { StoryEvent } from "../data/events"
 import {
   BookOpenCheck,
   Compass,
-  Dumbbell,
   FlaskConical,
   Landmark,
   Mail,
   MapPinned,
   ScrollText,
   ShoppingBag,
+  Swords,
   UserRound,
   UsersRound,
 } from "lucide-react"
-import { savePlayer } from "../game/player"
-import { recomputePlayerStats } from "../game/attributes"
-import { getStoryProgress, type StoryProgressView } from "../game/story/query"
+import {
+  getStoryEventById,
+  getStoryProgress,
+  type StoryProgressView,
+} from "../game/story/query"
 import {
   getActivePartyNpcs,
   getPartyPower,
 } from "../game/party"
 
 interface Props {
-  player: Player; pendingWorldEvents?: StoryEvent[]; onOpenPendingWorldEvent?: (eventId: string) => void; onUpdate: (player: Player) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void; onShop: () => void; onNpc?: () => void; onDebug?: () => void; onEndingRecord?: () => void
+  player: Player; pendingWorldEvents?: StoryEvent[]; onOpenPendingWorldEvent?: (eventId: string) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void; onShop: () => void; onNpc?: () => void; onDebug?: () => void; onEndingRecord?: () => void
 }
 
 function getHubMoodText(progress: StoryProgressView, pendingWorldEvents: StoryEvent[]): string {
@@ -68,33 +70,30 @@ function getSystemPriorityBadges(progress: StoryProgressView, pendingWorldEvents
   return progress.priorities
 }
 
-export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorldEvent, onUpdate, onAdventure, onSect, onCharacter, onShop, onNpc, onDebug, onEndingRecord }: Props) {
+export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorldEvent, onAdventure, onSect, onCharacter, onShop, onNpc, onDebug, onEndingRecord }: Props) {
   const activeParty = getActivePartyNpcs(player)
   const partyPower = getPartyPower(player)
   const storyProgress = getStoryProgress(player)
+  const pausedCheckpoint = player.world.currentStory?.paused
+    ? player.world.currentStory
+    : null
+  const pausedEvent = pausedCheckpoint
+    ? getStoryEventById(pausedCheckpoint.eventId)
+    : undefined
+  const pausedNodeTitle = pausedCheckpoint
+    ? pausedEvent?.nodes[pausedCheckpoint.nodeId]?.title
+    : undefined
+  const primaryAction = pausedNodeTitle
+    ? `继续 · ${pausedNodeTitle}`
+    : storyProgress.primaryAction
+  const primaryGuidance = pausedNodeTitle
+    ? "这段江湖事尚未结束。风雪稍歇，未完的线索仍留在原处。"
+    : storyProgress.guidance
   const hubMoodText = getHubMoodText(storyProgress, pendingWorldEvents)
   const pendingWorldEventSummary = summarizePendingWorldEvent(pendingWorldEvents)
   const systemPriorityBadges = getSystemPriorityBadges(storyProgress, pendingWorldEvents)
   const firstPendingEvent = pendingWorldEvents[0]
   const progressPercent = `${Math.max(4, (storyProgress.completed / storyProgress.total) * 100)}%`
-  function train() {
-    const gain = 1 + Math.floor(player.aptitude / 30)
-    const cultivated: Player = {
-      ...player,
-      day: player.day + 1,
-      roots: {
-        ...player.roots,
-        external: player.roots.external + gain,
-        internal: player.roots.internal + 1,
-        constitution: player.roots.constitution + Math.max(1, Math.floor(gain / 2)),
-      },
-    }
-    const recomputed = recomputePlayerStats(cultivated)
-    const updated: Player = { ...recomputed, hp: recomputed.hpMax, mp: recomputed.mpMax }
-    savePlayer(updated)
-    onUpdate(updated)
-  }
-
   return (
     <div className="main-screen main-hub-shell">
       <header className="top-bar main-hub-topbar compact">
@@ -119,12 +118,12 @@ export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorld
           <div className="main-hub-quest-progress" aria-label={`射雕卷进度 ${storyProgress.completed}/${storyProgress.total}`}>
             <span style={{ width: progressPercent }} />
           </div>
-          <h2 className="main-hub-quest-title">{storyProgress.primaryAction}</h2>
-          <p className="main-hub-quest-copy">{storyProgress.guidance}</p>
+          <h2 className="main-hub-quest-title">{primaryAction}</h2>
+          <p className="main-hub-quest-copy">{primaryGuidance}</p>
           <div className="main-hub-hero-actions">
             <button className="main-hub-primary-action" onClick={onAdventure}>
               <MapPinned size={19} />
-              <span>{storyProgress.primaryAction}</span>
+              <span>{primaryAction}</span>
             </button>
             {storyProgress.isComplete && onEndingRecord && (
               <button className="main-hub-secondary-action" onClick={onEndingRecord}>
@@ -183,11 +182,11 @@ export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorld
               <small>人物、武学与队伍</small>
             </span>
           </button>
-          <button className="main-hub-quick-action" onClick={train}>
-            <Dumbbell size={21} />
+          <button className="main-hub-quick-action" onClick={onAdventure}>
+            <Swords size={21} />
             <span>
-              <b>闭关一日</b>
-              <small>外功与内息稳步精进</small>
+              <b>寻访教头</b>
+              <small>前往地点与人物过招</small>
             </span>
           </button>
           <div className="main-hub-next-note">
@@ -228,10 +227,10 @@ export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorld
             <span className="main-hub-dock-hint">{systemPriorityBadges.npc}</span>
           </button>
         )}
-        <button className="main-hub-dock-btn" onClick={train} title="闭关修炼">
-          <Dumbbell className="main-hub-dock-icon" size={21} />
-          <span className="main-hub-dock-text">闭关修炼</span>
-          <span className="main-hub-dock-hint">稳步</span>
+        <button className="main-hub-dock-btn" onClick={onAdventure} title="寻访教头">
+          <Swords className="main-hub-dock-icon" size={21} />
+          <span className="main-hub-dock-text">寻访教头</span>
+          <span className="main-hub-dock-hint">过招</span>
         </button>
         {onDebug && (
           <button className="main-hub-dock-btn subtle" onClick={onDebug} title="调试炼丹房">

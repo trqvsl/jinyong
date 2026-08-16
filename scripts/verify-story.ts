@@ -38,6 +38,7 @@ import {
   createBattleEntryCommand,
   getBattleTeammates,
   openLocationStory,
+  resumePausedStory,
   resolveStoryFlow,
   restoreStoryCheckpoint,
   setStoryCheckpoint,
@@ -288,8 +289,8 @@ console.log("\n=== 1. 剧情静态结构校验 ===")
       seenNodeIds.add(node.id)
 
       walkTransition(node.autoNext, (transition) => {
-        if (transition.type === "goto") {
-          check(`goto 目标存在：${event.id}.${node.id} -> ${transition.nodeId}`, transition.nodeId in event.nodes, `nodeId=${transition.nodeId}`)
+        if (transition.type === "goto" || transition.type === "pause") {
+          check(`${transition.type} 目标存在：${event.id}.${node.id} -> ${transition.nodeId}`, transition.nodeId in event.nodes, `nodeId=${transition.nodeId}`)
         }
         if (transition.type === "gotoEvent") {
           check(`gotoEvent 目标存在：${event.id}.${node.id} -> ${transition.eventId}`, allEventIds.has(transition.eventId), `eventId=${transition.eventId}`)
@@ -301,8 +302,8 @@ console.log("\n=== 1. 剧情静态结构校验 ===")
 
       for (const choice of node.choices ?? []) {
         walkTransition(choice.transition, (transition) => {
-          if (transition.type === "goto") {
-            check(`goto 目标存在：${event.id}.${node.id}.${choice.id} -> ${transition.nodeId}`, transition.nodeId in event.nodes, `nodeId=${transition.nodeId}`)
+          if (transition.type === "goto" || transition.type === "pause") {
+            check(`${transition.type} 目标存在：${event.id}.${node.id}.${choice.id} -> ${transition.nodeId}`, transition.nodeId in event.nodes, `nodeId=${transition.nodeId}`)
           }
           if (transition.type === "gotoEvent") {
             check(`gotoEvent 目标存在：${event.id}.${node.id}.${choice.id} -> ${transition.eventId}`, allEventIds.has(transition.eventId), `eventId=${transition.eventId}`)
@@ -542,10 +543,13 @@ console.log("\n=== 9. 八幕进度映射 + 事件断点恢复 ===")
   const opened = openLocationStory({ player, locationId: "niujia" })!
   check("打开地点事件立即建立断点", opened.player.world.currentStory?.eventId === "shendiao-niujia-opening")
   check("入口断点记录地点", opened.player.world.currentStory?.locationId === "niujia")
+  check("牛家村首次进入先展示局部地图", opened.command.type === "show-area" && opened.player.world.currentStory?.areaEntry === true)
+  const started = resumePausedStory(opened.player)
+  check("从钱塘江边正式进入第一幕", started.command?.type === "show-event-entry" && started.command.nodeId === "riverbank")
 
   const event = STORY_VOLUMES.find((item) => item.id === "shendiao-niujia-opening")!
   const advanced = resolveStoryFlow({
-    player: opened.player,
+    player: started.player,
     transition: { type: "goto", nodeId: "wait-righteous" },
     consumedDay: false,
     currentStoryEvent: event,
@@ -568,7 +572,7 @@ console.log("\n=== 9. 八幕进度映射 + 事件断点恢复 ===")
   check("结果页恢复保留 consumeDay", restoredResult.command?.type === "show-event-entry" && restoredResult.command.initialResult?.consumedDay === true)
 
   const battle = resolveStoryFlow({
-    player: opened.player,
+    player: started.player,
     transition: {
       type: "battle",
       enemyId: "guanjun",
@@ -603,7 +607,7 @@ console.log("\n=== 9. 八幕进度映射 + 事件断点恢复 ===")
       && restoredBattle.command.battleObjective?.protectUid === "npc-guojing",
   )
 
-  const teammates = getBattleTeammates(opened.player, ["guojing", "guojing"])
+  const teammates = getBattleTeammates(started.player, ["guojing", "guojing"])
   check("剧情友方与重复来源按 NPC id 去重", teammates.filter((npc) => npc.id === "guojing").length === 1)
 
   const protectOnlyCommand = createBattleEntryCommand({

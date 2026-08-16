@@ -17,6 +17,11 @@ App.tsx        ← 路由编排，不含业务逻辑
 
 **铁律**：`game/story/*` 不认识任何剧情/NPC id；`data/` 不含函数（apply 除外）。
 
+当前已知历史例外（不得继续扩散）：
+
+- `data/npcs.ts` 仍导出 `getNpcById / npcToEnemy`，`data/enemies.ts` 等也保留查询 helper；后续应迁到 game/query 或 adapter
+- `App.tsx` 的地点切磋回流暂时直接执行回满气血 / 内力；该结算应下沉到 `game/appFlow.ts`
+
 ## 关键类型与数据流
 
 - `Player`（`src/types/index.ts`）：战斗属性 + 八大根基 `roots` + `karma`/`world`/`relations`/`inventory`
@@ -29,8 +34,9 @@ App.tsx        ← 路由编排，不含业务逻辑
 
 - **Consequence**（写入）：当前以 `src/data/story/schema.ts` 为准，包含数值 delta/set、NPC 命运、语义关系、arcBeat、arcEnding、flag 等多种声明式写入
 - **Condition**（查询）：13 种原子条件 + and/or/not，missing key 有默认值（npc alive=true, recruited=false, faction attitude=0, relationType=初识）
-- **Transition**（流转）：end / goto / branch / random / battle / gotoEvent / gameOver
-- **StoryNode**：`choices?`（选择）或 `autoNext`（纯叙事自动流转）或无（终点）
+- **Transition**（流转）：end / pause / goto / branch / random / battle / gotoEvent / gameOver
+- **StoryNode**：`choices?`（选择）或 `autoNext`（纯叙事自动流转）或无（终点）；可选 `stage` 声明场景、人物、动作与道具，可选 `sceneTransition` 声明纯展示用的地点 / 时辰题签
+- **Choice**：`kind: "travel"` 表示显式换场；无结果文本时直接执行流转，不插入空结果页
 - **StoryEvent**：`once?` + `condition?` + `entryNode` + `nodes: Record<string, StoryNode>`
 - 节点 Record 的 **key 必须与 node.id 一致**（enterNode 按 key 查找，goto 按 nodeId 查找）
 - `EventScreen` 支持 three phases：choosing（选项）/ autoNext（纯叙事+继续按钮）/ result（结果+继续）
@@ -43,6 +49,22 @@ App.tsx        ← 路由编排，不含业务逻辑
 4. `once: true` 的事件完成后进 `completedEvents`，不再触发
 5. arcBeat 条件实现线性串联：完成前一节点的 arcBeat 才解锁下一个
 6. World event 可声明 `priority: "urgent"`；urgent 消息进入 `pendingWorldEvents` 队首，终局回响使用此能力
+
+## 地点内部空间（当前只在牛家村启用）
+
+1. 世界地图进入带 `STORY_AREA_MAPS` 配置的地点时，`openLocationStory()` 先建立暂停 checkpoint，再进入 `AreaScreen`
+2. `AreaScreen` 先展示地点地图；点击点位后直接进入该点的 `StoryAreaSpace`
+3. 独立空间由 `background / description / ambience / residents / actions` 组成
+4. `storyTargets(eventId + nodeId)` 决定哪个空间显示当前剧情续接动作
+5. 本地商店复用 `ShopScreen + SHOP_ITEMS`；本地行囊复用 `CharacterScreen`；切磋复用 NPC → battle 流程
+6. `SceneTransition` 只负责 cover / reveal 与时辰题签，**不修改** `day`、checkpoint 或剧情 transition
+
+当前能力边界：
+
+- 只有牛家村配置了内部地图；这还不是所有地点的通用自由探索层
+- 独立空间依赖活动剧情的 `paused / areaEntry` checkpoint，事件结束后不能脱离剧情任意进入
+- 驻场人物与本地动作目前是静态数据，尚未按 `Condition` 动态过滤
+- 商店仍使用通用三种货物，行囊还不是独立物品管理界面
 
 ## 战斗引擎（自包含模块）
 
@@ -57,7 +79,9 @@ App.tsx        ← 路由编排，不含业务逻辑
 - 《射雕主线脚本.md》：**当前实现样板线说明**，负责当前代码里已落地的主线事件自然语言镜像
 - `src/data/story/shendiao.ts`：**实际实现数据**
 
-当前射雕现代八幕、P15 世界回响、卷末纪事与 RPG 专用对白框均已完成；29 个现代主线事件已按真实引擎连续走通，八类终局均有专属 urgent 回响和五段可回看记录。对白框支持头像、姓名牌、无文字继续角标与键盘推进，17 名高频角色有专用生成头像。下一步优先处理按幕拆包与无效动态导入，再决定 P16 系统厚度。`niujia / damos / meet-rong / qigong / wangfu / taohua` 仍同步写入，作为旧存档与后续旧样板兼容 beat。
+当前射雕现代八幕、P15 世界回响、卷末纪事与 RPG 专用对白框均已完成；第一幕正在作为高品质 RPG 样板持续重构。牛家村已接入 7 个可直接进入的独立空间、22 名角色头像、地点驻场人物、本地商店 / 行囊 / 教头切磋、两次暂离续接、自然升级与郭啸天助战教学战。首次进入牛家村先看村图，再从钱塘江边入席听书；场景资源全部准备好后整体揭幕，地点与剧情换场经过 `SceneTransition`，追鸡等动作只在对应叙事拍播放一次。第一幕前半段已把钱塘说书、日暮收店、初更 / 二更 / 三更与村西林问话拆成独立节拍。29 个现代主线事件已按真实引擎连续走通，八类终局均有专属 urgent 回响和五段可回看记录。下一步继续按同一标准打磨第一幕后半段，再处理世界地图与按幕拆包。`niujia / damos / meet-rong / qigong / wangfu / taohua` 仍同步写入，作为旧存档与后续旧样板兼容 beat。
+
+当前验收以 **1280 × 800 桌面端** 为基准；暂不新增或维护移动端适配。项目进展中的旧移动端记录只是历史验证结果，不代表当前交付要求。
 
 ## 存档迁移
 
@@ -82,11 +106,35 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `npm run test:story-routes` — 路线可达性与证物组合
 - `npm run test:story-engine` — 剧情引擎回归
 
+### 桌面浏览器验收
+
+- 当前基准：`1280 × 800`
+- 优先访问正在运行的 `http://127.0.0.1:5173/`
+- 若内置浏览器固定窄视口或沙箱内 Chrome 无法访问本机 Vite，使用沙箱外独立无头 Chrome
+- 推荐参数：
+
+```bash
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' \
+  --headless=new \
+  --disable-gpu \
+  --no-first-run \
+  --no-default-browser-check \
+  --disable-background-networking \
+  --remote-debugging-address=127.0.0.1 \
+  --remote-debugging-port=9230 \
+  --user-data-dir=/tmp/jinyong-isolated-chrome-9230 \
+  about:blank
+```
+
+- 该命令需要沙箱外执行授权；`/tmp` profile 与日常 Chrome 的 Cookie、扩展和登录完全隔离
+- 通过 CDP `Emulation.setDeviceMetricsOverride` 设置 1280 × 800，再检查 DOM、控制台、图片 natural size、横向溢出与截图
+
 ## 常见坑
 
 - **任何返回 player + world 的剧情结算后两者必须同步**；`applyConsequences` 与 `enterNode` 都要保证 `player.world === world`
 - **节点 key ≠ node.id 会导致 enterNode 找不到节点**
 - **纯叙事节点（autoNext）需要 EventScreen 有对应 phase**，否则卡死
+- **pause 不等于 end**：pause 必须保留 `currentStory.paused`，不能写入 completedEvents；回原地点才续接
 - **通用事件无 condition 会抢先于有 arcBeat 条件的主线事件**
 - **React 闭包陷阱**：BattleScreen 用 useRef 持最新状态
 - **旧存档**：改 WorldState 结构后必须更新 migrateWorld
@@ -109,6 +157,8 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `src/data/story/shendiaoEndingRecords.ts` — 八类结局定义与离营 / 公议 / 军报 / 论剑静态文案映射
 - `src/data/story/shendiaoWorldEvents.ts` — 第六幕三路余波与八类终局 urgent 世界回响
 - `src/data/dialoguePortraits.ts` — 对白头像 URL、角色名与称呼别名纯数据
+- `src/data/story/stageAssets.ts` — 剧情舞台背景与动态道具资源纯数据
+- `src/data/story/areaMaps.ts` — 地点内部地图、独立空间、驻场人物、本地动作与剧情续接目标纯数据
 - `src/data/story/worldEvents.ts` — 世界回响 / 江湖消息数据
 - `src/data/events.ts` — 通用奇遇事件
 - `src/data/story/schema.ts` — Consequence/Condition/Transition/StoryNode/WorldState 等类型定义
@@ -125,10 +175,14 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `src/game/story/state.ts` — WorldState 初始化 / 迁移 / 默认值
 - `src/game/appFlow.ts` — 剧情 / 战斗 / 主界面回流编排
 - `src/game/debug.ts` — 通用调试预设应用与单项 variant 更新
-- `src/screens/EventScreen.tsx` — 事件界面（RPG 头像对白框、无文字角标、choosing/autoNext/result 三阶段 + 书信展示）
+- `src/screens/EventScreen.tsx` — 事件界面（多角色舞台、RPG 头像对白框、人物入场、travel、无文字角标、choosing/autoNext/result 三阶段 + 书信展示）
+- `src/screens/StoryStage.tsx` — 场景背景、常驻人物头像框、焦点、动作与动态道具
+- `src/screens/AreaScreen.tsx` — 地点局部地图、独立空间、驻场人物、本地动作与剧情续接
+- `src/screens/SceneTransition.tsx` — 地点 / 时段 / 剧情场景的全屏转场题签
+- `src/screens/imagePreloader.ts` — 场景 / 地图 / 头像共享预载队列与已加载缓存
 - `src/screens/dialoguePortrait.ts` — 说话人别名、头像与未知角色降级解析
 - `src/screens/EndingRecordScreen.tsx` — 八幕完成后的只读卷末纪事页面
-- `src/App.tsx` — 根路由编排
+- `src/App.tsx` — 根路由编排；维护 `areaPlaceId / areaUtilityReturn / battleReturnAreaId` 等非持久化界面回流状态
 - `tests/story-routes.test.ts` — 全剧情可达性、第六幕入口 / 并轨、32 / 64 证物组合与旧事件隔离
 - `tests/story-engine-defects.test.ts` — 剧情引擎状态同步回归
 - `tests/story-debug.test.ts` — 八幕跳转、铁枪庙 / 第七幕 / 第八幕终局夹具、推荐来源与状态编辑回归
@@ -146,6 +200,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `tests/act8-ending-record.test.ts` — 八类终局回响、urgent 入队、五段卷末纪事与第六幕余波回归
 - `tests/full-story-journey.test.ts` — 29 个现代主线事件从第一幕到 8/8 终局的完整引擎旅程
 - `tests/dialogue-presentation.test.ts` — 说话人拆解、头像别名、未知角色降级与生成资源约束
+- `tests/act1-polish.test.ts` — 第一幕人物辨识、说书节拍、场景舞台、独立空间、转场、暂停续接与教学战
 
 ### 改战斗
 - `src/game/battle/index.ts` — battle 模块公共入口（外部优先从这里 import）
