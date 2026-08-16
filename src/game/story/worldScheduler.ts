@@ -13,7 +13,12 @@ import { checkCondition } from "./conditions"
 export function pollWorldEvent(
   player: Player,
   world: WorldState
-): { player: Player; world: WorldState; event?: StoryEvent } {
+): {
+  player: Player
+  world: WorldState
+  event?: StoryEvent
+  priority?: "normal" | "urgent"
+} {
   for (const worldEvent of WORLD_EVENTS) {
     if (worldEvent.once && world.triggeredEvents.includes(worldEvent.id)) continue
     if (!checkCondition(player, world, worldEvent.trigger)) continue
@@ -23,7 +28,12 @@ export function pollWorldEvent(
       : world
     const nextPlayer = nextWorld === world ? player : { ...player, world: nextWorld }
 
-    return { player: nextPlayer, world: nextWorld, event: worldEvent.event }
+    return {
+      player: nextPlayer,
+      world: nextWorld,
+      event: worldEvent.event,
+      priority: worldEvent.priority ?? "normal",
+    }
   }
 
   return { player, world }

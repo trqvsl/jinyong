@@ -63,16 +63,28 @@ export type SkillTargeting =
 // 阵营归属（多对多的基础）
 export type Side = "player" | "enemy"
 
-export type BattleObjectiveConfig =
-  | { kind: "defeatAll"; protectUid?: string; title?: string }
-  | { kind: "surviveRounds"; rounds: number; protectUid?: string; title?: string }
+export type BattleOutcome = "won" | "partial" | "lost" | "fled"
+export type BattleEndState = "ongoing" | Exclude<BattleOutcome, "fled">
+
+interface BattleObjectiveProtection {
+  protectUid?: string       // 旧单人保护契约，继续兼容
+  protectUids?: string[]    // 多人保护组
+  minProtectedSurvivors?: number
+}
+
+export type BattleObjectiveConfig = (
+  | { kind: "defeatAll"; title?: string }
+  | { kind: "surviveRounds"; rounds: number; title?: string }
+) & BattleObjectiveProtection
 
 export interface BattleObjectiveRuntime {
   kind: BattleObjectiveConfig["kind"]
   targetRounds: number
   completedRounds: number
   actedUids: string[]
-  protectUid?: string
+  protectUid?: string       // 保留给旧调用方和调试输出
+  protectUids: string[]
+  minProtectedSurvivors: number
   title?: string
 }
 

@@ -1,4 +1,5 @@
 import type { Player } from "../types"
+import { SHENDIAO_ACT8_LOCATION_EVENT_ORDER } from "./story/shendiaoAct8"
 
 export type LocationRhythm = "剧情" | "战斗" | "探索"
 export type LocationRisk = "低" | "中" | "高"
@@ -239,13 +240,21 @@ export const LOCATIONS: Location[] = [
     description: "五岳之首，华山论剑之地，绝顶高手论武所在。",
     arrival: "华山险峻，苍松夹道。你沿山道登高，峰顶云气翻涌，四周风声不断。",
     coordinates: { x: 50, y: 45 },
-    events: ["shendiao-huashan", "shendiao-huashan-snow", "shendiao-huashan-stone", "huashan-cliff"],
+    events: [
+      ...SHENDIAO_ACT8_LOCATION_EVENT_ORDER,
+      "shendiao-huashan",
+      "shendiao-huashan-snow",
+      "shendiao-huashan-stone",
+      "huashan-cliff",
+    ],
     enemyPool: ["emingke", "xiejiaoshi"],
     rhythm: "战斗",
     risk: "高",
     contentTag: "卷末节点",
     contentPreview: "更接近论剑、卷末收束与高强度阶段事件。",
-    unlock: (player) => player.reputation >= 20,
+    unlock: (player) =>
+      player.reputation >= 20
+      || player.world.arcs.shendiao?.beats["act7-western-campaign"] === "done",
   },
 
   // ===== 巴蜀 =====
@@ -284,16 +293,35 @@ export const LOCATIONS: Location[] = [
     id: "damos",
     name: "蒙古大漠",
     region: "塞北",
-    description: "蒙古大漠，郭靖生长之地，草原辽阔，铁骑纵横。",
+    description: "郭靖生长的蒙古草原，也是西征军令、华筝与李萍线重新汇合之处。",
     arrival: "黄沙漫天，草原无垠。远处传来悠扬的马头琴声，你置身大漠，感受着天地的苍茫。",
     coordinates: { x: 30, y: 22 },
-    events: ["shendiao-damos", "shendiao-damos-southbound", "shendiao-damos-eagle", "shendiao-damos-feast", "shendiao-seven-freaks", "damos-eagle"],
+    events: ["shendiao-damos-departure-act7", "shendiao-damos-home-order-act7", "shendiao-damos-act7", "shendiao-damos", "shendiao-damos-southbound", "shendiao-damos-eagle", "shendiao-damos-feast", "shendiao-seven-freaks", "damos-eagle"],
     enemyPool: ["shanzei", "emingke"],
-    npcIds: ["guojing"],
+    npcIds: ["guojing", "liping", "huazheng"],
     rhythm: "剧情",
     risk: "中",
-    contentTag: "故人线",
-    contentPreview: "偏郭靖前期主线、大漠成长与草原人物铺垫。",
+    contentTag: "草原因果",
+    contentPreview: "既承接郭靖少年成长，也承担第七幕军令、故人抉择与最终离营。",
+  },
+  {
+    id: "western-camp",
+    name: "西征大营",
+    region: "塞外西征",
+    description: "蒙古西征军的中军驻地，前锋、粮道、俘虏与诸王军令都在此汇总。",
+    arrival: "数重营栅沿河谷展开，传令骑兵在旗门之间往返。伤兵棚、俘虏圈与粮车各占一侧，中军大帐外已经排开数面不同部族的军旗。",
+    coordinates: { x: 17, y: 26 },
+    events: ["shendiao-western-camp-act7"],
+    enemyPool: ["mongol-camp-soldier", "western-pursuer"],
+    npcIds: ["zhebie", "tuolei", "temujin", "juchi", "chagatai"],
+    rhythm: "剧情",
+    risk: "高",
+    contentTag: "军帐分职",
+    contentPreview: "偏军令分工、诸王内斗、俘虏处置、粮道与侦察准备。",
+    unlock: (player) => (
+      !!player.world.arcs.shendiao?.beats["act6-truth"]
+      && player.world.arcs.shendiao?.variants?.["act7.recall"] === "cleared"
+    ),
   },
   {
     id: "xiling",
@@ -312,6 +340,25 @@ export const LOCATIONS: Location[] = [
   },
 
   // ===== 西域 =====
+  {
+    id: "samarkand",
+    name: "撒马尔罕",
+    region: "西域城邦",
+    description: "花剌子模重城，外有壕沟与多重城门，城内军民正被围城与报复一同逼紧。",
+    arrival: "城墙横在荒原尽头，壕沟外遍布旧营火和断箭。商旅道已经封死，城门上仍有人轮换守旗，城外低地则挤着无处可去的难民。",
+    coordinates: { x: 9, y: 32 },
+    events: ["shendiao-samarkand-aftermath-act7", "shendiao-samarkand-siege-act7", "shendiao-samarkand-scout-act7"],
+    enemyPool: ["samarkand-defender", "mongol-plunderer", "western-pursuer"],
+    npcIds: ["samarkand-healer", "samarkand-guide"],
+    rhythm: "战斗",
+    risk: "高",
+    contentTag: "城下军令",
+    contentPreview: "偏城外侦察、攻城编组、破城军纪、平民撤离与屠城抉择。",
+    unlock: (player) => (
+      !!player.world.arcs.shendiao?.beats["act6-truth"]
+      && player.world.arcs.shendiao?.variants?.["act7.camp"] === "cleared"
+    ),
+  },
   {
     id: "baituo",
     name: "白驼山",

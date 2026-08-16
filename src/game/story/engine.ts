@@ -78,16 +78,28 @@ export function pickRandom(cases: { weight: number; then: Transition }[]): Trans
 
 // 战斗结局结算：按胜负取对应 Outcome，应用其 consequences
 export function resolveBattleOutcome(
-  player: Player, world: WorldState, transition: Transition, outcome: "won" | "lost" | "fled"
+  player: Player, world: WorldState, transition: Transition, outcome: "won" | "partial" | "lost" | "fled"
 ): { player: Player; world: WorldState; text: string; then: Transition } | null {
   if (transition.type !== "battle") return null
   const oc: Outcome | undefined =
-    outcome === "won" ? transition.onWin : outcome === "lost" ? transition.onLose : transition.onFlee
+    outcome === "won"
+      ? transition.onWin
+      : outcome === "partial"
+        ? transition.onPartial ?? transition.onWin
+        : outcome === "lost"
+          ? transition.onLose
+          : transition.onFlee
   if (!oc) {
     // 该结局缺省：默认文字 + end
     return {
       player, world,
-      text: outcome === "won" ? "你取得了胜利。" : outcome === "fled" ? "你脱身而去。" : "你落败了。",
+      text: outcome === "won"
+        ? "你取得了胜利。"
+        : outcome === "partial"
+          ? "目标已经达成，但保护对象付出了代价。"
+          : outcome === "fled"
+            ? "你脱身而去。"
+            : "你落败了。",
       then: { type: "end" },
     }
   }

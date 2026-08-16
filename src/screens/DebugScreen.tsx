@@ -20,7 +20,9 @@ import { NPCS } from "../data/npcs"
 import { getLocationById } from "../data/map"
 import {
   STORY_DEBUG_ACT_PRESETS,
+  STORY_DEBUG_ROUTE_GROUPS,
   STORY_DEBUG_ROUTE_PRESETS,
+  STORY_DEBUG_VARIANT_GROUPS,
   STORY_DEBUG_VARIANT_FIELDS,
   type StoryDebugPreset,
 } from "../data/story/debugPresets"
@@ -352,7 +354,7 @@ export function DebugScreen({ player, onUpdate, onBack, onTestBattle }: Props) {
   const flagGroupSummary = summarizeFlagGroups(player)
   const storyProgress = getStoryProgress(player)
   const recommendedLocation = getLocationById(storyProgress.recommendedLocationId)
-  const storyVariantGroups = (["阶段", "人物与会局", "四轮证据", "裁决"] as const)
+  const storyVariantGroups = STORY_DEBUG_VARIANT_GROUPS
     .map((group) => ({
       group,
       fields: STORY_DEBUG_VARIANT_FIELDS.filter((field) => field.group === group),
@@ -380,7 +382,7 @@ export function DebugScreen({ player, onUpdate, onBack, onTestBattle }: Props) {
       <section className="stat-panel debug-story-console">
         <div className="debug-console-heading">
           <div>
-            <span className="debug-console-kicker">P5 · 剧情校验台</span>
+            <span className="debug-console-kicker">剧情校验台</span>
             <h2>{storyProgress.act.title}</h2>
           </div>
           <span className="debug-console-progress">
@@ -450,33 +452,39 @@ export function DebugScreen({ player, onUpdate, onBack, onTestBattle }: Props) {
               ))}
             </div>
 
-            <div className="debug-console-section-head route-head">
-              <span>铁枪庙路线夹具</span>
-              <small>载入后从地图进入铁枪庙</small>
-            </div>
-            <div className="debug-route-fixtures">
-              {STORY_DEBUG_ROUTE_PRESETS.map((preset) => (
-                <div key={preset.id} className="debug-route-row">
-                  <div className="debug-route-copy">
-                    <strong>{preset.title}</strong>
-                    <span>{preset.description}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="debug-route-apply"
-                    onClick={() => applyStoryPreset(preset)}
-                  >
-                    <Route size={15} aria-hidden="true" />
-                    载入
-                  </button>
+            {STORY_DEBUG_ROUTE_GROUPS.map((group) => (
+              <div key={group.id} className="debug-route-group">
+                <div className="debug-console-section-head route-head">
+                  <span>{group.title}</span>
+                  <small>{group.description}</small>
                 </div>
-              ))}
-            </div>
+                <div className="debug-route-fixtures">
+                  {STORY_DEBUG_ROUTE_PRESETS
+                    .filter((preset) => preset.routeGroupId === group.id)
+                    .map((preset) => (
+                      <div key={preset.id} className="debug-route-row">
+                        <div className="debug-route-copy">
+                          <strong>{preset.title}</strong>
+                          <span>{preset.description}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="debug-route-apply"
+                          onClick={() => applyStoryPreset(preset)}
+                        >
+                          <Route size={15} aria-hidden="true" />
+                          载入
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="debug-console-pane" role="tabpanel">
             <div className="debug-console-section-head">
-              <span>第六幕关键状态</span>
+              <span>关键剧情状态</span>
               <small>更改后清除当前剧情断点</small>
             </div>
             <div className="debug-variant-groups">

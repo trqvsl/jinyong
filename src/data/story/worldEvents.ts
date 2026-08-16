@@ -1,4 +1,8 @@
 import type { WorldEvent } from "./schema"
+import {
+  SHENDIAO_ACT6_AFTERMATH_WORLD_EVENT,
+  SHENDIAO_ENDING_WORLD_EVENTS,
+} from "./shendiaoWorldEvents"
 
 // ============================================================
 // 涌现事件：不绑定地点，由世界状态自然浮现。
@@ -6,6 +10,8 @@ import type { WorldEvent } from "./schema"
 // ============================================================
 
 export const WORLD_EVENTS: WorldEvent[] = [
+  ...SHENDIAO_ENDING_WORLD_EVENTS,
+  SHENDIAO_ACT6_AFTERMATH_WORLD_EVENT,
   {
     id: "hongqigong-seeks-you",
     once: true,

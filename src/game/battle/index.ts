@@ -72,6 +72,8 @@ export type {
   BattleSkill,
   SkillTargeting,
   Side,
+  BattleOutcome,
+  BattleEndState,
   BattleObjectiveConfig,
   BattleObjectiveRuntime,
   Combatant,

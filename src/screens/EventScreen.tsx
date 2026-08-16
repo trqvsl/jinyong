@@ -11,6 +11,10 @@ import {
   mergeLetterPageText,
   summarizeConsequences,
 } from "./eventPresenter"
+import {
+  getDialoguePortrait,
+  getDialoguePortraitFallback,
+} from "./dialoguePortrait"
 
 interface Props {
   player: Player
@@ -25,6 +29,31 @@ interface Props {
 function getEventSceneClass(event: StoryEvent): string {
   if (event.presentation === "letter") return "event-scene-letter"
   return `event-scene-${event.locationId ?? "jianghu"}`
+}
+
+function DialoguePortraitView({ speaker }: { speaker?: string }) {
+  const portrait = getDialoguePortrait(speaker)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setFailed(false)
+  }, [portrait?.src])
+
+  return (
+    <div className={`event-rpg-portrait${portrait && !failed ? " has-image" : ""}`}>
+      <span className="event-rpg-portrait-fallback" aria-hidden="true">
+        {getDialoguePortraitFallback(speaker)}
+      </span>
+      {portrait && !failed ? (
+        <img
+          src={portrait.src}
+          alt=""
+          aria-hidden="true"
+          onError={() => setFailed(true)}
+        />
+      ) : null}
+    </div>
+  )
 }
 
 export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initialResult, onCheckpoint, onResolve }: Props) {
@@ -50,9 +79,13 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
     [activeText, node?.speaker, phase]
   )
   const currentPage = pages[Math.min(pageIndex, pages.length - 1)] ?? []
+  const dialogueSegment = currentPage.find((segment) => segment.type === "dialogue")
+  const narrationSegments = currentPage.filter((segment) => segment.type === "narration")
   const isReadingFinished = pageIndex >= pages.length - 1
   const showChoices = phase === "choosing" && !!node && isReadingFinished
-  const canTapScript = !isReadingFinished || phase === "autoNext"
+  const canTapScript = !isReadingFinished
+    || phase === "autoNext"
+    || (phase === "result" && !!pending)
   const isLetterPresentation = event.presentation === "letter" && phase !== "result"
   const activeTitle = phase === "result" ? initialResult?.title ?? node?.title ?? "事后" : node?.title ?? "事后"
   const letterMeta = getLetterMeta(event, node?.title)
@@ -111,6 +144,7 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
       return
     }
     if (phase === "autoNext") handleAutoNext()
+    if (phase === "result") handleContinue()
   }
 
   function handleScriptKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -148,30 +182,6 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
     onResolve({ player: entered.player, transition: node.autoNext, consumedDay: false })
   }
 
-  function getTapHint() {
-    if (phase === "autoNext" && isReadingFinished) return "轻触进入下一段"
-    return "轻触继续看下去"
-  }
-
-  function getContinueLabel() {
-    if (!pending) return "返回江湖"
-    if (!isReadingFinished) return "继续看下去"
-
-    switch (pending.transition.type) {
-      case "battle":
-        return "进入战斗"
-      case "goto":
-      case "gotoEvent":
-        return "进入下一段"
-      case "end":
-        return "返回江湖"
-      case "gameOver":
-        return "迎来结局"
-      default:
-        return "继续"
-    }
-  }
-
   function handleContinue() {
     if (!isReadingFinished) {
       advancePage()
@@ -202,6 +212,8 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
             onKeyDown={handleScriptKeyDown}
             role={canTapScript ? "button" : undefined}
             tabIndex={canTapScript ? 0 : undefined}
+            aria-label={canTapScript ? "继续对话" : undefined}
+            aria-live="polite"
           >
             {isLetterPresentation ? (
               <>
@@ -221,32 +233,36 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
                   </div>
                 </div>
               </>
-              ) : currentPage.map((segment, index) => (
-                segment.type === "dialogue" ? (
-                  <blockquote
-                    key={`dialogue-${pageIndex}-${index}-${segment.speaker ?? "anon"}`}
-                    className="event-dialogue-box"
-                  >
-                    <div className="event-dialogue-name">{segment.speaker ?? "来人"}</div>
-                    <div className="event-dialogue-text">{segment.text}</div>
-                  </blockquote>
-                ) : (
-                  <div key={`narration-${pageIndex}-${index}`} className="event-narration-box">
-                    <div className="event-intro">{segment.text}</div>
+              ) : dialogueSegment ? (
+                <div className="event-rpg-dialogue">
+                  {narrationSegments.length > 0 && (
+                    <div className="event-rpg-dialogue-context">
+                      {narrationSegments.map((segment, index) => (
+                        <span key={`context-${pageIndex}-${index}`}>{segment.text}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="event-rpg-dialogue-layout">
+                    <DialoguePortraitView speaker={dialogueSegment.speaker} />
+                    <blockquote className="event-rpg-dialogue-copy">
+                      <div className="event-dialogue-name">{dialogueSegment.speaker ?? "来人"}</div>
+                      <div className="event-dialogue-text">{dialogueSegment.text}</div>
+                    </blockquote>
                   </div>
-                )
-              ))}
+                </div>
+              ) : (
+                <div className="event-rpg-narration">
+                  <span className="event-rpg-narration-mark" aria-hidden="true" />
+                  <div>
+                    {narrationSegments.map((segment, index) => (
+                      <p key={`narration-${pageIndex}-${index}`}>{segment.text}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            {(pages.length > 1 || canTapScript) && (
-              <div className="event-script-meta">
-                {pages.length > 1 && (
-                  <div className="event-page-indicator">{pageIndex + 1} / {pages.length}</div>
-                )}
-
-                {canTapScript && (
-                  <div className="event-tap-hint">{getTapHint()} <ArrowRight size={14} /></div>
-                )}
-              </div>
+            {canTapScript && (
+              <span className="event-continue-caret" aria-hidden="true" />
             )}
           </section>
         </div>
@@ -279,16 +295,11 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
         </section>
       )}
 
-      {phase === "result" && (
+      {phase === "result" && resultMeta.length > 0 && (
         <section className="event-outcome-panel">
-          {resultMeta.length > 0 && (
-            <div className="event-result-meta">
-              {resultMeta.map((item) => <span key={item} className="event-effect-chip">{item}</span>)}
-            </div>
-          )}
-          <button className="event-continue-btn" onClick={handleContinue}>
-            {getContinueLabel()} <ArrowRight size={18} />
-          </button>
+          <div className="event-result-meta">
+            {resultMeta.map((item) => <span key={item} className="event-effect-chip">{item}</span>)}
+          </div>
         </section>
       )}
     </div>

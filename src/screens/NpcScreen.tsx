@@ -95,7 +95,7 @@ function skillCost(skill: Skill): { gold: number; reqLevel: number } {
 }
 
 // 地区显示顺序
-const REGION_ORDER = ["江南", "中原", "巴蜀", "塞北", "西域", "东海", "岭南"]
+const REGION_ORDER = ["江南", "中原", "巴蜀", "塞北", "塞外西征", "西域", "西域城邦", "东海", "岭南"]
 const UNKNOWN_REGION = "行踪不定"
 
 export function NpcScreen({ player, onUpdate, onChallenge, onBack }: Props) {

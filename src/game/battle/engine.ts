@@ -324,7 +324,7 @@ export function checkBattleEnd(player: Combatant, enemy: Combatant): "ongoing" |
 // 一对一是其退化情形（双方各 1 人）。以下函数纯函数，自包含。
 // ============================================================
 
-import type { BattleState, ActionCommand, SkillTargeting, TurnOrderEntry } from "./types"
+import type { BattleState, ActionCommand, SkillTargeting, TurnOrderEntry, BattleEndState } from "./types"
 
 // 默认 ATB 阈值
 const DEFAULT_ATB_THRESHOLD = 100
@@ -339,29 +339,52 @@ export function sideDefeated(side: Combatant[]): boolean {
   return side.every((c) => c.hp <= 0)
 }
 
-// 按队伍判胜负（替代旧的单体 checkBattleEnd）
-export function checkBattleEndBySide(state: BattleState): "ongoing" | "won" | "lost" {
-  const protectedUnit = state.objective?.protectUid
-    ? findCombatant(state, state.objective.protectUid)
-    : undefined
-  if (state.objective?.protectUid && (!protectedUnit || protectedUnit.hp <= 0)) return "lost"
+function protectedSurvivorCount(state: BattleState): number {
+  return (state.objective?.protectUids ?? [])
+    .filter((uid) => (findCombatant(state, uid)?.hp ?? 0) > 0)
+    .length
+}
+
+function completedObjectiveOutcome(state: BattleState): "won" | "partial" {
+  const protectedTotal = state.objective?.protectUids.length ?? 0
+  if (protectedTotal > 0 && protectedSurvivorCount(state) < protectedTotal) return "partial"
+  return "won"
+}
+
+// 按队伍与剧情目标判定结果。partial 表示主目标达成，但保护组已有允许范围内的伤亡。
+export function checkBattleEndBySide(state: BattleState): BattleEndState {
+  if (
+    state.objective
+    && protectedSurvivorCount(state) < state.objective.minProtectedSurvivors
+  ) return "lost"
   if (sideDefeated(state.playerSide)) return "lost"
-  if (sideDefeated(state.enemySide)) return "won"
+  if (sideDefeated(state.enemySide)) return completedObjectiveOutcome(state)
   if (
     state.objective?.kind === "surviveRounds"
     && state.objective.completedRounds >= state.objective.targetRounds
-  ) return "won"
+  ) return completedObjectiveOutcome(state)
   return "ongoing"
 }
 
 export function createBattleObjective(config?: BattleObjectiveConfig): BattleState["objective"] {
   if (!config) return undefined
+  const protectUids = Array.from(new Set([
+    ...(config.protectUids ?? []),
+    ...(config.protectUid ? [config.protectUid] : []),
+  ]))
+  const minProtectedSurvivors = protectUids.length === 0
+    ? 0
+    : config.minProtectedSurvivors === undefined
+      ? protectUids.length
+      : Math.max(1, Math.min(protectUids.length, Math.floor(config.minProtectedSurvivors)))
   return {
     kind: config.kind,
     targetRounds: config.kind === "surviveRounds" ? Math.max(1, Math.floor(config.rounds)) : 0,
     completedRounds: 0,
     actedUids: [],
-    protectUid: config.protectUid,
+    protectUid: config.protectUid ?? protectUids[0],
+    protectUids,
+    minProtectedSurvivors,
     title: config.title,
   }
 }

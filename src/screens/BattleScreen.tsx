@@ -17,6 +17,7 @@ import type {
   BattleSkill as EngineBattleSkill,
   BattleLogEntry as EngineBattleLogEntry,
   BattleObjectiveConfig,
+  BattleOutcome,
 } from "../game/battle"
 import type { PortraitSpec } from "../assets/portraits"
 import type { Npc } from "../data/npcs"
@@ -61,7 +62,7 @@ interface Props {
   openingSupportLines?: string[]
   onEnd: (result: {
     player: Player
-    outcome: "won" | "lost" | "fled"
+    outcome: BattleOutcome
     rewards?: { exp: number; gold: number; leveledUp: boolean; levelsGained: number }
   }) => void
 }
@@ -98,7 +99,16 @@ function objectiveOpeningText(objective?: BattleObjectiveConfig): string | null 
   const base = objective.kind === "surviveRounds"
     ? `守住 ${objective.rounds} 轮`
     : "击退全部敌人"
-  return `战斗目标：${objective.title ?? base}${objective.protectUid ? "，保护指定友方" : ""}`
+  const protectUids = Array.from(new Set([
+    ...(objective.protectUids ?? []),
+    ...(objective.protectUid ? [objective.protectUid] : []),
+  ]))
+  const protection = protectUids.length === 0
+    ? ""
+    : protectUids.length === 1
+      ? "，保护指定友方"
+      : `，保护组至少 ${objective.minProtectedSurvivors ?? protectUids.length} / ${protectUids.length} 人存活`
+  return `战斗目标：${objective.title ?? base}${protection}`
 }
 
 function SkillGlyph({ category }: { category: EngineBattleSkill["category"] }) {
@@ -129,7 +139,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
     ...openingSupportLines.map((text) => ({ text, type: "status" })),
   ])
   const [phase, setPhase] = useState<"acting" | "busy" | "ended">("acting")
-  const [outcome, setOutcome] = useState<"won" | "lost" | "fled" | null>(null)
+  const [outcome, setOutcome] = useState<BattleOutcome | null>(null)
   const [currentActorUid, setCurrentActorUid] = useState<string | null>(null)
   // 玩家待选目标时，记下要发的招；选好目标后释放
   const [pendingSkill, setPendingSkill] = useState<EngineBattleSkill | null>(null)
@@ -374,7 +384,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
     setState(step.state)
 
     if (step.ended !== "ongoing") {
-      finishBattle(step.ended === "won" ? "won" : "lost", step.state)
+      finishBattle(step.ended, step.state)
       return
     }
 
@@ -394,10 +404,11 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
     }
   }
 
-  function finishBattle(result: "won" | "lost" | "fled", finalState: EngineBattleState) {
+  function finishBattle(result: BattleOutcome, finalState: EngineBattleState) {
     let resolvedState = finalState
     const finalLogs: EngineBattleLogEntry[] = []
-    if (result === "won") {
+    const objectiveMet = result === "won" || result === "partial"
+    if (objectiveMet) {
       const support = emitTriggeredSupport(resolvedState, "victory")
       resolvedState = support.state
       finalLogs.push(...support.logs)
@@ -414,12 +425,12 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
       skillUses: skillUsesRef.current,
     })
 
-    if (result === "won") {
+    if (objectiveMet) {
       pushLog([...finalLogs, ...finalized.logs])
       setScreenShake(true)
       setTimeout(() => setScreenShake(false), 500)
-      setOutcome("won"); setPhase("ended")
-      onEnd({ player: finalized.player, outcome: "won", rewards: finalized.rewards })
+      setOutcome(result); setPhase("ended")
+      onEnd({ player: finalized.player, outcome: result, rewards: finalized.rewards })
     } else if (result === "fled") {
       pushLog(finalized.logs)
       setOutcome("fled"); setPhase("ended")
@@ -434,9 +445,13 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
   const turnOrder = useMemo(() => previewTurnOrder(state, 6), [state])
   const currentActor = currentActorUid ? findCombatant(state, currentActorUid) : null
   const isPlayerTurn = currentActor?.side === "player" && !currentActor?.uid.startsWith("npc-") && phase === "acting"
-  const protectedUnit = state.objective?.protectUid
-    ? findCombatant(state, state.objective.protectUid)
-    : undefined
+  const protectedUnits = (state.objective?.protectUids ?? [])
+    .map((uid) => findCombatant(state, uid))
+    .filter((unit): unit is EngineCombatant => !!unit)
+  const protectedSurvivors = protectedUnits.filter((unit) => unit.hp > 0).length
+  const protectedTotal = state.objective?.protectUids.length ?? 0
+  const minProtectedSurvivors = state.objective?.minProtectedSurvivors ?? 0
+  const protectionFailed = protectedTotal > 0 && protectedSurvivors < minProtectedSurvivors
   const objectiveTitle = state.objective?.title
     ?? (state.objective?.kind === "surviveRounds" ? "守住阵线" : "击退敌手")
 
@@ -490,7 +505,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
         </div>
         <div className={`turn-banner phase-${phase}`}>
           <Zap size={16} aria-hidden="true" />
-          <span>{phase === "ended" ? (outcome === "won" ? "得胜" : outcome === "fled" ? "脱身" : "败北") : currentActor ? `${currentActor.name} 出手` : "交锋中"}</span>
+          <span>{phase === "ended" ? (outcome === "won" ? "得胜" : outcome === "partial" ? "险成" : outcome === "fled" ? "脱身" : "败北") : currentActor ? `${currentActor.name} 出手` : "交锋中"}</span>
         </div>
       </div>
 
@@ -511,7 +526,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
       </div>
 
       {state.objective && (
-        <div className={`battle-objective-panel ${protectedUnit && protectedUnit.hp <= 0 ? "failed" : ""}`}>
+        <div className={`battle-objective-panel ${protectionFailed ? "failed" : ""}`}>
           <div className="battle-objective-icon"><Shield size={18} aria-hidden="true" /></div>
           <div className="battle-objective-copy">
             <span className="battle-objective-kicker">战斗目标</span>
@@ -525,11 +540,20 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
               </div>
             </div>
           )}
-          {protectedUnit && (
+          {protectedTotal > 0 && (
             <div className="battle-objective-protect">
               <span>保护</span>
-              <b>{protectedUnit.name}</b>
-              <small>{protectedUnit.hp} / {protectedUnit.hpMax}</small>
+              {protectedTotal === 1 ? (
+                <>
+                  <b>{protectedUnits[0]?.name ?? "指定友方"}</b>
+                  <small>{protectedUnits[0] ? `${protectedUnits[0].hp} / ${protectedUnits[0].hpMax}` : "目标未入场"}</small>
+                </>
+              ) : (
+                <>
+                  <b>{protectedSurvivors} / {protectedTotal} 人</b>
+                  <small>底线 {minProtectedSurvivors} 人 · {protectedUnits.map((unit) => unit.name).join("、")}</small>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -619,8 +643,8 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
               floats={floats.filter((f) => f.uid === c.uid)}
               highlight={currentActorUid === c.uid}
               supportActive={!!teammates?.[index - 1] && supportHighlightNpcIds.includes(teammates[index - 1].id)}
-              tagText={state.objective?.protectUid === c.uid ? "保护目标" : index === 0 ? "主角" : "同伴"}
-              protectedTarget={state.objective?.protectUid === c.uid}
+              tagText={state.objective?.protectUids.includes(c.uid) ? "保护目标" : index === 0 ? "主角" : "同伴"}
+              protectedTarget={state.objective?.protectUids.includes(c.uid)}
               isAttacking={actionMotion?.actorUid === c.uid}
               isTargeted={actionMotion?.targetUids.includes(c.uid)}
               actionCategory={actionMotion?.actorUid === c.uid || actionMotion?.targetUids.includes(c.uid) ? actionMotion?.category : undefined}
@@ -659,7 +683,7 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
 
         <div className="battle-actions-panel">
           {phase === "ended" ? (
-            <div className="action-hint">{outcome === "won" ? "得胜而归" : outcome === "fled" ? "脱身而去" : "败北离场"}</div>
+            <div className="action-hint">{outcome === "won" ? "得胜而归" : outcome === "partial" ? "目标达成，已有伤亡" : outcome === "fled" ? "脱身而去" : "败北离场"}</div>
           ) : isPlayerTurn && currentActor && !showItems ? (
             <>
               <div className="panel-title battle-panel-title command-title">

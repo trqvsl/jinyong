@@ -1,6 +1,7 @@
 import type { Player } from "../types"
 import type { StoryEvent } from "../data/events"
 import {
+  BookOpenCheck,
   Compass,
   Dumbbell,
   FlaskConical,
@@ -21,7 +22,7 @@ import {
 } from "../game/party"
 
 interface Props {
-  player: Player; pendingWorldEvents?: StoryEvent[]; onOpenPendingWorldEvent?: (eventId: string) => void; onUpdate: (player: Player) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void; onShop: () => void; onNpc?: () => void; onDebug?: () => void
+  player: Player; pendingWorldEvents?: StoryEvent[]; onOpenPendingWorldEvent?: (eventId: string) => void; onUpdate: (player: Player) => void; onAdventure: () => void; onSect: () => void; onCharacter: () => void; onShop: () => void; onNpc?: () => void; onDebug?: () => void; onEndingRecord?: () => void
 }
 
 function getHubMoodText(progress: StoryProgressView, pendingWorldEvents: StoryEvent[]): string {
@@ -67,7 +68,7 @@ function getSystemPriorityBadges(progress: StoryProgressView, pendingWorldEvents
   return progress.priorities
 }
 
-export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorldEvent, onUpdate, onAdventure, onSect, onCharacter, onShop, onNpc, onDebug }: Props) {
+export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorldEvent, onUpdate, onAdventure, onSect, onCharacter, onShop, onNpc, onDebug, onEndingRecord }: Props) {
   const activeParty = getActivePartyNpcs(player)
   const partyPower = getPartyPower(player)
   const storyProgress = getStoryProgress(player)
@@ -125,6 +126,12 @@ export function MainScreen({ player, pendingWorldEvents = [], onOpenPendingWorld
               <MapPinned size={19} />
               <span>{storyProgress.primaryAction}</span>
             </button>
+            {storyProgress.isComplete && onEndingRecord && (
+              <button className="main-hub-secondary-action" onClick={onEndingRecord}>
+                <BookOpenCheck size={18} />
+                <span>查看卷末纪事</span>
+              </button>
+            )}
             {firstPendingEvent && (
               <button className="main-hub-secondary-action" onClick={() => onOpenPendingWorldEvent?.(firstPendingEvent.id)}>
                 <Mail size={18} />

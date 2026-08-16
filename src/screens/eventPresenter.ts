@@ -18,12 +18,25 @@ export interface LetterMeta {
 export function getLetterMeta(event: StoryEvent, title?: string): LetterMeta {
   switch (event.letterStyle) {
     case "formal":
-      return { tag: "书信", seal: "全真封", className: "letter-formal" }
+      if (title?.includes("全真")) return { tag: "书信", seal: "全真封", className: "letter-formal" }
+      if (title?.includes("北路新令")) return { tag: "军令", seal: "中军印", className: "letter-formal" }
+      if (title?.includes("三路回执")) return { tag: "回执", seal: "验封印", className: "letter-formal" }
+      if (title?.includes("烟雨楼验匣")) return { tag: "短帖", seal: "分舵印", className: "letter-formal" }
+      if (title?.includes("桃花")) return { tag: "书信", seal: "桃花笺", className: "letter-formal" }
+      return { tag: "书信", seal: "具名封", className: "letter-formal" }
     case "note":
       if (title?.includes("传讯")) return { tag: "传讯", seal: "雕羽传书", className: "letter-note" }
+      if (title?.includes("无旗路引")) return { tag: "路引", seal: "皮绳结", className: "letter-note" }
+      if (title?.includes("东海渡口") || title?.includes("桃花催信")) {
+        return { tag: "短笺", seal: "桃花押", className: "letter-note" }
+      }
+      if (title?.includes("良药")) return { tag: "字条", seal: "药包结", className: "letter-note" }
       return { tag: "字条", seal: "草绳结", className: "letter-note" }
     case "secret":
-      return { tag: "密帖", seal: "蛇纹印", className: "letter-secret" }
+      if (title?.includes("白驼")) return { tag: "密帖", seal: "蛇纹印", className: "letter-secret" }
+      if (title?.includes("雨夜")) return { tag: "短笺", seal: "断玉扣", className: "letter-secret" }
+      if (title?.includes("撤名")) return { tag: "退件", seal: "验封孔", className: "letter-secret" }
+      return { tag: "密帖", seal: "暗纹封", className: "letter-secret" }
     default:
       if (title?.includes("密帖")) return { tag: "密帖", seal: "墨迹未干", className: "letter-secret" }
       if (title?.includes("传讯")) return { tag: "传讯", seal: "墨迹未干", className: "letter-note" }

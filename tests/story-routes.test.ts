@@ -126,6 +126,7 @@ function transitionNodeTargets(transition?: Transition): string[] {
     case "battle":
       return [
         ...transitionNodeTargets(transition.onWin?.then),
+        ...transitionNodeTargets(transition.onPartial?.then),
         ...transitionNodeTargets(transition.onLose?.then),
         ...transitionNodeTargets(transition.onFlee?.then),
       ]
@@ -172,7 +173,7 @@ function transitionHasTerminal(transition?: Transition): boolean {
     case "random":
       return transition.cases.some((item) => transitionHasTerminal(item.then))
     case "battle":
-      return [transition.onWin, transition.onLose, transition.onFlee].some((outcome) =>
+      return [transition.onWin, transition.onPartial, transition.onLose, transition.onFlee].some((outcome) =>
         transitionHasTerminal(outcome?.then)
       )
   }

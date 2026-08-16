@@ -1,6 +1,8 @@
 import type { Player, Enemy } from "../../types"
 import type {
   BattleLogEntry,
+  BattleEndState,
+  BattleOutcome,
   BattleState,
   Combatant,
   StatusEffect,
@@ -52,7 +54,7 @@ export interface BattleAdvanceResult {
   logs: BattleLogEntry[]
   actor: Combatant | null
   actorMode: "player" | "enemy" | "teammate" | null
-  ended: "ongoing" | "won" | "lost"
+  ended: BattleEndState
 }
 
 export interface FinalizeBattleResult {
@@ -252,7 +254,7 @@ export function advanceBattleToNextActor(start: BattleState): BattleAdvanceResul
 }
 
 export function finalizeBattleResult(args: {
-  result: "won" | "lost" | "fled"
+  result: BattleOutcome
   finalState: BattleState
   player: Player
   combatPlayer: Player
@@ -275,7 +277,7 @@ export function finalizeBattleResult(args: {
     type: "status",
   }))
 
-  if (args.result === "won") {
+  if (args.result === "won" || args.result === "partial") {
     const defeatedEnemyIndexes = new Set(
       args.finalState.enemySide.flatMap((unit, index) => unit.hp <= 0 ? [index] : []),
     )
@@ -288,7 +290,10 @@ export function finalizeBattleResult(args: {
       rewards,
       masteryGains: practiced.gains,
       logs: [
-        { text: "得胜！", type: "system" },
+        {
+          text: args.result === "won" ? "得胜！" : "目标达成，但已有伤亡。",
+          type: "system",
+        },
         { text: `获得经验 ${rewards.exp} 点，银两 ${rewards.gold} 两`, type: "system" },
         ...(rewards.leveledUp
           ? [{

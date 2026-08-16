@@ -2,7 +2,7 @@ import { useState } from "react"
 import type { Player, Enemy } from "./types"
 import type { Transition, StoryEvent } from "./data/events"
 import type { StoryCheckpoint } from "./data/story/schema"
-import type { BattleObjectiveConfig } from "./game/battle"
+import type { BattleObjectiveConfig, BattleOutcome } from "./game/battle"
 import { savePlayer } from "./game/player"
 import { getEnemyById } from "./data/enemies"
 import { applyPartySupportToPlayer, getPartyBondBonuses, getPartySupportBonuses, getPartySupportTotals, getBattleSupportOpeningLines } from "./game/party"
@@ -30,9 +30,10 @@ import { EventScreen } from "./screens/EventScreen"
 import { MapScreen } from "./screens/MapScreen"
 import { NpcScreen } from "./screens/NpcScreen"
 import { DebugScreen } from "./screens/DebugScreen"
+import { EndingRecordScreen } from "./screens/EndingRecordScreen"
 import "./App.css"
 
-type Screen = "title" | "main" | "battle" | "sect" | "character" | "shop" | "event" | "map" | "debug" | "npc"
+type Screen = "title" | "main" | "battle" | "sect" | "character" | "shop" | "event" | "map" | "debug" | "npc" | "ending-record"
 
 function App() {
   const [player, setPlayer] = useState<Player | null>(null)
@@ -187,7 +188,7 @@ function App() {
   }
 
   // 战斗结束：剧情战斗按 onWin/onLose/onFlee 衔接收尾；非剧情战斗直接回主菜单
-  function handleBattleEnd(result: { player: Player; outcome: "won" | "lost" | "fled" }) {
+  function handleBattleEnd(result: { player: Player; outcome: BattleOutcome }) {
     const flow = resolveBattleFlow({
       player: result.player,
       outcome: result.outcome,
@@ -241,7 +242,7 @@ function App() {
       {screen === "main" && player && (
         <MainScreen player={player} pendingWorldEvents={getPendingWorldEvents(player)} onOpenPendingWorldEvent={handleOpenPendingWorldEvent} onUpdate={handleUpdate} onAdventure={handleAdventure}
           onSect={() => setScreen("sect")} onCharacter={() => setScreen("character")} onShop={() => setScreen("shop")}
-          onNpc={() => setScreen("npc")} onDebug={() => setScreen("debug")}
+          onNpc={() => setScreen("npc")} onDebug={() => setScreen("debug")} onEndingRecord={() => setScreen("ending-record")}
         />
       )}
       {screen === "event" && player && storyEvent && (
@@ -261,6 +262,7 @@ function App() {
       {screen === "sect" && player && <SectScreen player={player} onLearn={handleLearn} onBack={() => returnToMain(player)} />}
       {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}
       {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={() => returnToMain(player)} />}
+      {screen === "ending-record" && player && <EndingRecordScreen player={player} onBack={() => returnToMain(player)} />}
     </div>
   )
 }

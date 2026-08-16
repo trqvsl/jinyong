@@ -2,7 +2,7 @@ import type { Player, Enemy } from "../types"
 import type { Transition, StoryEvent } from "../data/events"
 import type { Consequence, StoryCheckpoint, StoryCheckpointPhase } from "../data/story/schema"
 import type { Npc } from "../data/npcs"
-import type { BattleObjectiveConfig } from "./battle"
+import type { BattleObjectiveConfig, BattleOutcome } from "./battle"
 import { getLocationById } from "../data/map"
 import { getEnemyById } from "../data/enemies"
 import { getNpcById } from "../data/npcs"
@@ -43,10 +43,17 @@ export function getPendingWorldEventIds(player: Player): string[] {
   return player.world.pendingWorldEvents ?? []
 }
 
-export function enqueuePendingWorldEvent(player: Player, eventId: string): Player {
+export function enqueuePendingWorldEvent(
+  player: Player,
+  eventId: string,
+  placement: "front" | "back" = "back",
+): Player {
   const queue = getPendingWorldEventIds(player)
   if (queue.includes(eventId)) return player
-  return { ...player, world: { ...player.world, pendingWorldEvents: [...queue, eventId] } }
+  const pendingWorldEvents = placement === "front"
+    ? [eventId, ...queue]
+    : [...queue, eventId]
+  return { ...player, world: { ...player.world, pendingWorldEvents } }
 }
 
 export function dequeuePendingWorldEvent(player: Player, eventId: string): Player {
@@ -76,21 +83,46 @@ export function getBattleTeammates(player: Player, allyIds: string[] = []): Npc[
 
 function toBattleObjectiveConfig(transition: Transition | null | undefined): BattleObjectiveConfig | undefined {
   if (transition?.type !== "battle" || !transition.objective) return undefined
+  const protectAllyIds = Array.from(new Set([
+    ...(transition.objective.protectAllyIds ?? []),
+    ...(transition.objective.protectAllyId ? [transition.objective.protectAllyId] : []),
+  ]))
   const protectUid = transition.objective.protectAllyId
     ? `npc-${transition.objective.protectAllyId}`
     : undefined
+  const protectUids = protectAllyIds.map((allyId) => `npc-${allyId}`)
+  const protection = {
+    protectUid,
+    protectUids,
+    minProtectedSurvivors: transition.objective.minProtectedSurvivors,
+  }
   return transition.objective.kind === "surviveRounds"
     ? {
         kind: "surviveRounds",
         rounds: transition.objective.rounds,
-        protectUid,
+        ...protection,
         title: transition.objective.title,
       }
     : {
         kind: "defeatAll",
-        protectUid,
+        ...protection,
         title: transition.objective.title,
       }
+}
+
+function getStoryBattleEnemies(
+  player: Player,
+  transition: Extract<Transition, { type: "battle" }>,
+  locationEnemyPool?: string[],
+): Enemy[] {
+  if (transition.enemyIds && transition.enemyIds.length > 0) {
+    return transition.enemyIds.map((enemyId) => getEnemyById(enemyId))
+  }
+  return [getAdventureEnemy(
+    player,
+    transition.enemyId,
+    transition.useLocationPool ? locationEnemyPool : undefined,
+  )]
 }
 
 export function createMainViewCommand(): Extract<AppViewCommand, { type: "show-main" }> {
@@ -204,10 +236,10 @@ export function restoreStoryCheckpoint(player: Player): { player: Player; comman
       .map((enemyId) => getEnemyById(enemyId))
     if (enemies.length === 0) {
       const location = checkpoint.locationId ? getLocationById(checkpoint.locationId) : undefined
-      enemies.push(getAdventureEnemy(
+      enemies.push(...getStoryBattleEnemies(
         player,
-        checkpoint.transition.enemyId,
-        checkpoint.transition.useLocationPool ? location?.enemyPool : undefined,
+        checkpoint.transition,
+        location?.enemyPool,
       ))
     }
     return {
@@ -280,7 +312,13 @@ export function normalizeMainPlayer(player: Player): Player {
 
   const polled = pollWorldEvent(finalPlayer, finalPlayer.world)
   finalPlayer = polled.player
-  if (polled.event) finalPlayer = enqueuePendingWorldEvent(finalPlayer, polled.event.id)
+  if (polled.event) {
+    finalPlayer = enqueuePendingWorldEvent(
+      finalPlayer,
+      polled.event.id,
+      polled.priority === "urgent" ? "front" : "back",
+    )
+  }
   return finalPlayer
 }
 
@@ -320,7 +358,7 @@ export function resolveStoryFlow(args: {
     }
     case "battle": {
       const location = args.locationId ? getLocationById(args.locationId) : undefined
-      const enemies = [getAdventureEnemy(player, transition.enemyId, transition.useLocationPool ? location?.enemyPool : undefined)]
+      const enemies = getStoryBattleEnemies(player, transition, location?.enemyPool)
       const currentCheckpoint = player.world.currentStory
       if (args.currentStoryEvent && currentCheckpoint) {
         player = setStoryCheckpoint(player, {
@@ -364,18 +402,19 @@ export function resolveStoryFlow(args: {
 
 export function resolveBattleFlow(args: {
   player: Player
-  outcome: "won" | "lost" | "fled"
+  outcome: BattleOutcome
   pendingBattleTransition: Transition | null
   challengeNpcId?: string | null
 }): { player: Player; command: BattleFlowCommand } {
   if (!args.pendingBattleTransition) {
-    let finalPlayer = args.outcome === "won" ? { ...args.player, day: args.player.day + 1 } : args.player
+    const objectiveMet = args.outcome === "won" || args.outcome === "partial"
+    let finalPlayer = objectiveMet ? { ...args.player, day: args.player.day + 1 } : args.player
     if (args.challengeNpcId) {
-      const delta = args.outcome === "won" ? 5 : args.outcome === "lost" ? -3 : 0
+      const delta = objectiveMet ? 5 : args.outcome === "lost" ? -3 : 0
       if (delta !== 0) {
         const consequences: Consequence[] = [
           { kind: "relation", npcId: args.challengeNpcId, delta },
-          ...(args.outcome === "won" ? [{ kind: "reputation" as const, delta: 2 }] : []),
+          ...(objectiveMet ? [{ kind: "reputation" as const, delta: 2 }] : []),
         ]
         finalPlayer = applyConsequences(finalPlayer, finalPlayer.world, consequences).player
       }

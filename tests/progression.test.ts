@@ -121,13 +121,13 @@ describe("skill practice", () => {
     ])
   })
 
-  it.each(["won", "lost", "fled"] as const)(
+  it.each(["won", "partial", "lost", "fled"] as const)(
     "keeps practice gains when battle result is %s",
     (result) => {
       const player = makePlayer(60)
       const enemy = makeEnemy()
       const finalState = createBattleState([player], [enemy])
-      if (result === "won") finalState.enemySide[0].hp = 0
+      if (result === "won" || result === "partial") finalState.enemySide[0].hp = 0
       if (result === "lost") finalState.playerSide[0].hp = 0
 
       const finalized = finalizeBattleResult({

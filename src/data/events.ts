@@ -5,7 +5,7 @@ export type { StoryEvent, Transition, Condition, Consequence, Choice, StoryNode,
 
 // ============================================================
 // 通用剧情事件（声明式：entryNode + nodes + consequences + transition）
-// 写法见《剧情系统设计手册.md》。战斗用 transition.battle + onWin/onLose/onFlee。
+// 写法见《剧情系统设计手册.md》。战斗用 transition.battle + onWin/onPartial/onLose/onFlee。
 // ============================================================
 export const STORY_EVENTS: StoryEvent[] = [
   // ===== 路见纷争 =====

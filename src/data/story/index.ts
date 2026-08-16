@@ -6,6 +6,8 @@
 
 import type { StoryEvent } from "../events"
 import { SHENDIAO_STORY } from "./shendiao"
+import { SHENDIAO_ACT7_STORY } from "./shendiaoAct7"
+import { SHENDIAO_ACT8_STORY } from "./shendiaoAct8"
 export {
   SHENDIAO_PROGRESS,
   STORY_PROGRESS_DEFINITIONS,
@@ -20,6 +22,8 @@ export type {
 // 所有剧情卷的汇总（通用随机奇遇仍在 events.ts，不在此处）
 export const STORY_VOLUMES: StoryEvent[] = [
   ...SHENDIAO_STORY,
+  ...SHENDIAO_ACT7_STORY,
+  ...SHENDIAO_ACT8_STORY,
 ]
 
 // 按作品列出的卷名（供将来做"剧情进度/图鉴"用）

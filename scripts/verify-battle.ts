@@ -260,6 +260,58 @@ console.log("\n=== 验证 10：眩晕跳过仍计入完整轮 ===")
   check("其他存活单位行动后该轮完成", completed.roundCompleted && completed.state.objective?.completedRounds === 1)
 }
 
+console.log("\n=== 验证 11：多人保护、最低幸存人数与部分达成 ===")
+{
+  const p = mkUnit("p1", "player", "护卫", 45, 22)
+  const allyA = mkUnit("ally-a", "player", "百姓甲", 20, 8)
+  const allyB = mkUnit("ally-b", "player", "百姓乙", 20, 8)
+  const allyC = mkUnit("ally-c", "player", "百姓丙", 20, 8)
+  const enemy = mkUnit("e1", "enemy", "追兵", 35, 18)
+  const objective = createBattleObjective({
+    kind: "defeatAll",
+    protectUids: ["ally-a", "ally-b", "ally-c"],
+    minProtectedSurvivors: 2,
+  })!
+  const base: BattleState = {
+    ...mkState([p, allyA, allyB, allyC], [enemy]),
+    objective,
+  }
+
+  check("保护组保留三个唯一目标", objective.protectUids.length === 3)
+  check("最低幸存人数写入运行时", objective.minProtectedSurvivors === 2)
+
+  const cleanWin: BattleState = {
+    ...base,
+    enemySide: base.enemySide.map((unit) => ({ ...unit, hp: 0 })),
+  }
+  check("保护组全员存活时无损达成", checkBattleEndBySide(cleanWin) === "won")
+
+  const oneCasualty: BattleState = {
+    ...base,
+    playerSide: base.playerSide.map((unit) => unit.uid === "ally-a" ? { ...unit, hp: 0 } : unit),
+  }
+  check("允许范围内伤亡不会提前结束", checkBattleEndBySide(oneCasualty) === "ongoing")
+  const costlyWin: BattleState = {
+    ...oneCasualty,
+    enemySide: oneCasualty.enemySide.map((unit) => ({ ...unit, hp: 0 })),
+  }
+  check("达到最低幸存数时部分达成", checkBattleEndBySide(costlyWin) === "partial")
+
+  const belowMinimum: BattleState = {
+    ...oneCasualty,
+    playerSide: oneCasualty.playerSide.map((unit) => unit.uid === "ally-b" ? { ...unit, hp: 0 } : unit),
+  }
+  check("低于最低幸存数立即失败", checkBattleEndBySide(belowMinimum) === "lost")
+
+  const legacy = createBattleObjective({ kind: "surviveRounds", rounds: 2, protectUid: "ally-a" })!
+  check(
+    "旧单人保护契约归一化为全员必活",
+    legacy.protectUid === "ally-a"
+      && legacy.protectUids.length === 1
+      && legacy.minProtectedSurvivors === 1,
+  )
+}
+
 console.log(`\n========================================`)
 console.log(`通过 ${pass} / 失败 ${fail}`)
 console.log(`========================================`)

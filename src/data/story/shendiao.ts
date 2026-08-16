@@ -2584,7 +2584,21 @@ export const SHENDIAO_STORY: StoryEvent[] = [
     locationId: "huashan",
     weight: 5,
     once: true,
-    condition: { kind: "arcBeat", arcId: "shendiao", beat: "yangkang" },
+    condition: {
+      kind: "and",
+      items: [
+        { kind: "arcBeat", arcId: "shendiao", beat: "yangkang" },
+        {
+          kind: "not",
+          item: {
+            kind: "arcBeat",
+            arcId: "shendiao",
+            beat: "act7-western-campaign",
+            result: "done",
+          },
+        },
+      ],
+    },
     nodes: {
       summit: {
         id: "summit",
