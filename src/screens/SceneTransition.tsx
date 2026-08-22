@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type CSSProperties } from "react"
 import type { StorySceneTransition } from "../data/story/schema"
 
 interface Props {
@@ -23,7 +23,7 @@ export function SceneTransition({
     const timer = window.setTimeout(() => {
       setFinished(true)
       onComplete?.()
-    }, transition.durationMs ?? 1300)
+    }, transition.durationMs ?? 1800)
     return () => window.clearTimeout(timer)
   }, [onComplete, phase, transition])
 
@@ -33,6 +33,9 @@ export function SceneTransition({
     <div
       className={`scene-transition-overlay phase-${phase} tone-${transition.tone ?? "ink"}`}
       aria-label={`${transition.timeLabel ?? ""} ${transition.title}`.trim()}
+      style={{
+        "--scene-transition-duration": `${transition.durationMs ?? 1800}ms`,
+      } as CSSProperties}
     >
       <div className="scene-transition-rule" aria-hidden="true" />
       {transition.timeLabel && (

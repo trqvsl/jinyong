@@ -24,16 +24,22 @@ describe("act one RPG vertical slice", () => {
   it("introduces the opening cast before using their names", () => {
     const event = getActOne()
     const riverbank = event.nodes.riverbank.text
+    const yeFamily = event.nodes["riverbank-ye-family"].text
     const jingkang = event.nodes["riverbank-jingkang"].text
+    const wumu = event.nodes["riverbank-wumu"].text
     const riverbankQusan = event.nodes["riverbank-qusan"].text
     const tavern = event.nodes["qusan-tavern"].text
     const yangtiexin = event.nodes["tavern-yangtiexin"].text
     const qusan = event.nodes["tavern-qusan"].text
 
     expect(riverbank).toContain("梨花木板横在膝上")
+    expect(riverbank).toContain("小鼓")
+    expect(riverbank).toContain("叶三姐节烈记")
     expect(riverbank).toContain("张十五：")
-    expect(jingkang).toContain("背负双戟的是郭啸天")
-    expect(jingkang).toContain("杨家枪传人杨铁心")
+    expect(yeFamily).toContain("叶老汉一家四口")
+    expect(jingkang).toContain("小鼓声在最急处突然停住")
+    expect(wumu).toContain("背负双戟的是郭啸天")
+    expect(wumu).toContain("杨家枪传人杨铁心")
     expect(riverbankQusan).toContain("跛脚掌柜曲三")
     expect(tavern).toContain("郭啸天：")
     expect(yangtiexin).toContain("杨铁心：")
@@ -60,7 +66,7 @@ describe("act one RPG vertical slice", () => {
 
     expect(tavern.stage).toMatchObject({
       sceneId: "qusan-tavern",
-      sceneLabel: "牛家村 · 曲三酒店",
+      sceneLabel: "牛家村 · 酒馆",
     })
     expect(tavern.stage?.actors?.map((actor) => actor.name)).toEqual([
       "郭啸天",
@@ -86,6 +92,10 @@ describe("act one RPG vertical slice", () => {
     const event = getActOne()
     expect(event.nodes.riverbank.choices).toBeUndefined()
     expect(event.nodes.riverbank.autoNext).toEqual({
+      type: "goto",
+      nodeId: "riverbank-ye-family",
+    })
+    expect(event.nodes["riverbank-ye-family"].autoNext).toEqual({
       type: "goto",
       nodeId: "riverbank-jingkang",
     })
@@ -132,7 +142,27 @@ describe("act one RPG vertical slice", () => {
     expect(event.nodes["qiu-clash"].choices).toHaveLength(2)
     expect(event.nodes["qiu-clash"].text).not.toContain("贫道认错了人")
     expect(event.nodes["qiu-recognition"].text).toContain("贫道认错了人")
+    expect(event.nodes["qiu-enter-house"].autoNext).toEqual({
+      type: "goto",
+      nodeId: "qiu-trail-account",
+    })
+    expect(event.nodes["qiu-family-table"].text).toContain("两家的孩子都在明年出生")
     expect(event.nodes["qiu-aftermath"].choices).toHaveLength(2)
+    expect(event.nodes["wounded-wakes"].text).toContain("水")
+    expect(event.nodes["late-winter"].sceneTransition?.durationMs).toBeGreaterThanOrEqual(2000)
+    expect(event.nodes["wait-righteous"].autoNext).toEqual({
+      type: "goto",
+      nodeId: "duan-handoff",
+    })
+    expect(event.nodes["duan-handoff"].text).toContain("四路人马")
+    expect(event.nodes["raid-righteous-bridge"].autoNext).toEqual({
+      type: "goto",
+      nodeId: "raid-warrant",
+    })
+    expect(event.nodes["close-won"].autoNext).toEqual({
+      type: "goto",
+      nodeId: "close-won-dawn",
+    })
   })
 
   it("opens the first visit on the village map before starting at the riverbank", () => {
@@ -258,11 +288,30 @@ describe("act one RPG vertical slice", () => {
       && !!spot.space.description
       && spot.space.actions.length > 0
     )).toBe(true)
+    expect(area.spots.every((spot) => !("kicker" in spot.space))).toBe(true)
+    expect(area.spots.every((spot) =>
+      spot.space.actions.every((action) => !["return", "talk"].includes(action.kind))
+    )).toBe(true)
+    expect(area.spots.flatMap((spot) => spot.space.residents).every(
+      (resident) => resident.dialogues.length >= 2,
+    )).toBe(true)
 
     const tavern = area.spots.find((spot) => spot.id === "qusan-tavern")!
+    expect(tavern.name).toBe("酒馆")
     expect(tavern.space.actions.map((action) => action.kind)).toEqual(
-      expect.arrayContaining(["talk", "shop", "inventory"]),
+      expect.arrayContaining(["shop", "inventory"]),
     )
+    const openingAreaEntry = [
+      { eventId: "shendiao-niujia-opening", nodeId: "riverbank" },
+    ]
+    expect(tavern.space.residents.find((resident) => resident.name === "曲三")).toMatchObject({
+      visibleDuring: openingAreaEntry,
+    })
+    expect(tavern.space.residents.find((resident) => resident.name === "曲三")?.dialogues)
+      .toHaveLength(3)
+    expect(tavern.space.actions.find((action) => action.kind === "shop")).toMatchObject({
+      visibleDuring: openingAreaEntry,
+    })
 
     const trainingGround = area.spots.find((spot) => spot.id === "training-ground")!
     expect(trainingGround.space.residents).toContainEqual(

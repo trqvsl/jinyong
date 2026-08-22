@@ -1,7 +1,9 @@
 import { useState } from "react"
+import { Coins, PackageCheck, ShoppingBag } from "lucide-react"
 import { SHOP_ITEMS } from "../data/shop"
 import { getItemById } from "../data/items"
 import type { Player } from "../types"
+import { ItemArtwork } from "./ItemArtwork"
 
 interface Props {
   player: Player
@@ -88,32 +90,45 @@ export function ShopScreen({
 
       {shopkeeper && (
         <section className="shopkeeper-strip">
-          <span>{shopkeeper}</span>
-          <p>柜上只摆日常伤药与干粮。银货两讫，买下的东西直接收入行囊。</p>
+          <div className="shopkeeper-mark"><ShoppingBag size={22} /></div>
+          <div>
+            <span>{shopkeeper}</span>
+            <p>柜上只摆日常伤药与干粮。银货两讫，买下的东西直接收入行囊。</p>
+          </div>
         </section>
       )}
 
       {notice && <div className="shop-inline-notice" role="status">{notice}</div>}
 
-      <section className="stat-panel">
-        <h2>行囊状态</h2>
-        <div className="stat-bars">
-          <Bar label="气血" value={player.hp} max={player.hpMax} color="#c0392b" />
-          <Bar label="内力" value={player.mp} max={player.mpMax} color="#2980b9" />
-          <Bar label="经验" value={player.exp} max={player.expMax} color="#27ae60" />
+      <section className="shop-status-band">
+        <div className="shop-vitals">
+          <div>
+            <span>气血</span>
+            <strong>{player.hp}<small> / {player.hpMax}</small></strong>
+          </div>
+          <div>
+            <span>内力</span>
+            <strong>{player.mp}<small> / {player.mpMax}</small></strong>
+          </div>
+          <div>
+            <span>银两</span>
+            <strong>{player.gold}<small> 两</small></strong>
+          </div>
         </div>
         <div className="shop-bag-preview">
-          行囊物资：
-          {Object.keys(player.inventory).length === 0
-            ? " 暂无道具"
-            : Object.entries(player.inventory)
-                .filter(([, count]) => count > 0)
-                .map(([itemId, count]) => ` ${getItemById(itemId)?.name ?? itemId} x${count}`)
-                .join(" / ")}
+          <PackageCheck size={18} />
+          <span>
+            {Object.keys(player.inventory).length === 0
+              ? "行囊暂无物资"
+              : Object.entries(player.inventory)
+                  .filter(([, count]) => count > 0)
+                  .map(([itemId, count]) => `${getItemById(itemId)?.name ?? itemId} × ${count}`)
+                  .join(" · ")}
+          </span>
         </div>
       </section>
 
-      <section className="stat-panel shop-recommend-panel">
+      <section className="shop-recommend-panel">
         <div className="shop-recommend-head">
           <div className="shop-recommend-label">当前建议</div>
           {recommendation.focusItemId && <span className="shop-recommend-badge">优先补给</span>}
@@ -122,45 +137,42 @@ export function ShopScreen({
         <p className="shop-recommend-copy">{recommendation.detail}</p>
       </section>
 
-      <section className="stat-panel">
-        <h2>可购货品 <span className="panel-count">{SHOP_ITEMS.length}</span></h2>
+      <section className="shop-goods-section">
+        <div className="shop-section-heading">
+          <h2>柜上货物</h2>
+          <span>{SHOP_ITEMS.length} 件</span>
+        </div>
         <div className="shop-list">
           {SHOP_ITEMS.map((item) => {
+            const itemDef = getItemById(item.grantItemId)
             const affordable = player.gold >= item.price
             const isRecommended = recommendation.focusItemId === item.id
             return (
-              <div key={item.id} className={`shop-item ${affordable ? "" : "sold-out"}${isRecommended ? " recommended" : ""}`}>
+              <article key={item.id} className={`shop-item ${affordable ? "" : "sold-out"}${isRecommended ? " recommended" : ""}`}>
+                <div className="shop-item-art">
+                  {itemDef && <ItemArtwork item={itemDef} />}
+                  <span>{item.category}</span>
+                </div>
                 <div className="shop-item-main">
                   <div className="shop-item-head">
-                    <span className="shop-item-cat">{item.category}</span>
                     <span className="shop-item-name">{item.name}</span>
                     {isRecommended && <span className="shop-item-recommend">当前建议</span>}
                   </div>
                   <div className="shop-item-desc">{item.description}</div>
                   <div className="shop-item-effect">{item.effectText}</div>
+                  <div className="shop-item-owned">行囊已有 {player.inventory[item.grantItemId] ?? 0}</div>
                 </div>
                 <div className="shop-item-side">
-                  <div className="shop-item-price">{item.price} 两</div>
+                  <div className="shop-item-price"><Coins size={16} /> {item.price} 两</div>
                   <button className="menu-btn primary shop-buy-btn" disabled={!affordable} onClick={() => buy(item.id)}>
                     {affordable ? "购入" : "银两不足"}
                   </button>
                 </div>
-              </div>
+              </article>
             )
           })}
         </div>
       </section>
-    </div>
-  )
-}
-
-function Bar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const pct = Math.max(0, Math.min(100, (value / max) * 100))
-  return (
-    <div className="bar-row">
-      <span className="bar-label">{label}</span>
-      <div className="bar-track"><div className="bar-fill" style={{ width: `${pct}%`, background: color }} /></div>
-      <span className="bar-value">{value}/{max}</span>
     </div>
   )
 }

@@ -12,19 +12,20 @@ import {
   Eye,
   Footprints,
   LoaderCircle,
-  Map,
-  MapPin,
   MessageCircle,
   ShoppingBag,
   Signpost,
   Swords,
   Trees,
+  X,
 } from "lucide-react"
 import type { Player } from "../types"
+import type { StoryCheckpoint } from "../data/story/schema"
 import {
   STORY_AREA_MAPS,
   type StoryAreaAction,
   type StoryAreaSpot,
+  type StoryAreaTarget,
 } from "../data/story/areaMaps"
 import { getNpcById, npcToEnemy } from "../data/npcs"
 import { getStoryEventById } from "../game/story/query"
@@ -66,12 +67,22 @@ function SpotIcon({ spot }: { spot: StoryAreaSpot }) {
 }
 
 function ActionIcon({ action }: { action: StoryAreaAction }) {
-  if (action.kind === "talk") return <MessageCircle size={18} />
   if (action.kind === "inspect") return <Eye size={18} />
   if (action.kind === "shop") return <ShoppingBag size={18} />
   if (action.kind === "inventory") return <Backpack size={18} />
   if (action.kind === "spar") return <Swords size={18} />
   return <Signpost size={18} />
+}
+
+function isVisibleDuring(
+  targets: StoryAreaTarget[] | undefined,
+  checkpoint: StoryCheckpoint | null,
+) {
+  if (!targets) return true
+  if (!checkpoint) return false
+  return targets.some((target) =>
+    target.eventId === checkpoint.eventId && target.nodeId === checkpoint.nodeId
+  )
 }
 
 export function AreaScreen({
@@ -99,6 +110,7 @@ export function AreaScreen({
   const [currentSpotId, setCurrentSpotId] = useState(
     initialSpotId ?? activeStorySpot?.id ?? "",
   )
+  const [selectedResidentName, setSelectedResidentName] = useState("")
   const [spaceMessage, setSpaceMessage] = useState("")
   const [readyMapBackground, setReadyMapBackground] = useState("")
   const [readySpaceId, setReadySpaceId] = useState("")
@@ -115,6 +127,21 @@ export function AreaScreen({
   const activeNodeTitle = checkpoint
     ? activeEvent?.nodes[checkpoint.nodeId]?.title
     : undefined
+  const visibleResidents = useMemo(
+    () => currentSpot?.space.residents.filter((resident) =>
+      isVisibleDuring(resident.visibleDuring, checkpoint)
+    ) ?? [],
+    [checkpoint, currentSpot],
+  )
+  const visibleActions = useMemo(
+    () => currentSpot?.space.actions.filter((action) =>
+      isVisibleDuring(action.visibleDuring, checkpoint)
+    ) ?? [],
+    [checkpoint, currentSpot],
+  )
+  const selectedResident = visibleResidents.find(
+    (resident) => resident.name === selectedResidentName,
+  )
 
   useEffect(() => {
     const activeTimers = timers.current
@@ -138,7 +165,7 @@ export function AreaScreen({
   useEffect(() => {
     if (!currentSpot || view !== "space") return
     let cancelled = false
-    const portraitUrls = currentSpot.space.residents
+    const portraitUrls = visibleResidents
       .map((resident) => getDialoguePortrait(resident.name)?.src)
       .filter((src): src is string => !!src)
     preloadImages([currentSpot.space.background, ...portraitUrls]).then(() => {
@@ -147,7 +174,14 @@ export function AreaScreen({
     return () => {
       cancelled = true
     }
-  }, [currentSpot, view])
+  }, [currentSpot, view, visibleResidents])
+
+  useEffect(() => {
+    if (selectedResidentName && !selectedResident) {
+      setSelectedResidentName("")
+      setSpaceMessage("")
+    }
+  }, [selectedResident, selectedResidentName])
 
   if (!area || !checkpoint?.paused) {
     return (
@@ -165,25 +199,29 @@ export function AreaScreen({
 
   function enterSpot(spot: StoryAreaSpot) {
     setSpaceMessage("")
+    setSelectedResidentName("")
     setTransition({ spot, phase: "cover" })
     const startedAt = window.performance.now()
     const portraitUrls = spot.space.residents
+      .filter((resident) => isVisibleDuring(resident.visibleDuring, checkpoint))
       .map((resident) => getDialoguePortrait(resident.name)?.src)
       .filter((src): src is string => !!src)
 
     preloadImages([spot.space.background, ...portraitUrls]).then(() => {
-      const remaining = Math.max(0, 320 - (window.performance.now() - startedAt))
+      const remaining = Math.max(0, 420 - (window.performance.now() - startedAt))
       schedule(() => {
         setCurrentSpotId(spot.id)
         setReadySpaceId(spot.id)
         setView("space")
         setTransition({ spot, phase: "reveal" })
-        schedule(() => setTransition(null), 520)
+        schedule(() => setTransition(null), 700)
       }, remaining)
     })
   }
 
   function returnToMap() {
+    setSelectedResidentName("")
+    setSpaceMessage("")
     if (!currentSpot) {
       setView("map")
       return
@@ -192,8 +230,8 @@ export function AreaScreen({
     schedule(() => {
       setView("map")
       setTransition({ spot: currentSpot, phase: "reveal" })
-      schedule(() => setTransition(null), 520)
-    }, 320)
+      schedule(() => setTransition(null), 700)
+    }, 420)
   }
 
   function handleAction(action: StoryAreaAction) {
@@ -218,6 +256,11 @@ export function AreaScreen({
     setSpaceMessage(action.resultText ?? action.description)
   }
 
+  function selectResident(name: string, line: string) {
+    setSelectedResidentName(name)
+    setSpaceMessage(line)
+  }
+
   const transitionView = transition && (
     <SceneTransition
       key={`${transition.spot.id}:${transition.phase}`}
@@ -226,7 +269,6 @@ export function AreaScreen({
         title: transition.phase === "cover"
           ? transition.spot.name
           : transition.spot.space.sceneLabel,
-        subtitle: transition.spot.space.kicker,
         timeLabel: `第 ${player.day} 日`,
         tone: transition.spot.id === "west-grove" ? "night" : "ink",
       }}
@@ -247,7 +289,6 @@ export function AreaScreen({
 
         <section className="story-area-heading">
           <div>
-            <span className="story-area-kicker"><MapPin size={14} /> 当前地点</span>
             <h1>{area.name}</h1>
             <p>选择村中地点，直接进入对应空间。</p>
           </div>
@@ -294,15 +335,6 @@ export function AreaScreen({
               >
                 <SpotIcon spot={spot} />
                 <span>{spot.name}</span>
-                <small>
-                  {isActive
-                    ? isAreaEntry ? "主线起点" : "剧情续接"
-                    : spot.kind === "training"
-                      ? "教头在场"
-                      : spot.kind === "exit"
-                        ? "通往官道"
-                        : "进入地点"}
-                </small>
               </button>
             )
           })}
@@ -322,8 +354,8 @@ export function AreaScreen({
     <div className="story-area-screen area-place-screen">
       {transitionView}
       <header className="story-area-topbar">
-        <button className="back-btn" onClick={returnToMap} title="返回牛家村地图">
-          <Map size={18} /> 牛家村地图
+        <button className="back-btn area-place-exit" onClick={returnToMap} title="离开当前地点">
+          <ArrowLeft size={17} /> 离开
         </button>
         <span>{currentSpot.space.sceneLabel}</span>
         <span>第 {player.day} 日</span>
@@ -346,22 +378,28 @@ export function AreaScreen({
         )}
         <div className="area-place-backdrop" aria-hidden="true" />
         <section className="area-place-heading">
-          <span>{currentSpot.space.kicker}</span>
           <h1>{currentSpot.name}</h1>
           <p>{currentSpot.space.description}</p>
           <small>{currentSpot.space.ambience}</small>
         </section>
 
         <section className="area-place-residents" aria-label="在场人物">
-          {currentSpot.space.residents.length === 0 ? (
+          {visibleResidents.length === 0 ? (
             <div className="area-place-empty-resident">
               <Trees size={22} />
               <span>此处暂时无人，只有环境痕迹可查。</span>
             </div>
-          ) : currentSpot.space.residents.map((resident) => {
+          ) : visibleResidents.map((resident) => {
             const portrait = getDialoguePortrait(resident.name)
             return (
-              <article key={resident.name} className="area-resident-card">
+              <button
+                key={resident.name}
+                type="button"
+                className={`area-resident-card${selectedResidentName === resident.name ? " is-selected" : ""}`}
+                onClick={() => selectResident(resident.name, resident.line)}
+                aria-pressed={selectedResidentName === resident.name}
+                title={`与${resident.name}交谈`}
+              >
                 <div className="area-resident-portrait">
                   <span>{getDialoguePortraitFallback(resident.name)}</span>
                   {portrait && <img src={portrait.src} alt="" aria-hidden="true" />}
@@ -371,39 +409,71 @@ export function AreaScreen({
                   <strong>{resident.name}</strong>
                   <p>{resident.line}</p>
                 </div>
-              </article>
+                <MessageCircle className="area-resident-talk-icon" size={17} aria-hidden="true" />
+              </button>
             )
           })}
         </section>
 
         <section className="area-place-command-deck">
           <div className="area-place-message">
-            <span>此处见闻</span>
-            <p>{spaceMessage || currentSpot.space.ambience}</p>
+            <span>{selectedResident?.name ?? "此处见闻"}</span>
+            <p>{spaceMessage || selectedResident?.line || currentSpot.space.ambience}</p>
           </div>
           <div className="area-place-actions">
-            {isActiveSpace && (
-              <button className="area-place-action primary" onClick={onResume}>
-                <Footprints size={19} />
-                <span>
-                  <strong>{storyActionLabel}</strong>
-                  <small>进入当前主线场景</small>
-                </span>
-              </button>
+            {selectedResident ? (
+              <>
+                {selectedResident.dialogues.map((dialogue) => (
+                  <button
+                    key={dialogue.id}
+                    className="area-place-action kind-dialogue"
+                    onClick={() => setSpaceMessage(dialogue.response)}
+                  >
+                    <MessageCircle size={18} />
+                    <span>
+                      <strong>{dialogue.label}</strong>
+                      <small>{dialogue.description}</small>
+                    </span>
+                  </button>
+                ))}
+                <button
+                  className="area-place-action kind-end-talk"
+                  onClick={() => {
+                    setSelectedResidentName("")
+                    setSpaceMessage("")
+                  }}
+                  title="结束交谈"
+                >
+                  <X size={18} />
+                  <span><strong>结束交谈</strong></span>
+                </button>
+              </>
+            ) : (
+              <>
+                {isActiveSpace && (
+                  <button className="area-place-action primary" onClick={onResume}>
+                    <Footprints size={19} />
+                    <span>
+                      <strong>{storyActionLabel}</strong>
+                      <small>进入当前主线场景</small>
+                    </span>
+                  </button>
+                )}
+                {visibleActions.map((action) => (
+                  <button
+                    key={action.id}
+                    className={`area-place-action kind-${action.kind}`}
+                    onClick={() => handleAction(action)}
+                  >
+                    <ActionIcon action={action} />
+                    <span>
+                      <strong>{action.label}</strong>
+                      <small>{action.description}</small>
+                    </span>
+                  </button>
+                ))}
+              </>
             )}
-            {currentSpot.space.actions.map((action) => (
-              <button
-                key={action.id}
-                className={`area-place-action kind-${action.kind}`}
-                onClick={() => handleAction(action)}
-              >
-                <ActionIcon action={action} />
-                <span>
-                  <strong>{action.label}</strong>
-                  <small>{action.description}</small>
-                </span>
-              </button>
-            ))}
           </div>
         </section>
       </main>

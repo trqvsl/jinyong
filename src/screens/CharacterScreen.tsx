@@ -1,3 +1,5 @@
+import { useState } from "react"
+import { Backpack, FlaskConical, PackageOpen, ScrollText } from "lucide-react"
 import { getItemById } from "../data/items"
 import type { Player, Skill, SkillCategory } from "../types"
 import { savePlayer } from "../game/player"
@@ -10,11 +12,14 @@ import {
 import { getLocationById } from "../data/map"
 import { getRelationLevel } from "../game/relations"
 import { getActivePartyNpcs, getReservePartyNpcs, moveActiveNpc, setNpcPartyActive, MAX_ACTIVE_TEAMMATES, normalizePlayerParty, getNpcBattleRole, getPartySupportBonuses, getPartySupportTotals, getPartyBondBonuses, getBattleSupportMechanicRules } from "../game/party"
+import { ItemArtwork } from "./ItemArtwork"
 
 interface Props {
   player: Player
   onUpdate: (player: Player) => void
   onBack: () => void
+  mode?: "full" | "inventory"
+  locationName?: string
 }
 
 const CAT_ORDER: SkillCategory[] = ["外功", "内功", "轻功", "奇门"]
@@ -53,7 +58,15 @@ function getMasteryBonusText(skill: Skill, mastery: number): string {
   return bonuses.join(" · ") || "尚无战斗加成"
 }
 
-export function CharacterScreen({ player, onUpdate, onBack }: Props) {
+export function CharacterScreen({
+  player,
+  onUpdate,
+  onBack,
+  mode = "full",
+  locationName,
+}: Props) {
+  const [inventoryNotice, setInventoryNotice] = useState("")
+  const [bagFilter, setBagFilter] = useState<"all" | "usable" | "evidence">("all")
   const activeParty = getActivePartyNpcs(player)
   const reserveParty = getReservePartyNpcs(player)
   const supportBonuses = getPartySupportBonuses(player)
@@ -67,6 +80,12 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
 
   const maxStats = { hpMax: 500, mpMax: 300, attack: 100, defense: 60, speed: 60 }
   const bagItemEntries = Object.entries(player.inventory).filter(([, count]) => count > 0)
+  const filteredBagEntries = bagItemEntries.filter(([itemId]) => {
+    const item = getItemById(itemId)
+    if (bagFilter === "usable") return item?.usable
+    if (bagFilter === "evidence") return item?.category === "特殊"
+    return true
+  })
   const bagCount = Object.values(player.inventory).reduce((sum, count) => sum + count, 0)
   const topSkills = player.skills.slice(0, 3)
 
@@ -103,7 +122,7 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
   function consumeItem(itemId: string) {
     const item = getItemById(itemId)
     if (!item?.usable || !item.apply) {
-      alert("此物暂不可直接使用。")
+      setInventoryNotice("此物需要在对应人物或剧情场景中使用。")
       return
     }
     const updated = item.apply({
@@ -117,7 +136,7 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
     if (cleaned[itemId] <= 0) delete cleaned[itemId]
     const finalPlayer = { ...updated, inventory: cleaned }
     persist(finalPlayer)
-    alert(`使用了 ${item.name}：${item.effectText}`)
+    setInventoryNotice(`已使用${item.name}，${item.effectText}。`)
   }
 
   function handleToggleParty(npcId: string, active: boolean) {
@@ -126,6 +145,80 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
 
   function handleMoveParty(npcId: string, direction: "forward" | "backward") {
     persist(moveActiveNpc(player, npcId, direction))
+  }
+
+  if (mode === "inventory") {
+    return (
+      <div className="inventory-screen">
+        <header className="top-bar inventory-topbar">
+          <button className="back-btn" onClick={onBack}>← 返回</button>
+          <span className="player-name">随身行囊</span>
+          <span className="day-info">{bagCount} 件物品</span>
+        </header>
+
+        <section className="inventory-heading">
+          <div>
+            <span>{locationName ?? "行旅整备"}</span>
+            <h1>整理行囊</h1>
+            <p>药物可直接使用，证物会保留到对应人物或剧情现场。</p>
+          </div>
+          <div className="inventory-vitals">
+            <span>气血 <b>{player.hp}/{player.hpMax}</b></span>
+            <span>内力 <b>{player.mp}/{player.mpMax}</b></span>
+          </div>
+        </section>
+
+        <nav className="inventory-filters" aria-label="行囊分类">
+          <button className={bagFilter === "all" ? "active" : ""} onClick={() => setBagFilter("all")}>
+            <Backpack size={17} /> 全部
+          </button>
+          <button className={bagFilter === "usable" ? "active" : ""} onClick={() => setBagFilter("usable")}>
+            <FlaskConical size={17} /> 药品补给
+          </button>
+          <button className={bagFilter === "evidence" ? "active" : ""} onClick={() => setBagFilter("evidence")}>
+            <ScrollText size={17} /> 证物
+          </button>
+        </nav>
+
+        {inventoryNotice && <div className="inventory-notice" role="status">{inventoryNotice}</div>}
+
+        {filteredBagEntries.length === 0 ? (
+          <section className="inventory-empty">
+            <PackageOpen size={34} />
+            <strong>{bagItemEntries.length === 0 ? "行囊尚空" : "此类物品尚未取得"}</strong>
+            <span>可在酒馆购置补给，或从剧情现场取得证物。</span>
+          </section>
+        ) : (
+          <section className="inventory-grid">
+            {filteredBagEntries.map(([itemId, count]) => {
+              const item = getItemById(itemId)
+              if (!item) return null
+              return (
+                <article key={itemId} className="inventory-item">
+                  <div className="inventory-item-art">
+                    <ItemArtwork item={item} />
+                    <span>× {count}</span>
+                  </div>
+                  <div className="inventory-item-copy">
+                    <span className={`inventory-item-category category-${item.category}`}>{item.category}</span>
+                    <h2>{item.name}</h2>
+                    <p>{item.description}</p>
+                    <strong>{item.effectText}</strong>
+                  </div>
+                  <button
+                    className="inventory-use-btn"
+                    disabled={!item.usable || count <= 0}
+                    onClick={() => consumeItem(itemId)}
+                  >
+                    {item.usable ? "使用" : "留存"}
+                  </button>
+                </article>
+              )
+            })}
+          </section>
+        )}
+      </div>
+    )
   }
 
   function renderPartyMember(npcId: string, mode: "active" | "reserve", order?: number) {
@@ -284,9 +377,11 @@ export function CharacterScreen({ player, onUpdate, onBack }: Props) {
               const item = getItemById(itemId)
               return (
                 <div key={itemId} className="char-skill-item char-bag-row">
+                  {item && <ItemArtwork item={item} className="char-bag-thumb" decorative />}
                   <div className="char-bag-info">
                     <span className="char-skill-name">{item?.name ?? itemId} × {count}</span>
-                    <span className="char-skill-desc">{item?.effectText ?? "未知物品"}</span>
+                    <span className="char-skill-desc">{item?.description ?? "未知物品"}</span>
+                    <span className="char-bag-effect">{item?.effectText ?? ""}</span>
                   </div>
                   <button
                     className="menu-btn char-use-btn"

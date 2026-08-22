@@ -56,15 +56,18 @@ App.tsx        ← 路由编排，不含业务逻辑
 2. `AreaScreen` 先展示地点地图；点击点位后直接进入该点的 `StoryAreaSpace`
 3. 独立空间由 `background / description / ambience / residents / actions` 组成
 4. `storyTargets(eventId + nodeId)` 决定哪个空间显示当前剧情续接动作
-5. 本地商店复用 `ShopScreen + SHOP_ITEMS`；本地行囊复用 `CharacterScreen`；切磋复用 NPC → battle 流程
-6. `SceneTransition` 只负责 cover / reveal 与时辰题签，**不修改** `day`、checkpoint 或剧情 transition
+5. 驻场人物可声明多组 `dialogues`；点击 NPC 后在底部命令框选择话题
+6. 本地商店复用 `ShopScreen + SHOP_ITEMS`；本地行囊使用 `CharacterScreen` 的专用 inventory mode；切磋复用 NPC → battle 流程
+7. residents / actions 可用 `visibleDuring(eventId + nodeId)` 按剧情断点显隐
+8. 空间左上角“离开”返回地点地图，不在底部动作区重复放返回按钮
+9. `SceneTransition` 只负责 cover / reveal 与时辰题签，**不修改** `day`、checkpoint 或剧情 transition
 
 当前能力边界：
 
 - 只有牛家村配置了内部地图；这还不是所有地点的通用自由探索层
 - 独立空间依赖活动剧情的 `paused / areaEntry` checkpoint，事件结束后不能脱离剧情任意进入
-- 驻场人物与本地动作目前是静态数据，尚未按 `Condition` 动态过滤
-- 商店仍使用通用三种货物，行囊还不是独立物品管理界面
+- 驻场人物与本地动作已支持断点级显隐，但尚未接入人物生死、阵营等通用 `Condition`
+- 商店仍使用通用三种货物，尚无地点专属库存；行囊已有独立物品图、分类、详情与场景内使用
 
 ## 战斗引擎（自包含模块）
 
@@ -79,7 +82,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 - 《射雕主线脚本.md》：**当前实现样板线说明**，负责当前代码里已落地的主线事件自然语言镜像
 - `src/data/story/shendiao.ts`：**实际实现数据**
 
-当前射雕现代八幕、P15 世界回响、卷末纪事与 RPG 专用对白框均已完成；第一幕正在作为高品质 RPG 样板持续重构。牛家村已接入 7 个可直接进入的独立空间、22 名角色头像、地点驻场人物、本地商店 / 行囊 / 教头切磋、两次暂离续接、自然升级与郭啸天助战教学战。首次进入牛家村先看村图，再从钱塘江边入席听书；场景资源全部准备好后整体揭幕，地点与剧情换场经过 `SceneTransition`，追鸡等动作只在对应叙事拍播放一次。第一幕前半段已把钱塘说书、日暮收店、初更 / 二更 / 三更与村西林问话拆成独立节拍。29 个现代主线事件已按真实引擎连续走通，八类终局均有专属 urgent 回响和五段可回看记录。下一步继续按同一标准打磨第一幕后半段，再处理世界地图与按幕拆包。`niujia / damos / meet-rong / qigong / wangfu / taohua` 仍同步写入，作为旧存档与后续旧样板兼容 beat。
+当前射雕现代八幕、P15 世界回响、卷末纪事与 RPG 专用对白框均已完成；第一幕高品质 RPG 样板首轮已经收口。牛家村已接入 7 个可直接进入的独立空间、22 名角色头像、NPC 多话题交谈、阶段显隐、本地商店、专用行囊、教头切磋、两次暂离续接、自然升级与郭啸天助战教学战。首次进入牛家村先看村图，再从钱塘江边入席听书；张十五说书、酒馆夜事、风雪误斗、雪地救伤、残冬监视、四路围村与九类离散结果均已拆成连续现场节拍。地点和剧情换场经过 `SceneTransition`，战况日志支持自动跟随与手动翻阅。29 个现代主线事件已按真实引擎连续走通，八类终局均有专属 urgent 回响和五段可回看记录。下一步先完成第一幕从新档到南北离散的整段桌面复验，并深化通用 Condition、地点专属库存和证物读侧，再处理世界地图与按幕拆包。`niujia / damos / meet-rong / qigong / wangfu / taohua` 仍同步写入，作为旧存档与后续旧样板兼容 beat。
 
 当前验收以 **1280 × 800 桌面端** 为基准；暂不新增或维护移动端适配。项目进展中的旧移动端记录只是历史验证结果，不代表当前交付要求。
 
@@ -180,6 +183,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `src/screens/AreaScreen.tsx` — 地点局部地图、独立空间、驻场人物、本地动作与剧情续接
 - `src/screens/SceneTransition.tsx` — 地点 / 时段 / 剧情场景的全屏转场题签
 - `src/screens/imagePreloader.ts` — 场景 / 地图 / 头像共享预载队列与已加载缓存
+- `src/screens/ItemArtwork.tsx` — 物品生成图加载、服务占位识别与图标底板降级
 - `src/screens/dialoguePortrait.ts` — 说话人别名、头像与未知角色降级解析
 - `src/screens/EndingRecordScreen.tsx` — 八幕完成后的只读卷末纪事页面
 - `src/App.tsx` — 根路由编排；维护 `areaPlaceId / areaUtilityReturn / battleReturnAreaId` 等非持久化界面回流状态
@@ -200,7 +204,7 @@ App.tsx        ← 路由编排，不含业务逻辑
 - `tests/act8-ending-record.test.ts` — 八类终局回响、urgent 入队、五段卷末纪事与第六幕余波回归
 - `tests/full-story-journey.test.ts` — 29 个现代主线事件从第一幕到 8/8 终局的完整引擎旅程
 - `tests/dialogue-presentation.test.ts` — 说话人拆解、头像别名、未知角色降级与生成资源约束
-- `tests/act1-polish.test.ts` — 第一幕人物辨识、说书节拍、场景舞台、独立空间、转场、暂停续接与教学战
+- `tests/act1-polish.test.ts` — 第一幕人物辨识、说书节拍、场景舞台、空间对话 / 显隐、转场、暂停续接与教学战
 
 ### 改战斗
 - `src/game/battle/index.ts` — battle 模块公共入口（外部优先从这里 import）

@@ -297,7 +297,7 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
                 </div>
               </>
               ) : dialogueSegment ? (
-                <div className="event-rpg-dialogue">
+                <div key={`${nodeId}:${phase}:${pageIndex}`} className="event-rpg-dialogue">
                   {narrationSegments.length > 0 && (
                     <div className="event-rpg-dialogue-context">
                       {narrationSegments.map((segment, index) => (
@@ -314,7 +314,7 @@ export function EventScreen({ player, event, nodeId, initialPageIndex = 0, initi
                   </div>
                 </div>
               ) : (
-                <div className="event-rpg-narration">
+                <div key={`${nodeId}:${phase}:${pageIndex}`} className="event-rpg-narration">
                   <span className="event-rpg-narration-mark" aria-hidden="true" />
                   <div>
                     {narrationSegments.map((segment, index) => (

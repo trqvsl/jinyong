@@ -186,8 +186,9 @@
 - 地图点点击后直接进入空间，不增加“选中 → 前往查看”二次确认
 - 空间至少声明 `background / description / ambience / residents / actions`
 - `storyTargets` 必须同时写 `eventId + nodeId`，不能只靠裸 nodeId 映射续接点
-- 当前 residents / actions 不支持 `Condition`；若人物可能死亡、离开或尚未登场，不要把静态驻场配置描述成已具备动态状态
-- 商店与行囊目前是通用界面回流；写内容时不要承诺地点专属库存、独立物品详情或场景内使用，除非对应系统已实现
+- residents / actions 可用 `visibleDuring(eventId + nodeId)` 处理当前剧情断点显隐；人物生死、阵营等通用 `Condition` 仍未接入空间层
+- 驻场人物应提供 `dialogues`；点击人物后，话题选项统一进入空间底部命令框
+- 行囊已有独立物品图、分类、详情与场景回流；商店仍复用通用三件货表，未配置地点专属库存前不要承诺独有货物
 
 ### 选择与转场
 - 只保留会改变立场、资源、关系、路线或有效信息的选项

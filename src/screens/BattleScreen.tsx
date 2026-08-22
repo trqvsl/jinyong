@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react"
 import {
   Backpack,
+  ChevronDown,
+  ChevronUp,
   Crosshair,
   Footprints,
   HeartPulse,
@@ -163,9 +165,12 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
   const inventoryPatch = useRef<Record<string, number>>({})
   const skillUsesRef = useRef<Record<string, number>>({})
   const supportRuntimeRef = useRef(createBattleSupportRuntimeState())
-  const logEndRef = useRef<HTMLDivElement>(null)
+  const logRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [log])
+  useLayoutEffect(() => {
+    const panel = logRef.current
+    if (panel) panel.scrollTop = panel.scrollHeight
+  }, [log])
 
   // 开局：推进 ATB，调度第一个行动者（含状态结算/眩晕跳过）
   useEffect(() => {
@@ -174,6 +179,14 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
   }, [])
 
   function pushLog(entries: { text: string; type: string }[]) { setLog((prev) => [...prev, ...entries]) }
+  function scrollLog(direction: "up" | "down") {
+    const panel = logRef.current
+    if (!panel) return
+    panel.scrollBy({
+      top: (direction === "up" ? -1 : 1) * Math.max(120, panel.clientHeight * 0.75),
+      behavior: "smooth",
+    })
+  }
   function addFloat(uid: string, text: string, kind: FloatText["kind"]) {
     const id = ++floatId
     setFloats((prev) => [...prev, { id, uid, text, kind }])
@@ -674,10 +687,17 @@ export function BattleScreen({ player, battlePlayer, enemies, teammates, objecti
           <div className="panel-title battle-panel-title">
             <Crosshair size={16} aria-hidden="true" />
             <span>战况</span>
+            <div className="battle-log-controls">
+              <button onClick={() => scrollLog("up")} title="查看较早战况" aria-label="查看较早战况">
+                <ChevronUp size={16} />
+              </button>
+              <button onClick={() => scrollLog("down")} title="查看较新战况" aria-label="查看较新战况">
+                <ChevronDown size={16} />
+              </button>
+            </div>
           </div>
-          <div className="battle-log">
+          <div className="battle-log" ref={logRef} tabIndex={0} aria-label="战况记录，可滚动查看">
             {log.map((entry, index) => <div key={index} className={`log-entry log-${entry.type}`}>{entry.text}</div>)}
-            <div ref={logEndRef} />
           </div>
         </div>
 

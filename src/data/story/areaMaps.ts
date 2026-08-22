@@ -2,7 +2,6 @@ import { STORY_STAGE_BACKGROUNDS } from "./stageAssets"
 
 export type StoryAreaSpotKind = "story" | "training" | "exit" | "scenery"
 export type StoryAreaActionKind =
-  | "talk"
   | "inspect"
   | "shop"
   | "inventory"
@@ -18,6 +17,15 @@ export interface StoryAreaResident {
   name: string
   title: string
   line: string
+  dialogues: StoryAreaDialogue[]
+  visibleDuring?: StoryAreaTarget[]
+}
+
+export interface StoryAreaDialogue {
+  id: string
+  label: string
+  description: string
+  response: string
 }
 
 export interface StoryAreaAction {
@@ -27,13 +35,13 @@ export interface StoryAreaAction {
   description: string
   resultText?: string
   npcId?: string
+  visibleDuring?: StoryAreaTarget[]
 }
 
 export interface StoryAreaSpace {
   sceneId: string
   sceneLabel: string
   background: string
-  kicker: string
   description: string
   ambience: string
   residents: StoryAreaResident[]
@@ -60,6 +68,10 @@ export interface StoryAreaMap {
   spots: StoryAreaSpot[]
 }
 
+const OPENING_AREA_ENTRY_TARGETS: StoryAreaTarget[] = [
+  { eventId: "shendiao-niujia-opening", nodeId: "riverbank" },
+]
+
 export const STORY_AREA_MAPS: StoryAreaMap[] = [
   {
     id: "niujia-village",
@@ -82,73 +94,113 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
           sceneId: "niujia-riverbank",
           sceneLabel: "牛家村 · 钱塘江边",
           background: STORY_STAGE_BACKGROUNDS["niujia-riverbank"],
-          kicker: "江潮与说书场",
           description: "两株老松之间铺着说书人的草席，江风卷着潮气吹过围听人群。",
           ambience: "潮声压着木板脆响，渡船号子从下游断断续续传来。",
           residents: [
             {
               name: "张十五",
               title: "钱塘说书人",
-              line: "今日先说靖康旧事，再说岳武穆如何领兵北上。",
+              line: "木板还没开场。江边人齐了，今日说《叶三姐节烈记》。",
+              dialogues: [
+                {
+                  id: "today-story",
+                  label: "问今日书目",
+                  description: "听听今日说的是哪一段话本。",
+                  response: "张十五：“不说神仙斗法，说一个北地姑娘。她家被兵火冲散，好容易团聚，回乡却只剩断墙。后面的事，等人齐了再开口。”",
+                },
+                {
+                  id: "story-tools",
+                  label: "问木板与小鼓",
+                  description: "问他为何既敲木板，又带一面小鼓。",
+                  response: "张十五：“木板收人声，小鼓催紧处。该慢时留一口气，该急时三槌赶上去。只有嘴里平平说到底，那不叫说书。”",
+                },
+                {
+                  id: "village-audience",
+                  label: "问村中听客",
+                  description: "打听常来江边听书的村民。",
+                  response: "张十五：“郭杨两位最肯听北地旧事，也肯替穷人付几枚书钱。曲掌柜不多话，送来的热酒倒从不掺水。”",
+                },
+              ],
             },
           ],
           actions: [
-            {
-              id: "talk-storyteller",
-              kind: "talk",
-              label: "与张十五说话",
-              description: "问问今日说的是哪一段旧事。",
-              resultText: "张十五把梨花木板横在膝上，说今日要从靖康年间讲起，等江边人到齐便开场。",
-            },
             {
               id: "watch-tide",
               kind: "inspect",
               label: "查看潮势",
               description: "沿江岸看看渡船、村路与说书场的位置。",
-              resultText: "江水正涨，渡船都拴在高处。曲三酒店的酒旗就在村路尽头，离两株松树不过百余步。",
+              resultText: "江水正涨，渡船都拴在高处。村中酒馆的酒旗就在路尽头，离两株松树不过百余步。",
             },
           ],
         },
       },
       {
         id: "qusan-tavern",
-        name: "曲三酒店",
+        name: "酒馆",
         description: "酒帘已经落下，后院偶尔传来鸡叫。",
         x: 23,
         y: 48,
         kind: "scenery",
         space: {
           sceneId: "qusan-tavern",
-          sceneLabel: "牛家村 · 曲三酒店",
+          sceneLabel: "牛家村 · 酒馆",
           background: STORY_STAGE_BACKGROUNDS["qusan-tavern"],
-          kicker: "酒炉与村中柜台",
           description: "临江小店只有几张木桌，墙边摞着酒坛，后门通向傻姑住的院子。",
-          ambience: "酒炉轻响，门外江风不时把半截酒帘吹进屋里。",
+          ambience: "门外江风不时把半截酒帘吹进屋里，后院偶尔传来鸡叫。",
           residents: [
             {
               name: "曲三",
               title: "跛脚掌柜",
               line: "喝酒便坐，问旧事就免了。柜上还有些伤药和干粮。",
+              dialogues: [
+                {
+                  id: "new-faces",
+                  label: "问村外生面孔",
+                  description: "问近来为何总有陌生人沿江路经过。",
+                  response: "曲三把酒碗倒扣在柜上。曲三：“两个问渡口，一个问临安旧路，都不像真要赶路。天黑以后少在村西走。”",
+                },
+                {
+                  id: "leg-injury",
+                  label: "问他的腿伤",
+                  description: "问他拄着双拐，为何动作仍如此利落。",
+                  response: "曲三：“旧伤。端酒不洒，靠的是手稳，不是腿好。你若来喝酒，我给你烫一壶；若来查根底，这桌便不留了。”",
+                },
+                {
+                  id: "counter-goods",
+                  label: "问柜上货物",
+                  description: "问伤药和干粮从何处进货。",
+                  response: "曲三：“药是红梅村郎中配的，干粮是傻姑帮着包的。贵不到哪去，也不赊账。要买便自己看柜。”",
+                },
+              ],
+              visibleDuring: OPENING_AREA_ENTRY_TARGETS,
             },
             {
               name: "傻姑",
               title: "曲三养女",
               line: "傻姑抱着鸡食盆躲在门后，只肯把公鸡叫作大老虎。",
+              dialogues: [
+                {
+                  id: "rooster",
+                  label: "问“大老虎”",
+                  description: "问她为何把公鸡叫作老虎。",
+                  response: "傻姑把鸡食盆抱紧。傻姑：“它会啄人，还会飞上酒坛。爹说抓住才给半块饼。大老虎最坏。”",
+                },
+                {
+                  id: "wooden-box",
+                  label: "问后院木匣",
+                  description: "问她总守着的旧木匣是谁留下的。",
+                  response: "傻姑立刻摇头，把衣角塞到匣盖缝里。傻姑：“爹的。不能开。桃花也不能给你看。”",
+                },
+              ],
             },
           ],
           actions: [
-            {
-              id: "talk-qusan",
-              kind: "talk",
-              label: "与曲三交谈",
-              description: "听听这个跛脚掌柜如何看村里的来往人物。",
-              resultText: "曲三擦着酒碗，只提醒你村外近来多了生面孔。再追问，他便把话头转回酒钱。",
-            },
             {
               id: "open-shop",
               kind: "shop",
               label: "查看柜上货物",
               description: "购买金疮药、养气散和赶路干粮。",
+              visibleDuring: OPENING_AREA_ENTRY_TARGETS,
             },
             {
               id: "open-inventory",
@@ -173,7 +225,6 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
           sceneId: "yang-backyard",
           sceneLabel: "牛家村 · 杨家后院",
           background: STORY_STAGE_BACKGROUNDS["yang-backyard"],
-          kicker: "枪架与柴房",
           description: "院墙不高，枪架靠着东墙，柴房与旧坟之间有一条少有人走的小路。",
           ambience: "屋里有人添柴，院角晾着药布，雪天时脚印会一直留到林边。",
           residents: [
@@ -181,21 +232,54 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
               name: "杨铁心",
               title: "杨家枪传人",
               line: "院里地方窄，枪法只练收势。真要过招，去村口空地。",
+              dialogues: [
+                {
+                  id: "yang-spear",
+                  label: "问杨家枪",
+                  description: "问枪架上的长枪传自何处。",
+                  response: "杨铁心：“祖上杨再兴在岳爷爷帐下使枪。传到我手里，只剩几路守门、破阵的硬功夫，不敢拿来卖弄。”",
+                },
+                {
+                  id: "guo-brother",
+                  label: "问郭啸天",
+                  description: "问他与郭家为何比邻而居。",
+                  response: "杨铁心：“我与郭大哥一路避乱到江南，在牛家村结义落脚。两家院墙挨着，真有急事，一声便能听见。”",
+                },
+                {
+                  id: "village-watch",
+                  label: "问守夜安排",
+                  description: "问村中近来为何开始轮流守夜。",
+                  response: "杨铁心：“江边多了问路不赶路的人。郭大哥守前半夜，我看后半夜；村口空地的青壮也轮着来。”",
+                },
+              ],
             },
             {
               name: "包惜弱",
               title: "杨门夫人",
               line: "药布已经晒干。若在村外见到伤者，先把人抬回来再问来路。",
+              dialogues: [
+                {
+                  id: "medicine-cloth",
+                  label: "问院中药布",
+                  description: "问屋檐下为何总晾着洗净的药布。",
+                  response: "包惜弱：“猎户割伤、船夫擦破手，都会来借几条。洗净晒透，下次才不至于把伤口弄坏。”",
+                },
+                {
+                  id: "back-path",
+                  label: "问后院小路",
+                  description: "问柴房后的小路通向哪里。",
+                  response: "包惜弱：“绕过旧坟便进林子，平日只有拾柴的人走。雪天若有人经过，脚印会留得很清楚。”",
+                },
+                {
+                  id: "two-families",
+                  label: "问郭杨两家",
+                  description: "问两户人家平日如何照应。",
+                  response: "包惜弱：“郭大嫂做面食，我替她缝衣；两位兄长夜里练兵器，我们便把院门替他们留着。都是寻常日子。”",
+                },
+              ],
             },
           ],
           actions: [
-            {
-              id: "talk-yangtiexin",
-              kind: "talk",
-              label: "问杨家枪",
-              description: "请杨铁心说说枪架上的旧兵器。",
-              resultText: "杨铁心说长枪是祖上传下的样式，练的不是花架子，而是马上冲阵与守门护人的本事。",
-            },
             {
               id: "inspect-back-path",
               kind: "inspect",
@@ -214,7 +298,7 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
       },
       {
         id: "ruined-tavern",
-        name: "废酒店后门",
+        name: "废酒馆后门",
         description: "段天德的亲随正在这里交接银封与调兵契纸。",
         x: 28,
         y: 36,
@@ -224,9 +308,8 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
         ],
         space: {
           sceneId: "niujia-ruined-inn",
-          sceneLabel: "牛家村 · 废酒店后门",
+          sceneLabel: "牛家村 · 废酒馆后门",
           background: STORY_STAGE_BACKGROUNDS["niujia-ruined-inn"],
-          kicker: "空店与泥路",
           description: "旧酒旗已经扯破，后门门轴松脱，泥地却常有新鲜马蹄和靴印。",
           ambience: "风从破窗穿过去，屋里残留着陈酒和潮木头的气味。",
           residents: [],
@@ -259,7 +342,6 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
           sceneId: "niujia-west-grove",
           sceneLabel: "牛家村 · 村西林",
           background: STORY_STAGE_BACKGROUNDS["niujia-west-grove"],
-          kicker: "松林与旧土",
           description: "林子不深，靠村一侧多是松树，往西便接上荒坟和通往临安的小路。",
           ambience: "白日只有鸟声，入夜后风穿过松针，细响很容易遮住脚步。",
           residents: [],
@@ -292,7 +374,6 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
           sceneId: "niujia-training-ground",
           sceneLabel: "牛家村 · 村口空地",
           background: STORY_STAGE_BACKGROUNDS["niujia-training-ground"],
-          kicker: "木桩与兵器架",
           description: "夯土空地上立着三排木桩，村中青壮平日由陆教头带着练拳守夜。",
           ambience: "柳树下摆着木刀和白蜡杆，远处能看见进村的两条路。",
           residents: [
@@ -300,16 +381,29 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
               name: "陆教头",
               title: "村中护院教头",
               line: "练功不是站一日便长本事。先摆架，再拆招，最后看你能不能守住三回合。",
+              dialogues: [
+                {
+                  id: "stance",
+                  label: "请教站架",
+                  description: "请他指出长拳起手最常见的毛病。",
+                  response: "陆教头用白蜡杆先点肩，再点膝弯。陆教头：“肩抬高，拳就浮；膝锁死，脚就慢。先把这两处收住。”",
+                },
+                {
+                  id: "spar-rules",
+                  label: "问切磋规矩",
+                  description: "问过招时如何分胜负。",
+                  response: "陆教头：“木刀木杆，不打后脑，不追倒地的人。你能守住三轮便算有根基，能逼我退一步才算真长进。”",
+                },
+                {
+                  id: "night-watch",
+                  label: "问村口守夜",
+                  description: "问近来守夜时见过什么。",
+                  response: "陆教头：“临安方向来过两匹快马，进村前换了软底鞋。人没住店，只绕着郭杨两家看了一圈。”",
+                },
+              ],
             },
           ],
           actions: [
-            {
-              id: "talk-coach",
-              kind: "talk",
-              label: "请教基本架势",
-              description: "听陆教头讲长拳的站桩、护头与收势。",
-              resultText: "陆教头用白蜡杆点出你肩、肘、膝三处空门，让你先把架势摆稳，再谈出拳快慢。",
-            },
             {
               id: "spar-coach",
               kind: "spar",
@@ -331,7 +425,6 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
           sceneId: "niujia-east-road",
           sceneLabel: "牛家村 · 出村驿路",
           background: STORY_STAGE_BACKGROUNDS["niujia-east-road"],
-          kicker: "石桥与官道",
           description: "驿路越过小桥后分往临安与红梅村，村民常在桥头交换车马消息。",
           ambience: "车辙沿桥面向外延伸，远处官道偶尔有商旅和差役经过。",
           residents: [
@@ -339,16 +432,29 @@ export const STORY_AREA_MAPS: StoryAreaMap[] = [
               name: "桥头驿卒",
               title: "村路看守",
               line: "往临安的路还能走，天黑前若不回来，最好带盏风灯。",
+              dialogues: [
+                {
+                  id: "linan-road",
+                  label: "问临安路况",
+                  description: "打听官道上近来的车马。",
+                  response: "驿卒：“商车照走，官差却比往常多。两拨人都拿着公文，问的不是货，是牛家村住户。”",
+                },
+                {
+                  id: "river-ferry",
+                  label: "问江边渡口",
+                  description: "问今日还能否过江。",
+                  response: "驿卒：“申时前能过，潮头一上来便收船。夜里若真要走，只能沿北边田埂绕远路。”",
+                },
+                {
+                  id: "red-plum-road",
+                  label: "问红梅村",
+                  description: "打听去红梅村的小路。",
+                  response: "驿卒：“过石桥向西，两里见梅林便是。路窄，马车难走，徒步藏人倒比官道方便。”",
+                },
+              ],
             },
           ],
           actions: [
-            {
-              id: "ask-road",
-              kind: "talk",
-              label: "询问路况",
-              description: "打听临安、红梅村和江边渡口的行程。",
-              resultText: "驿卒说临安方向近来官差较多，红梅村路面尚稳，江边渡口则要看每日潮水。",
-            },
             {
               id: "leave-village",
               kind: "exit",

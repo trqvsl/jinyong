@@ -356,8 +356,8 @@ function App() {
       {screen === "npc" && player && <NpcScreen player={player} onUpdate={handleUpdate} onChallenge={handleChallengeNpc} onBack={() => returnToMain(player)} />}
       {screen === "battle" && player && battlePlayer && enemies.length > 0 && <BattleScreen player={player} battlePlayer={battlePlayer} enemies={enemies} teammates={battleTeammates} objective={battleObjective} partySupportBonuses={activePartyBonuses} partyBondBonuses={activePartyBondBonuses} partySupportTotals={activePartyTotals} openingSupportLines={battleSupportOpeningLines} onEnd={handleBattleEnd} />}
       {screen === "sect" && player && <SectScreen player={player} onLearn={handleLearn} onBack={() => returnToMain(player)} />}
-      {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={areaUtilityReturn ? returnToAreaUtility : () => returnToMain(player)} />}
-      {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={areaUtilityReturn ? returnToAreaUtility : () => returnToMain(player)} shopName={areaUtilityReturn ? "曲三酒店柜台" : undefined} shopkeeper={areaUtilityReturn ? "曲三" : undefined} />}
+      {screen === "character" && player && <CharacterScreen player={player} onUpdate={handleUpdate} onBack={areaUtilityReturn ? returnToAreaUtility : () => returnToMain(player)} mode={areaUtilityReturn ? "inventory" : "full"} locationName={areaUtilityReturn ? "牛家村 · 行旅整备" : undefined} />}
+      {screen === "shop" && player && <ShopScreen player={player} onUpdate={handleUpdate} onBack={areaUtilityReturn ? returnToAreaUtility : () => returnToMain(player)} shopName={areaUtilityReturn ? "酒馆柜台" : undefined} shopkeeper={areaUtilityReturn ? "曲三" : undefined} />}
       {screen === "ending-record" && player && <EndingRecordScreen player={player} onBack={() => returnToMain(player)} />}
     </div>
   )
